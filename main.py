@@ -1,4 +1,4 @@
-import hashlib, re, sys, functools, os, base64
+import hashlib, re, sys, os, base64
 
 ### Elliptic curve parameters
 
@@ -19,50 +19,6 @@ def inv(a,n):
     nm, new = hm-lm*r, high-low*r
     lm, low, hm, high = nm, new, lm, low
   return lm % n
-
-### http://eli.thegreenplace.net/2009/03/07/computing-modular-square-roots-in-python/
-
-def modular_sqrt(a, p):
-    if legendre_symbol(a, p) != 1: return 0
-    elif a == 0: return 0
-    elif p == 2: return p
-    elif p % 4 == 3: return pow(a, (p + 1) / 4, p)
-
-    s = p - 1
-    e = 0
-    while s % 2 == 0:
-        s /= 2
-        e += 1
-
-    n = 2
-    while legendre_symbol(n, p) != -1:
-        n += 1
-
-    x = pow(a, (s + 1) / 2, p)
-    b = pow(a, s, p)
-    g = pow(n, s, p)
-    r = e
-
-    while True:
-        t = b
-        m = 0
-        for m in xrange(r):
-            if t == 1:
-                break
-            t = pow(t, 2, p)
-
-        if m == 0:
-            return x
-
-        gs = pow(g, 2 ** (r - m - 1), p)
-        g = (gs * gs) % p
-        x = (x * gs) % p
-        b = (b * g) % p
-        r = m
-
-def legendre_symbol(a, p):
-    ls = pow(a, (p - 1) / 2, p)
-    return -1 if ls == p - 1 else ls
 
 ### Base switching
 
@@ -97,66 +53,84 @@ def decode(string,base):
 def changebase(string,frm,to):
    return encode(decode(string,frm),to)
 
+def evenlen(hs): return ('0' * (len(hs)%2) + hs)
+
 ### Elliptic Curve functions
 
+def isinf(p): return p[0] == 0 and p[1] == 0
+
 def base10_add(a,b):
-  if a == None: return b[0],b[1]
-  if b == None: return a[0],a[1]
+  if isinf(a): return b[0],b[1]
+  if isinf(b): return a[0],a[1]
   if a[0] == b[0]: 
     if a[1] == b[1]: return base10_double(a[0],a[1])
-    else: return None
+    else: return (0,0)
   m = ((b[1]-a[1]) * inv(b[0]-a[0],P)) % P
   x = (m*m-a[0]-b[0]) % P
   y = (m*(a[0]-x)-a[1]) % P
   return (x,y)
   
 def base10_double(a):
-  if a == None: return None
+  if isinf(a): return (0,0)
   m = ((3*a[0]*a[0]+A)*inv(2*a[1],P)) % P
   x = (m*m-2*a[0]) % P
   y = (m*(a[0]-x)-a[1]) % P
   return (x,y)
 
 def base10_multiply(a,n):
-  if n == 0: return G
+  if isinf(a) or n == 0: return (0,0)
   if n == 1: return a
+  if n < 0 or n >= N: return base10_multiply(a,n%N)
   if (n%2) == 0: return base10_double(base10_multiply(a,n/2))
   if (n%2) == 1: return base10_add(base10_double(base10_multiply(a,n/2)),a)
 
 def hex_to_point(h): return (decode(h[2:66],16),decode(h[66:],16))
-
 def point_to_hex(p): return '04'+encode(p[0],16,64)+encode(p[1],16,64)
 
-def multiply(privkey,pubkey):
-  return point_to_hex(base10_multiply(hex_to_point(pubkey),decode(privkey,16)))
+def bin_to_point(h): return (decode(h[1:33],256),decode(h[33:],256))
+def point_to_bin(p): return '\x04'+encode(p[0],256,32)+encode(p[1],256,32)
+
+def multiply(pubkey,privkey):
+  if isinstance(privkey,str): 
+      privkey = decode(privkey,16)
+  if isinstance(pubkey,str):
+      return point_to_hex(multiply(hex_to_point(pubkey),privkey))
+  return base10_multiply(pubkey,privkey)
 
 def privtopub(privkey):
+  if isinstance(privkey,(int,long)): return base10_multiply(G,privkey)
   return point_to_hex(base10_multiply(G,decode(privkey,16)))
 
+# Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
-  if (len(p1)==32):
-    return encode(decode(p1,16) + decode(p2,16) % P,16,32)
-  else:
+  if isinstance(p1,(int,long)):
+    return (p1+p2) % N
+  elif len(p1) == 64:
+    return encode(decode(p1,16) + decode(p2,16) % N,16,64)
+  elif len(p1) == 32:
+    return encode(decode(p1,256) + decode(p2,256) % N,256,32)
+  elif isinstance(p1,(tuple,list)):
+    return base10_add(p1,p2)
+  elif len(p1) == 65:
+    return point_to_bin(base10_add(bin_to_point(p1),bin_to_point(p2)))
+  elif len(p1) == 130:
     return point_to_hex(base10_add(hex_to_point(p1),hex_to_point(p2)))
+  else:
+    raise Exception("What in the world are you feeding me??")
 
-def neg(key): return (key[0],P-key[1])
+def neg(pubkey): 
+    if isinstance(pubkey,(list,tuple)): return (pubkey[0],P-pubkey[1])
+    else: return point_to_hex(neg(hex_to_point(pubkey)))
 
 ### Hashes
-
-def evenlen(hs): return ('0' * (len(hs)%2) + hs)
 
 def hexify(f):
     return lambda x: evenlen(changebase(f(x),256,16))
 
 def bin_hash160(string):
    intermed = hashlib.sha256(string).digest()
-   h = hashlib.new('ripemd160')
-   h.update(intermed)
-   return h.digest()
+   return hashlib.new('ripemd160',intermed).digest()
 hash160 = hexify(bin_hash160)
-
-def bin_sha1(string): return hashlib.sha1(string).digest()
-sha1 = hexify(bin_sha1)
 
 def bin_sha256(string): return hashlib.sha256(string).digest()
 sha256 = hexify(bin_sha256)
@@ -164,6 +138,11 @@ sha256 = hexify(bin_sha256)
 def bin_dbl_sha256(string):
    return hashlib.sha256(hashlib.sha256(string).digest()).digest()
 dbl_sha256 = hexify(bin_dbl_sha256)
+
+# WTF, Electrum?
+def electrum_sig_hash(message):
+    padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
+    return decode(bin_dbl_sha256(padded),256)
 
 ### Encodings
   
@@ -186,19 +165,21 @@ def hex_to_b58check(inp,magicbyte=0):
 def b58check_to_hex(inp): return evenlen(changebase(b58check_to_bin(inp),256,16))
 
 def pubkey_to_address(pubkey,magicbyte=0):
-   return bin_to_b58check(bin_hash160(changebase(pubkey,16,256)),magicbyte)
+   if isinstance(pubkey,(list,tuple)):
+       return pubkey_to_address(point_to_bin(pubkey),magicbyte)
+   if len(pubkey) == 130:
+       return bin_to_b58check(bin_hash160(changebase(pubkey,16,256)),magicbyte)
+   return bin_to_b58check(bin_hash160(pubkey),magicbyte)
 
 ### EDCSA (experimental)
 
-def yfromx(x,even):
-    ans = modular_sqrt(x*x*x+7 % P,P) 
-    if ans%2 ^ even: return P-ans
-    return ans
+def encode_sig(v,r,s):
+    vb, rb, sb = chr(v), encode(r,256), encode(s,256)
+    return base64.b64encode(vb+'\x00'*(32-len(rb))+rb+'\x00'*(32-len(sb))+sb)
 
-# WTF, Electrum?
-def electrum_sig_hash(message):
-    padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
-    return decode(bin_dbl_sha256(padded),256)
+def decode_sig(sig):
+    bytez = base64.b64decode(sig)
+    return ord(bytez[0]), decode(bytez[1:33],256), decode(bytez[33:],256)
 
 def ecdsa_sign(msg,priv):
 
@@ -208,14 +189,11 @@ def ecdsa_sign(msg,priv):
     r,y = base10_multiply(G,k)
     s = inv(k,N) * (z + r*decode(priv,16)) % N
 
-    vb, rb, sb = chr(27+(y%2)), encode(r,256), encode(s,256)
-
-    return base64.b64encode(vb+'\x00'*(32-len(rb))+rb+'\x00'*(32-len(sb))+sb)
+    return encode_sig(27+(y%2),r,s)
 
 def ecdsa_verify(msg,sig,pub):
 
-    sig256 = base64.b64decode(sig)
-    r,s = decode(sig256[1:33],256),decode(sig256[33:],256)
+    v,r,s = decode_sig(sig)
 
     z = electrum_sig_hash(msg)
     w = inv(s,N)
@@ -227,14 +205,14 @@ def ecdsa_verify(msg,sig,pub):
 
 def ecdsa_recover(msg,sig):
 
-    bytez = base64.b64decode(sig)
+    v,r,s = decode_sig(sig)
 
-    v,r,s = ord(bytez[0]), decode(bytez[1:33],256), decode(bytez[33:],256)
-
-    y = yfromx(r,1-(v%2))
+    x = r
+    beta = pow(x*x*x+7,(P+1)/4,P)
+    y = beta if v%2 ^ beta%2 else (P - beta)
     z = electrum_sig_hash(msg)
 
-    Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((r,y),s))
+    Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))
 
     if ecdsa_verify(msg,sig,point_to_hex(Q)): return point_to_hex(Q)
@@ -244,18 +222,22 @@ def ecdsa_recover_to_address(msg,sig,magicbytes=0):
     return pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
 
 def ecdsa_verify_with_address(msg,sig,addr,magicbytes=0):
-    return addr = pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
+    return addr == pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
     
 
 funs = {
     "pubkey_to_address": pubkey_to_address,
     "privtopub": privtopub,
     "add": add,
+    "multiply": multiply,
     "bin_to_b58check": bin_to_b58check,
     "b58check_to_bin": b58check_to_bin,
     "hex_to_b58check": hex_to_b58check,
     "b58check_to_hex": b58check_to_hex,
     "sha256": sha256,
+    "hash160": hash160,
+    "encode_sig": encode_sig,
+    "decode_sig": decode_sig,
     "sign": ecdsa_sign,
     "verifypub": ecdsa_verify,
     "sigpubkey": ecdsa_recover,
