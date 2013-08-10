@@ -98,9 +98,18 @@ def multiply(pubkey,privkey):
   return base10_multiply(pubkey,privkey)
 
 def privtopub(privkey):
-  if isinstance(privkey,(int,long)): return base10_multiply(G,privkey)
-  if len(privkey) == 64: return point_to_hex(base10_multiply(G,decode(privkey,16)))
-  else: return compress(base10_multiply(G,decode(privkey[2:],16)),'hex')
+  if isinstance(privkey,(int,long)):
+      return base10_multiply(G,privkey)
+  if len(privkey) == 64: 
+      return point_to_hex(base10_multiply(G,decode(privkey,16)))
+  elif len(privkey) == 66:
+      return compress(base10_multiply(G,decode(privkey[:-2],16)),'hex')
+  elif len(privkey) == 32:
+      return point_to_hex(base10_multiply(G,decode(privkey,16)))
+  elif len(privkey) == 33:
+      return compress(base10_multiply(G,decode(privkey[:-1],16)),'bin')
+  else:
+      return privtopub(b58check_to_hex(privkey))
 
 # Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
@@ -175,7 +184,7 @@ def b58check_to_hex(inp): return evenlen(changebase(b58check_to_bin(inp),256,16)
 def pubkey_to_address(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
        return pubkey_to_address(point_to_bin(pubkey),magicbyte)
-   if len(pubkey) == 130:
+   if len(pubkey) in [66,130]:
        return bin_to_b58check(bin_hash160(changebase(pubkey,16,256)),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
 
