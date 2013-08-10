@@ -99,7 +99,8 @@ def multiply(pubkey,privkey):
 
 def privtopub(privkey):
   if isinstance(privkey,(int,long)): return base10_multiply(G,privkey)
-  return point_to_hex(base10_multiply(G,decode(privkey,16)))
+  if len(privkey) == 64: return point_to_hex(base10_multiply(G,decode(privkey,16)))
+  else: return compress(base10_multiply(G,decode(privkey[2:],16)),'hex')
 
 # Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
@@ -139,6 +140,13 @@ def bin_dbl_sha256(string):
    return hashlib.sha256(hashlib.sha256(string).digest()).digest()
 dbl_sha256 = hexify(bin_dbl_sha256)
 
+def bin_slowsha(string):
+    orig_input = string
+    for i in range(100000):
+        string = hashlib.sha256(string + orig_input).digest()
+    return string
+slowsha = hexify(bin_slowsha)
+
 # WTF, Electrum?
 def electrum_sig_hash(message):
     padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
@@ -170,6 +178,21 @@ def pubkey_to_address(pubkey,magicbyte=0):
    if len(pubkey) == 130:
        return bin_to_b58check(bin_hash160(changebase(pubkey,16,256)),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
+
+def compress(pubkey,out=None):
+    if len(pubkey) == 65 and not out: return compress(bin_to_point(pubkey),'bin')
+    if len(pubkey) == 130 and not out: return compress(hex_to_point(pubkey),'hex')
+    if out == 'bin': return chr(2+(pubkey[1]%2))+encode(pubkey[0],256,32)
+    return '0'+str(2+(pubkey[1]%2))+encode(pubkey[0],16,64)
+
+def decompress(pubkey):
+    if len(pubkey) == 33: x,ymod2 = decode(pubkey[1:],256),ord(pubkey[0])-2
+    else: x,ymod2 = decode(pubkey[2:],16),int(pubkey[1])-2
+    beta = pow(x*x*x+7,(P+1)/4,P)
+    y = (P-beta) if (beta%2) ^ ymod2 else beta
+    if len(pubkey) == 33: return '\x04'+pubkey[1:]+encode(y,256,32)
+    else: return '04'+pubkey[2:]+encode(y,16,64)
+
 
 ### EDCSA (experimental)
 
@@ -223,7 +246,30 @@ def ecdsa_recover_to_address(msg,sig,magicbytes=0):
 
 def ecdsa_verify_with_address(msg,sig,addr,magicbytes=0):
     return addr == pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
-    
+
+### Electrum wallets
+
+def electrum_stretch(seed): return slowsha(seed)
+
+# Accepts seed or stretched seed, returns master public key
+def electrum_mpk(seed):
+    if len(seed) == 32: seed = electrum_stretch(seed)
+    return privtopub(seed)[2:]
+
+# Accepts (seed or stretched seed) and index, returns privkey
+def electrum_privkey(seed,n,for_change=0):
+    if len(seed) == 32: seed = electrum_stretch(seed)
+    mpk = electrum_mpk(seed)
+    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+changebase(mpk,16,256)),256)
+    return encode((decode(seed,16) + offset) % N,16,64)
+
+# Accepts (seed or stretched seed or master public key) and index, returns pubkey
+def electrum_pubkey(masterkey,n,for_change=0):
+    if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
+    elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
+    else: mpk = masterkey
+    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+changebase(mpk,16,256)),256)
+    return add('04'+mpk,point_to_hex(multiply(G,offset)))
 
 funs = {
     "pubkey_to_address": pubkey_to_address,
@@ -236,15 +282,22 @@ funs = {
     "b58check_to_hex": b58check_to_hex,
     "sha256": sha256,
     "hash160": hash160,
+    "compress": compress,
+    "decompress": decompress,
     "encode_sig": encode_sig,
     "decode_sig": decode_sig,
     "sign": ecdsa_sign,
     "verifypub": ecdsa_verify,
     "sigpubkey": ecdsa_recover,
     "sigaddr": ecdsa_recover_to_address,
-    "verify": ecdsa_verify_with_address
+    "verify": ecdsa_verify_with_address,
+    "electrum_stretch": electrum_stretch,
+    "electrum_mpk": electrum_mpk,
+    "electrum_privkey": electrum_privkey,
+    "electrum_pubkey": electrum_pubkey,
 }
 if len(sys.argv) > 1:
     f = funs.get(sys.argv[1],None)
-    if not f: sys.stderr.write( "Invalid argument" )
+    if not f:
+        if sys.argv[0] != 'test.py': sys.stderr.write( "Invalid argument" )
     else: print f(*sys.argv[2:])

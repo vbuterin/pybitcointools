@@ -1,8 +1,13 @@
-import random, os, json
+import random, os, json, sys
 
 from main import *
 
-for i in range(10):
+argv = sys.argv + ['y']*3
+
+if argv[1] == 'y':
+    print "Starting ECC arithmetic tests"
+for i in range(8 if argv[1] == 'y' else 0):
+    print "### Round %d" % (i+1)
     x,y = random.randrange(2**512) - 2**511, random.randrange(2**512) - 2**511
     print multiply(multiply(G,x),y)[0] == multiply(multiply(G,y),x)[0]
     print add(multiply(G,x),multiply(G,y))[0] == multiply(G,add(x,y))[0]
@@ -12,13 +17,33 @@ for i in range(10):
     h1601 = b58check_to_hex(pubkey_to_address(privtopub(x)))
     h1602 = b58check_to_hex(pubkey_to_address(multiply(G,hx),23))
     print h1601 == h1602
+    p = privtopub(sha256(str(x)))
+    if i%2 == 1: p = changebase(p,16,256)
+    print decompress(compress(p)) == p
 
-wallet = "/tmp/tempwallet_"+str(random.randrange(2**40))
-print "Starting wallet tests with: "+wallet
-os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
-addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
+if argv[2] == 'y':
+    print "Starting Electrum tests"
+for i in range(3 if argv[2] == 'y' else 0):
+    seed = sha256(str(random.randrange(2**40)))[:32]
+    mpk = electrum_mpk(seed)
+    print 'seed: ',seed
+    print 'mpk: ',mpk
+    for i in range(5):
+        pk = electrum_privkey(seed,i)
+        pub = electrum_pubkey((mpk,seed)[i%2],i)
+        pub2 = privtopub(pk)
+        print 'priv: ',pk
+        print 'pub: ',pub
+        print pub == pub2
+        if pub != pub2: print 'DOES NOT MATCH!!!!\npub2: '+pub2
 
-for i in range(10):
+if argv[3] == 'y':
+    wallet = "/tmp/tempwallet_"+str(random.randrange(2**40))
+    print "Starting wallet tests with: "+wallet
+    os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
+    addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
+
+for i in range(8 if argv[3] == 'y' else 0):
     alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
     msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20,200))])
     addy = random.choice(addies)
