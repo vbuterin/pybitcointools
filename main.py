@@ -1,4 +1,4 @@
-import hashlib, re, sys, os, base64
+import hashlib, re, sys, os, base64, time, random
 
 ### Elliptic curve parameters
 
@@ -50,8 +50,8 @@ def decode(string,base):
       string = string[1:]
    return result
 
-def changebase(string,frm,to):
-   return encode(decode(string,frm),to)
+def changebase(string,frm,to,minlen=0):
+   return encode(decode(string,frm),to,minlen)
 
 def evenlen(hs): return ('0' * (len(hs)%2) + hs)
 
@@ -159,7 +159,12 @@ slowsha = hexify(bin_slowsha)
 # WTF, Electrum?
 def electrum_sig_hash(message):
     padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
-    return decode(bin_dbl_sha256(padded),256)
+    return bin_dbl_sha256(padded)
+
+def tx_sig_hash(tx):
+    if re.match('^[0-9a-f]*$',tx):
+        tx = changebase(tx,16,256)
+    return bin_dbl_sha256(tx)
 
 ### Encodings
   
@@ -177,7 +182,7 @@ def b58check_to_bin(inp):
    return data[1:-4]
 
 def hex_to_b58check(inp,magicbyte=0):
-    return bin_to_b58check(changebase(inp,16,256),magicbyte)
+    return bin_to_b58check(changebase(inp,16,256,len(inp)/2),magicbyte)
 
 def b58check_to_hex(inp): return evenlen(changebase(b58check_to_bin(inp),256,16))
 
@@ -213,42 +218,78 @@ def decode_sig(sig):
     bytez = base64.b64decode(sig)
     return ord(bytez[0]), decode(bytez[1:33],256), decode(bytez[33:],256)
 
-def ecdsa_sign(msg,priv):
+def der_encode_sig(v,r,s):
+    b1, b2 = encode(r,16,64), encode(s,16,64)
+    if r >= 2**255: b1 = '00' + b1
+    if s >= 2**255: b2 = '00' + b2
+    left = '02'+encode(len(b1)/2,16,2)+b1
+    right = '02'+encode(len(b2)/2,16,2)+b2
+    return '30'+encode(len(left+right)/2,16,2)+left+right
 
-    z = electrum_sig_hash(msg)
-    k = decode(os.urandom(32),256)
+def der_decode_sig(sig):
+    leftlen = decode(sig[6:8],16)*2
+    left = sig[8:8+leftlen]
+    rightlen = decode(sig[10+leftlen:12+leftlen],16)*2
+    right = sig[12+leftlen:12+leftlen+rightlen]
+    return (None,decode(left,16),decode(right,16))
+
+def ecdsa_raw_sign(msghash,priv):
+
+    z = decode(msghash,16 if len(msghash) == 64 else 256)
+    # Gotta be paranoid after that java.SecureRandom fiasco...
+    k = decode(os.urandom(32),256) ^ random.randrange(2**256) ^ int(time.time())**7
 
     r,y = base10_multiply(G,k)
     s = inv(k,N) * (z + r*decode(priv,16)) % N
 
-    return encode_sig(27+(y%2),r,s)
+    return 27+(y%2),r,s
 
-def ecdsa_verify(msg,sig,pub):
+def ecdsa_sign(msg,priv):
+    return encode_sig(*ecdsa_raw_sign(electrum_sig_hash(msg),priv))
 
-    v,r,s = decode_sig(sig)
+def ecdsa_tx_sign(msg,priv):
+    return der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))
 
-    z = electrum_sig_hash(msg)
+def ecdsa_raw_verify(msghash,vrs,pub):
+    v,r,s = vrs
+
     w = inv(s,N)
+    z = decode(msghash,16 if len(msghash) == 64 else 256)
     
     u1, u2 = z*w % N, r*w % N
     x,y = base10_add(base10_multiply(G,u1), base10_multiply(hex_to_point(pub),u2))
 
     return r == x
 
-def ecdsa_recover(msg,sig):
+def ecdsa_verify(msg,sig,pub):
+    return ecdsa_raw_verify(electrum_sig_hash(msg),decode_sig(sig),pub)
 
-    v,r,s = decode_sig(sig)
+def ecdsa_tx_verify(msg,sig,pub):
+    return ecdsa_raw_verify(tx_sig_hash(msg),der_decode_sig(sig),pub)
+
+def ecdsa_raw_recover(msghash,vrs):
+    v,r,s = vrs
 
     x = r
     beta = pow(x*x*x+7,(P+1)/4,P)
     y = beta if v%2 ^ beta%2 else (P - beta)
-    z = electrum_sig_hash(msg)
+    z = decode(msghash,16 if len(msghash) == 64 else 256)
 
     Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))
 
-    if ecdsa_verify(msg,sig,point_to_hex(Q)): return point_to_hex(Q)
+    if ecdsa_raw_verify(msghash,vrs,point_to_hex(Q)): return point_to_hex(Q)
     return False
+
+def ecdsa_recover(msg,sig):
+    return ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig))
+
+def ecdsa_tx_recover(msg,sig):
+    _,r,s = der_decode_sig(sig)
+    h = tx_sig_hash(msg)
+    left = ecdsa_raw_recover(h,(0,r,s))
+    right = ecdsa_raw_recover(h,(1,r,s))
+    return (left, right)
 
 def ecdsa_recover_to_address(msg,sig,magicbytes=0):
     return pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
@@ -300,6 +341,9 @@ funs = {
     "sigpubkey": ecdsa_recover,
     "sigaddr": ecdsa_recover_to_address,
     "verify": ecdsa_verify_with_address,
+    "txsign": ecdsa_tx_sign,
+    "txverify": ecdsa_tx_verify,
+    "txrevoer": ecdsa_tx_recover,
     "electrum_stretch": electrum_stretch,
     "electrum_mpk": electrum_mpk,
     "electrum_privkey": electrum_privkey,

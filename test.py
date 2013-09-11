@@ -2,7 +2,7 @@ import random, os, json, sys
 
 from main import *
 
-argv = sys.argv + ['y']*3
+argv = sys.argv + ['y']*4
 
 if argv[1] == 'y':
     print "Starting ECC arithmetic tests"
@@ -69,3 +69,14 @@ for i in range(8 if argv[3] == 'y' else 0):
     mysig = ecdsa_sign(msg,priv)
     v = os.popen('electrum -w %s verifymessage %s %s %s' % (wallet,addy, sig, msg)).read()
     print v
+
+for i in range(10 if argv[4] == 'y' else 0):
+    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
+    msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20,200))])
+    priv = sha256(str(random.randrange(2**256)))
+    pub = privtopub(priv)
+    sig = ecdsa_der_sign(msg,priv)
+    v = ecdsa_der_verify(msg,sig,pub)
+    print "Verified" if v else "Verification error"
+    rec = ecdsa_der_recover(msg,sig)
+    print "Recovered" if pub in rec else "Recovery failed"
