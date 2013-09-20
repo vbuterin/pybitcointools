@@ -162,7 +162,7 @@ def electrum_sig_hash(message):
     return bin_dbl_sha256(padded)
 
 def tx_sig_hash(tx):
-    if re.match('^[0-9a-f]*$',tx):
+    if re.match('^[0-9a-fA-F]*$',tx):
         tx = changebase(tx,16,256)
     return bin_dbl_sha256(tx)
 
@@ -218,21 +218,6 @@ def decode_sig(sig):
     bytez = base64.b64decode(sig)
     return ord(bytez[0]), decode(bytez[1:33],256), decode(bytez[33:],256)
 
-def der_encode_sig(v,r,s):
-    b1, b2 = encode(r,16,64), encode(s,16,64)
-    if r >= 2**255: b1 = '00' + b1
-    if s >= 2**255: b2 = '00' + b2
-    left = '02'+encode(len(b1)/2,16,2)+b1
-    right = '02'+encode(len(b2)/2,16,2)+b2
-    return '30'+encode(len(left+right)/2,16,2)+left+right
-
-def der_decode_sig(sig):
-    leftlen = decode(sig[6:8],16)*2
-    left = sig[8:8+leftlen]
-    rightlen = decode(sig[10+leftlen:12+leftlen],16)*2
-    right = sig[12+leftlen:12+leftlen+rightlen]
-    return (None,decode(left,16),decode(right,16))
-
 def ecdsa_raw_sign(msghash,priv):
 
     z = decode(msghash,16 if len(msghash) == 64 else 256)
@@ -247,9 +232,6 @@ def ecdsa_raw_sign(msghash,priv):
 def ecdsa_sign(msg,priv):
     return encode_sig(*ecdsa_raw_sign(electrum_sig_hash(msg),priv))
 
-def ecdsa_tx_sign(msg,priv):
-    return der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))
-
 def ecdsa_raw_verify(msghash,vrs,pub):
     v,r,s = vrs
 
@@ -263,9 +245,6 @@ def ecdsa_raw_verify(msghash,vrs,pub):
 
 def ecdsa_verify(msg,sig,pub):
     return ecdsa_raw_verify(electrum_sig_hash(msg),decode_sig(sig),pub)
-
-def ecdsa_tx_verify(msg,sig,pub):
-    return ecdsa_raw_verify(tx_sig_hash(msg),der_decode_sig(sig),pub)
 
 def ecdsa_raw_recover(msghash,vrs):
     v,r,s = vrs
@@ -283,13 +262,6 @@ def ecdsa_raw_recover(msghash,vrs):
 
 def ecdsa_recover(msg,sig):
     return ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig))
-
-def ecdsa_tx_recover(msg,sig):
-    _,r,s = der_decode_sig(sig)
-    h = tx_sig_hash(msg)
-    left = ecdsa_raw_recover(h,(0,r,s))
-    right = ecdsa_raw_recover(h,(1,r,s))
-    return (left, right)
 
 def ecdsa_recover_to_address(msg,sig,magicbytes=0):
     return pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
@@ -341,9 +313,6 @@ funs = {
     "sigpubkey": ecdsa_recover,
     "sigaddr": ecdsa_recover_to_address,
     "verify": ecdsa_verify_with_address,
-    "txsign": ecdsa_tx_sign,
-    "txverify": ecdsa_tx_verify,
-    "txrevoer": ecdsa_tx_recover,
     "electrum_stretch": electrum_stretch,
     "electrum_mpk": electrum_mpk,
     "electrum_privkey": electrum_privkey,
