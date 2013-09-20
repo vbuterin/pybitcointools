@@ -156,9 +156,19 @@ def bin_slowsha(string):
     return string
 slowsha = hexify(bin_slowsha)
 
+def numToVarInt(i):
+    if (i < 0xfd):
+        return chr(i)
+    elif (i <= 0xffff):
+        return chr(0xfd) + chr(i % 0x100) + chr(i / 0x100)
+    elif (i <= 0xffffffff):
+        return chr(0xfe) + chr(i % 0x100) + chr((i/0x100) % 0x100) + chr((i/(0x10000)) % 0x100) + chr((i/(0x1000000)) % 0x100)
+    else:
+	raise RuntimeError('int too large')
+
 # WTF, Electrum?
 def electrum_sig_hash(message):
-    padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
+    padded = "\x18Bitcoin Signed Message:\n" + numToVarInt( len(message) ) + message
     return bin_dbl_sha256(padded)
 
 def tx_sig_hash(tx):
