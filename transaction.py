@@ -50,12 +50,6 @@ def deserialize(tx):
     obj["locktime"] = read_as_int(4)
     return obj
 
-def num_to_var_int(x):
-    if x < 253: return chr(x)
-    elif x < 65536: return chr(253) + encode(x,256,2)[::-1]
-    elif x < 4294967296: return chr(254) + encode(x,256,4)[::-1]
-    else: return chr(255) + encode(x,256,8)[::-1]
-
 def serialize(txobj):
     o = []
     if re.match('^[0-9a-fA-F\{\}:\[\]", ]*$',json.dumps(txobj)):
@@ -179,6 +173,7 @@ def verify_tx_input(tx,i,script,sig):
     if re.match('^[0-9a-fA-F]$',sig): sig = changebase(sig,16,256)
     hashcode = ord(sig[-1])
     modtx = signature_form(tx,i,script)
+    script_sig = deserialize(tx)["ins"][i]["script"]
     if script[:3] == '\x76\xa9\x14':
         return ecdsa_tx_verify(modtx,sig,script[3:-2])
     elif script[:2] == '\xa9\x14':

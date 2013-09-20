@@ -156,9 +156,15 @@ def bin_slowsha(string):
     return string
 slowsha = hexify(bin_slowsha)
 
+def num_to_var_int(x):
+    if x < 253: return chr(x)
+    elif x < 65536: return chr(253) + encode(x,256,2)[::-1]
+    elif x < 4294967296: return chr(254) + encode(x,256,4)[::-1]
+    else: return chr(255) + encode(x,256,8)[::-1]
+
 # WTF, Electrum?
 def electrum_sig_hash(message):
-    padded = "\x18Bitcoin Signed Message:\n" + chr( len(message) ) + message
+    padded = "\x18Bitcoin Signed Message:\n" + num_to_var_int( len(message) ) + message
     return bin_dbl_sha256(padded)
 
 def tx_sig_hash(tx):

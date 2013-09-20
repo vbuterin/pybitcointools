@@ -1,6 +1,7 @@
 import random, os, json, sys
 
 from main import *
+from transaction import *
 
 argv = sys.argv + ['y']*4
 
