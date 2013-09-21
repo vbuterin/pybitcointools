@@ -135,7 +135,7 @@ def neg(pubkey):
 ### Hashes
 
 def hexify(f):
-    return lambda x: evenlen(changebase(f(x),256,16))
+    return lambda x: f(x).encode('hex')
 
 def bin_hash160(string):
    intermed = hashlib.sha256(string).digest()
@@ -167,11 +167,6 @@ def electrum_sig_hash(message):
     padded = "\x18Bitcoin Signed Message:\n" + num_to_var_int( len(message) ) + message
     return bin_dbl_sha256(padded)
 
-def tx_sig_hash(tx):
-    if re.match('^[0-9a-fA-F]*$',tx):
-        tx = changebase(tx,16,256)
-    return bin_dbl_sha256(tx)
-
 ### Encodings
   
 def bin_to_b58check(inp,magicbyte=0):
@@ -188,15 +183,15 @@ def b58check_to_bin(inp):
    return data[1:-4]
 
 def hex_to_b58check(inp,magicbyte=0):
-    return bin_to_b58check(changebase(inp,16,256,len(inp)/2),magicbyte)
+    return bin_to_b58check(inp.decode('hex'),magicbyte)
 
-def b58check_to_hex(inp): return evenlen(changebase(b58check_to_bin(inp),256,16))
+def b58check_to_hex(inp): return evenlen(b58check_to_bin(inp).encode('hex'))
 
 def pubkey_to_address(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
        return pubkey_to_address(point_to_bin(pubkey),magicbyte)
    if len(pubkey) in [66,130]:
-       return bin_to_b58check(bin_hash160(changebase(pubkey,16,256)),magicbyte)
+       return bin_to_b58check(bin_hash160(pubkey.decode('hex')),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
 
 def compress(pubkey,out=None):
@@ -288,7 +283,7 @@ def electrum_mpk(seed):
 def electrum_privkey(seed,n,for_change=0):
     if len(seed) == 32: seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+changebase(mpk,16,256)),256)
+    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+mpk.decode('hex')),256)
     return encode((decode(seed,16) + offset) % N,16,64)
 
 # Accepts (seed or stretched seed or master public key) and index, returns pubkey
@@ -296,7 +291,7 @@ def electrum_pubkey(masterkey,n,for_change=0):
     if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
     else: mpk = masterkey
-    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+changebase(mpk,16,256)),256)
+    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+mpk.decode('hex')),256)
     return add('04'+mpk,point_to_hex(multiply(G,offset)))
 
 funs = {

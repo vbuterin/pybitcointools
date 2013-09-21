@@ -1,29 +1,51 @@
 import re, json, copy
 from main import *
 
-def json_changebase(obj,frm,to):
-    if isinstance(obj,str): return changebase(obj,frm,to)
+### Hex to bin converter and vice versa for objects
+
+def json_is_base(obj,base):
+    alpha = get_code_string(base)
+    if isinstance(obj,str):
+        for i in range(len(obj)):
+            if alpha.find(obj[i]) == -1: return False
+        return True
+    elif isinstance(obj,(int,float,long)): return True
+    elif isinstance(obj,list):
+        for i in range(len(obj)):
+            if not json_is_base(obj[i],base): return False
+        return True
+    else:
+        for x in obj:
+            if not json_is_base(obj[x],base): return False
+        return True
+
+def json_changebase(obj,changer):
+    if isinstance(obj,str): return changer(obj)
     if isinstance(obj,(int,float,long)): return obj
-    if isinstance(obj,list): return [json_changebase(x) for x in obj]
-    return { x:json_changebase(obj[x],frm,to) for x in obj }
+    if isinstance(obj,list): return [json_changebase(x,changer) for x in obj]
+    return { x:json_changebase(obj[x],changer) for x in obj }
+
+### Transaction serialization and deserialization
 
 def deserialize(tx):
-    if re.match('^[0-9a-fA-F]$',tx):
-        return json_changebase(changebase(tx,16,256),256,16)
-    pos = 0
+    if re.match('^[0-9a-fA-F]*$',tx):
+        return json_changebase(deserialize(tx.decode('hex')),lambda x:x.encode('hex'))
+    # http://stackoverflow.com/questions/4851463/python-closure-write-to-variable-in-parent-scope
+    # Python's scoping rules are demented, requiring me to make pos an object so that it is call-by-reference
+    pos = [0]
 
     def read_as_int(bytez):
-        pos += bytez
-        return decode(tx[pos-1:pos-bytez-1:-1],256)
+        pos[0] += bytez
+        return decode(tx[pos[0]-bytez:pos[0]][::-1],256)
 
     def read_var_int():
-        pos += 1
-        if ord(tx[pos-1]) < 253: return ord(tx[pos])
-        return read_as_int(ord(tx[pos-1]) - 251)
+        pos[0] += 1
+        if ord(tx[pos[0]-1]) < 253: return ord(tx[pos[0]-1])
+        return read_as_int(pow(2,ord(tx[pos[0]-1]) - 252))
         
     def read_bytes(bytez):
-        pos += bytez
-        return tx[pos-bytez:pos]
+        pos[0] += bytez
+        return tx[pos[0]-bytez:pos[0]]
 
     def read_var_string():
         size = read_var_int()
@@ -44,7 +66,7 @@ def deserialize(tx):
     outs = read_var_int()
     for i in range(outs):
         obj["outs"].append({
-            "value" : read_bytes(8),
+            "value" : read_as_int(8),
             "script": read_var_string()
         })
     obj["locktime"] = read_as_int(4)
@@ -52,8 +74,8 @@ def deserialize(tx):
 
 def serialize(txobj):
     o = []
-    if re.match('^[0-9a-fA-F\{\}:\[\]", ]*$',json.dumps(txobj)):
-        return changebase(serialize(json_changebase(txobj,16,256)),256,16)
+    if json_is_base(txobj,16):
+        return serialize(json_changebase(txobj,lambda x: x.decode('hex'))).encode('hex')
     o.append(encode(txobj["version"],256,4)[::-1])
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
@@ -65,13 +87,15 @@ def serialize(txobj):
     for out in txobj["outs"]:
         o.append(encode(out["value"],256,8)[::-1])
         o.append(num_to_var_int(len(out["script"]))+out["script"])
-    o.append(encode(out["locktime"],256,4)[::-1])
+    o.append(encode(txobj["locktime"],256,4)[::-1])
+    return ''.join(o)
+
+### Hashing transactions for signing
 
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
 SIGHASH_ANYONECANPAY = 80
-
 
 def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
     if isinstance(tx,"string"):
@@ -92,6 +116,8 @@ def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
         pass
     return serialize(newtx)
 
+### Making the actual signatures
+
 def der_encode_sig(v,r,s):
     b1, b2 = encode(r,16,64), encode(s,16,64)
     if r >= 2**255: b1 = '00' + b1
@@ -107,6 +133,11 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None,decode(left,16),decode(right,16))
 
+def tx_sig_hash(tx):
+    if re.match('^[0-9a-fA-F]*$',tx):
+        tx = changebase(tx,16,256)
+    return bin_dbl_sha256(tx)
+
 def ecdsa_tx_sign(msg,priv,hashcode=SIGHASH_ALL):
     return der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))+encode(hashcode,16,2)
 
@@ -120,6 +151,8 @@ def ecdsa_tx_recover(msg,sig):
     right = ecdsa_raw_recover(h,(1,r,s))
     return (left, right)
 
+### Scripts
+
 def mk_pubkey_script(addr):
     return '76a914' + b58check_to_hex(addr) + '88ac'
 
@@ -127,8 +160,8 @@ def mk_scripthash_script(addr):
     return 'a914' + b58check_to_hex(addr) + '87'
 
 def deserialize_script(script):
-    if re.match('^[0-9a-fA-F]$',script):
-        return json_changebase(changebase(script,16,256),256,16)
+    if re.match('^[0-9a-fA-F]*$',script):
+        return json_changebase(deserialize_script(script.decode('hex')),lambda x:x.encode('hex'))
     out, pos = [], 0
     while pos < len(script):
         code = ord(script[pos])
@@ -139,7 +172,7 @@ def deserialize_script(script):
             pos += 1 + code
         elif code <= 78:
             szsz = pow(2,code - 76)
-            sz = decode(script[pos + 1 : pos + 1 + szsz],256)[::-1]
+            sz = decode(script[pos + szsz : pos : -1],256)
             out.append(script[pos + 1 + szsz:pos + 1 + szsz + sz])
             pos += 1 + szsz + sz
         elif code <= 96:
@@ -156,28 +189,39 @@ def serialize_script_unit(unit):
         else: return chr(unit)
     else:
         if len(unit) <= 75: return chr(len(unit))+unit
-        else if len(unit) < 256: return chr(76)+chr(len(unit))+unit
-        else if len(unit) < 65536: return chr(77)+encode(len(unit),256,2)[::-1]+unit
+        elif len(unit) < 256: return chr(76)+chr(len(unit))+unit
+        elif len(unit) < 65536: return chr(77)+encode(len(unit),256,2)[::-1]+unit
         else: return chr(78)+encode(len(unit),256,4)[::-1]+unit
 
 def serialize_script(script):
-    if re.match('^[0-9a-fA-F\{\}:\[\]", ]*$',json.dumps(script)):
-        return changebase(serialize_script(json_changebase(script,16,256)),16)
+    if json_is_base(script,16):
+        return serialize_script(json_changebase(script,lambda x:x.decode('hex'))).encode('hex')
     return ''.join(map(serialize_script_unit,script))
 
-# TODO: IN PROGRESS
+### Signing and verifying
 
-def verify_tx_input(tx,i,script,sig):
-    if re.match('^[0-9a-fA-F]$',tx): tx = changebase(tx,16,256)
-    if re.match('^[0-9a-fA-F]$',script): script = changebase(script,16,256)
-    if re.match('^[0-9a-fA-F]$',sig): sig = changebase(sig,16,256)
+def verify_tx_input(tx,i,script,sig,pub):
+    if re.match('^[0-9a-fA-F]*$',tx): tx = changebase(tx,16,256)
+    if re.match('^[0-9a-fA-F]*$',script): script = changebase(script,16,256)
+    if re.match('^[0-9a-fA-F]*$',sig): sig = changebase(sig,16,256)
     hashcode = ord(sig[-1])
     modtx = signature_form(tx,i,script)
-    script_sig = deserialize(tx)["ins"][i]["script"]
-    if script[:3] == '\x76\xa9\x14':
-        return ecdsa_tx_verify(modtx,sig,script[3:-2])
-    elif script[:2] == '\xa9\x14':
-        sc = deserialize_script(script)
-        pubs = filter(lambda x: len(x) == 33 or len(x) == 65,sc)
-        if hash160(script) != tx[i][]
-        return 
+    return ecdsa_tx_verify(modtx,sig,pub)
+
+def sign(tx,i,pk):
+    if not re.match('^[0-9a-fA-F]*$',tx):
+        return sign(tx.encode('hex'),i,pk).decode('hex')
+    if len(pk) < 64: pk = pk.encode('hex')
+    pub = privtopub(pk)
+    address = pubkey_to_address(pub)
+    signing_tx = signature_form(tx,i,mk_pubkey_script(address))
+    sig = ecdsa_tx_sign(signing_tx,pk)
+    txobj = deserialize(tx)
+    txobj["ins"][i]["script"] = serialize_script([sig,pub])
+    return serialize(txobj)
+
+def multisign(tx,i,script,pk):
+    if not re.match('^[0-9a-fA-F]*$',tx):
+        return multisign(tx.encode('hex'),i,pk).decode('hex')
+    modtx = signature_form(tx,i,script)
+    return ecdsa_tx_sign(modtx,pk)
