@@ -9,7 +9,7 @@ def json_is_base(obj,base):
         for i in range(len(obj)):
             if alpha.find(obj[i]) == -1: return False
         return True
-    elif isinstance(obj,(int,float,long)): return True
+    elif isinstance(obj,(int,float,long)) or obj is None: return True
     elif isinstance(obj,list):
         for i in range(len(obj)):
             if not json_is_base(obj[i],base): return False
@@ -21,8 +21,8 @@ def json_is_base(obj,base):
 
 def json_changebase(obj,changer):
     if isinstance(obj,str): return changer(obj)
-    if isinstance(obj,(int,float,long)): return obj
-    if isinstance(obj,list): return [json_changebase(x,changer) for x in obj]
+    elif isinstance(obj,(int,float,long)) or obj is None: return obj
+    elif isinstance(obj,list): return [json_changebase(x,changer) for x in obj]
     return { x:json_changebase(obj[x],changer) for x in obj }
 
 ### Transaction serialization and deserialization
@@ -98,7 +98,7 @@ SIGHASH_SINGLE = 3
 SIGHASH_ANYONECANPAY = 80
 
 def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
-    if isinstance(tx,"string"):
+    if isinstance(tx,str):
         return serialize(signature_form(deserialize(tx),i,script))
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]: inp["script"] = ""
@@ -114,7 +114,7 @@ def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
         newtx["ins"] = [newtx["ins"][i]]
     else:
         pass
-    return serialize(newtx)
+    return newtx
 
 ### Making the actual signatures
 
@@ -139,7 +139,8 @@ def tx_sig_hash(tx):
     return bin_dbl_sha256(tx)
 
 def ecdsa_tx_sign(msg,priv,hashcode=SIGHASH_ALL):
-    return der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))+encode(hashcode,16,2)
+    s = der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))+encode(hashcode,16,2)
+    return s
 
 def ecdsa_tx_verify(msg,sig,pub):
     return ecdsa_raw_verify(tx_sig_hash(msg),der_decode_sig(sig),pub)
@@ -166,6 +167,7 @@ def deserialize_script(script):
     while pos < len(script):
         code = ord(script[pos])
         if code == 0:
+            out.append('zero')
             pos += 1
         elif code <= 75:
             out.append(script[pos+1:pos+1+code])
@@ -187,6 +189,8 @@ def serialize_script_unit(unit):
     if isinstance(unit,int):
         if unit < 16: return chr(unit + 80)
         else: return chr(unit)
+    elif unit is None:
+        return '\x00'
     else:
         if len(unit) <= 75: return chr(len(unit))+unit
         elif len(unit) < 256: return chr(76)+chr(len(unit))+unit
@@ -198,12 +202,18 @@ def serialize_script(script):
         return serialize_script(json_changebase(script,lambda x:x.decode('hex'))).encode('hex')
     return ''.join(map(serialize_script_unit,script))
 
+def mk_multisig_script(pubs,k,n):
+    return serialize_script([k]+sorted(pubs)+[n,174])
+
+def scriptaddr(script):
+    return hex_to_b58check(hash160(script),5)
+
 ### Signing and verifying
 
 def verify_tx_input(tx,i,script,sig,pub):
-    if re.match('^[0-9a-fA-F]*$',tx): tx = changebase(tx,16,256)
-    if re.match('^[0-9a-fA-F]*$',script): script = changebase(script,16,256)
-    if re.match('^[0-9a-fA-F]*$',sig): sig = changebase(sig,16,256)
+    if re.match('^[0-9a-fA-F]*$',tx): tx = tx.decode('hex')
+    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
+    if not re.match('^[0-9a-fA-F]*$',sig): sig = sig.encode('hex')
     hashcode = ord(sig[-1])
     modtx = signature_form(tx,i,script)
     return ecdsa_tx_verify(modtx,sig,pub)
@@ -225,3 +235,25 @@ def multisign(tx,i,script,pk):
         return multisign(tx.encode('hex'),i,pk).decode('hex')
     modtx = signature_form(tx,i,script)
     return ecdsa_tx_sign(modtx,pk)
+
+def apply_multisignatures(tx,i,script,sigs):
+    txobj = deserialize(tx)
+    txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
+    return serialize(txobj)
+
+def mktx(ins,outs):
+    txobj = { "locktime" : 0, "version" : 1,"ins" : [], "outs" : [] }
+    for i in ins:
+        txobj["ins"].append({ 
+            "outpoint" : { "hash": i[:64], "index": int(i[65:]) },
+            "script": "",
+            "sequence": 4294967295 
+        })
+    for o in outs:
+        if o[0] == '1': script = mk_pubkey_script(o[:o.find(':')])
+        else: script = mk_scripthash_script(o[:o.find(':')])
+        txobj["outs"].append({
+            "script": script,
+            "value": int(o[o.find(':')+1:])
+        })
+    return serialize(txobj)

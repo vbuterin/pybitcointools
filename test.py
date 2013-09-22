@@ -3,7 +3,7 @@ import random, os, json, sys
 from main import *
 from transaction import *
 
-argv = sys.argv + ['y']*6
+argv = sys.argv + ['y']*7
 
 if argv[1] == 'y':
     print "Starting ECC arithmetic tests"
@@ -88,3 +88,18 @@ if argv[5] == 'y':
 if argv[6] == 'y':
     script = '47304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053ae'
     print "Script serialize roundtip success" if serialize_script(deserialize_script(script)) == script else "Script serialize roundtrip failed"
+
+if argv[7] == 'y':
+    privs = [sha256(str(random.randrange(2**256))) for x in range(4)]
+    pubs = [privtopub(priv) for priv in privs]
+    addresses = [pubkey_to_address(pub) for pub in pubs]
+    mscript = mk_multisig_script(pubs[1:],2,3)
+    msigaddr = scriptaddr(mscript)
+    tx = mktx(['01'*32+':1','23'*32+':2'],[msigaddr+':20202',addresses[0]+':40404'])
+    tx1 = sign(tx,1,privs[0])
+    sig1 = multisign(tx,0,mscript,privs[1])
+    print "Verifying sig1:",verify_tx_input(tx1,0,mscript,sig1,pubs[1])
+    sig3 = multisign(tx,0,mscript,privs[3])
+    print "Verifying sig3:",verify_tx_input(tx1,0,mscript,sig3,pubs[3])
+    tx2 = apply_multisignatures(tx1,0,mscript,[sig1,sig3])
+    print "Outputting transaction: ",tx2
