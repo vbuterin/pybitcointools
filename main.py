@@ -172,7 +172,7 @@ def random_key():
     return encode(decode(os.urandom(32),256) ^ random.randrange(2**256) ^ int(time.time())**7,256)
 
 def random_seed():
-    return encode(decode(os.urandom(16),256) ^ random.randrange(2**128) ^ int(time.time())**3,256)
+    return encode(decode(os.urandom(16),256) ^ random.randrange(2**128) ^ int(time.time())**3,16)
 
 ### Encodings
   
