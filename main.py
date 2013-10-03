@@ -53,8 +53,6 @@ def decode(string,base):
 def changebase(string,frm,to,minlen=0):
    return encode(decode(string,frm),to,minlen)
 
-def evenlen(hs): return ('0' * (len(hs)%2) + hs)
-
 ### Elliptic Curve functions
 
 def isinf(p): return p[0] == 0 and p[1] == 0
@@ -97,7 +95,7 @@ def multiply(pubkey,privkey):
       return point_to_hex(multiply(hex_to_point(pubkey),privkey))
   return base10_multiply(pubkey,privkey)
 
-def privtopub(privkey):
+def priv_to_pub(privkey):
   if isinstance(privkey,(int,long)):
       return base10_multiply(G,privkey)
   if len(privkey) == 64: 
@@ -109,7 +107,7 @@ def privtopub(privkey):
   elif len(privkey) == 33:
       return compress(base10_multiply(G,decode(privkey[:-1],16)),'bin')
   else:
-      return privtopub(b58check_to_hex(privkey))
+      return priv_to_pub(b58check_to_hex(privkey))
 
 # Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
@@ -134,27 +132,29 @@ def neg(pubkey):
 
 ### Hashes
 
-def hexify(f):
-    return lambda x: f(x).encode('hex')
-
 def bin_hash160(string):
    intermed = hashlib.sha256(string).digest()
    return hashlib.new('ripemd160',intermed).digest()
-hash160 = hexify(bin_hash160)
+def hash160(string):
+    return bin_hash160(string).encode('hex')
 
-def bin_sha256(string): return hashlib.sha256(string).digest()
-sha256 = hexify(bin_sha256)
+def bin_sha256(string):
+    return hashlib.sha256(string).digest()
+def sha256(string):
+    return bin_sha256(string).encode('hex')
 
 def bin_dbl_sha256(string):
    return hashlib.sha256(hashlib.sha256(string).digest()).digest()
-dbl_sha256 = hexify(bin_dbl_sha256)
+def dbl_sha256(string):
+   return bin_dbl_sha256(string).encode('hex')
 
 def bin_slowsha(string):
     orig_input = string
     for i in range(100000):
         string = hashlib.sha256(string + orig_input).digest()
     return string
-slowsha = hexify(bin_slowsha)
+def slowsha(string):
+    return bin_slowsha(string).encode('hex')
 
 def num_to_var_int(x):
     if x < 253: return chr(x)
@@ -171,7 +171,7 @@ def random_key():
     # Gotta be secure after that java.SecureRandom fiasco...
     return encode(decode(os.urandom(32),256) ^ random.randrange(2**256) ^ int(time.time())**7,256)
 
-def random_seed():
+def random_electrum_seed():
     return encode(decode(os.urandom(16),256) ^ random.randrange(2**128) ^ int(time.time())**3,16)
 
 ### Encodings
@@ -192,11 +192,11 @@ def b58check_to_bin(inp):
 def hex_to_b58check(inp,magicbyte=0):
     return bin_to_b58check(inp.decode('hex'),magicbyte)
 
-def b58check_to_hex(inp): return evenlen(b58check_to_bin(inp).encode('hex'))
+def b58check_to_hex(inp): return b58check_to_bin(inp).encode('hex')
 
-def pubkey_to_address(pubkey,magicbyte=0):
+def pub_to_addr(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
-       return pubkey_to_address(point_to_bin(pubkey),magicbyte)
+       return pub_to_addr(point_to_bin(pubkey),magicbyte)
    if len(pubkey) in [66,130]:
        return bin_to_b58check(bin_hash160(pubkey.decode('hex')),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
@@ -216,7 +216,7 @@ def decompress(pubkey):
     else: return '04'+pubkey[2:]+encode(y,16,64)
 
 
-### EDCSA (experimental)
+### EDCSA
 
 def encode_sig(v,r,s):
     vb, rb, sb = chr(v), encode(r,256), encode(s,256)
@@ -239,7 +239,6 @@ def deterministic_generate_k(msghash,priv):
 def ecdsa_raw_sign(msghash,priv):
 
     z = decode(msghash,16 if len(msghash) == 64 else 256)
-    # Gotta be paranoid after that java.SecureRandom fiasco...
     k = deterministic_generate_k(msghash,priv)
 
     r,y = base10_multiply(G,k)
@@ -281,12 +280,6 @@ def ecdsa_raw_recover(msghash,vrs):
 def ecdsa_recover(msg,sig):
     return ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig))
 
-def ecdsa_recover_to_address(msg,sig,magicbytes=0):
-    return pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
-
-def ecdsa_verify_with_address(msg,sig,addr,magicbytes=0):
-    return addr == pubkey_to_address(ecdsa_recover(msg,sig),magicbytes)
-
 ### Electrum wallets
 
 def electrum_stretch(seed): return slowsha(seed)
@@ -294,7 +287,7 @@ def electrum_stretch(seed): return slowsha(seed)
 # Accepts seed or stretched seed, returns master public key
 def electrum_mpk(seed):
     if len(seed) == 32: seed = electrum_stretch(seed)
-    return privtopub(seed)[2:]
+    return priv_to_pub(seed)[2:]
 
 # Accepts (seed or stretched seed) and index, returns privkey
 def electrum_privkey(seed,n,for_change=0):
@@ -310,34 +303,3 @@ def electrum_pubkey(masterkey,n,for_change=0):
     else: mpk = masterkey
     offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+mpk.decode('hex')),256)
     return add('04'+mpk,point_to_hex(multiply(G,offset)))
-
-funs = {
-    "pubkey_to_address": pubkey_to_address,
-    "privtopub": privtopub,
-    "add": add,
-    "multiply": multiply,
-    "bin_to_b58check": bin_to_b58check,
-    "b58check_to_bin": b58check_to_bin,
-    "hex_to_b58check": hex_to_b58check,
-    "b58check_to_hex": b58check_to_hex,
-    "sha256": sha256,
-    "hash160": hash160,
-    "compress": compress,
-    "decompress": decompress,
-    "encode_sig": encode_sig,
-    "decode_sig": decode_sig,
-    "sign": ecdsa_sign,
-    "verifypub": ecdsa_verify,
-    "sigpubkey": ecdsa_recover,
-    "sigaddr": ecdsa_recover_to_address,
-    "verify": ecdsa_verify_with_address,
-    "electrum_stretch": electrum_stretch,
-    "electrum_mpk": electrum_mpk,
-    "electrum_privkey": electrum_privkey,
-    "electrum_pubkey": electrum_pubkey,
-}
-if len(sys.argv) > 1:
-    f = funs.get(sys.argv[1],None)
-    if not f:
-        if sys.argv[0] != 'test.py': sys.stderr.write( "Invalid argument" )
-    else: print f(*sys.argv[2:])

@@ -133,21 +133,21 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None,decode(left,16),decode(right,16))
 
-def tx_sig_hash(tx):
+def tx_hash(tx):
     if re.match('^[0-9a-fA-F]*$',tx):
         tx = changebase(tx,16,256)
     return bin_dbl_sha256(tx)
 
-def ecdsa_tx_sign(msg,priv,hashcode=SIGHASH_ALL):
-    s = der_encode_sig(*ecdsa_raw_sign(tx_sig_hash(msg),priv))+encode(hashcode,16,2)
+def ecdsa_tx_sign(tx,priv,hashcode=SIGHASH_ALL):
+    s = der_encode_sig(*ecdsa_raw_sign(tx_hash(tx),priv))+encode(hashcode,16,2)
     return s
 
-def ecdsa_tx_verify(msg,sig,pub):
-    return ecdsa_raw_verify(tx_sig_hash(msg),der_decode_sig(sig),pub)
+def ecdsa_tx_verify(tx,sig,pub):
+    return ecdsa_raw_verify(tx_hash(tx),der_decode_sig(sig),pub)
 
-def ecdsa_tx_recover(msg,sig):
+def ecdsa_tx_recover(tx,sig):
     _,r,s = der_decode_sig(sig)
-    h = tx_sig_hash(msg)
+    h = tx_hash(tx)
     left = ecdsa_raw_recover(h,(0,r,s))
     right = ecdsa_raw_recover(h,(1,r,s))
     return (left, right)
@@ -222,8 +222,8 @@ def sign(tx,i,pk):
     if not re.match('^[0-9a-fA-F]*$',tx):
         return sign(tx.encode('hex'),i,pk).decode('hex')
     if len(pk) < 64: pk = pk.encode('hex')
-    pub = privtopub(pk)
-    address = pubkey_to_address(pub)
+    pub = priv_to_pub(pk)
+    address = pub_to_addr(pub)
     signing_tx = signature_form(tx,i,mk_pubkey_script(address))
     sig = ecdsa_tx_sign(signing_tx,pk)
     txobj = deserialize(tx)
