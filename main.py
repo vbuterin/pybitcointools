@@ -1,4 +1,4 @@
-import hashlib, re, sys, os, base64, time, random
+import hashlib, re, sys, os, base64, time, random, hmac
 
 ### Elliptic curve parameters
 
@@ -167,6 +167,13 @@ def electrum_sig_hash(message):
     padded = "\x18Bitcoin Signed Message:\n" + num_to_var_int( len(message) ) + message
     return bin_dbl_sha256(padded)
 
+def random_key():
+    # Gotta be secure after that java.SecureRandom fiasco...
+    return encode(decode(os.urandom(32),256) ^ random.randrange(2**256) ^ int(time.time())**7,256)
+
+def random_seed():
+    return encode(decode(os.urandom(16),256) ^ random.randrange(2**128) ^ int(time.time())**3,256)
+
 ### Encodings
   
 def bin_to_b58check(inp,magicbyte=0):
@@ -219,11 +226,21 @@ def decode_sig(sig):
     bytez = base64.b64decode(sig)
     return ord(bytez[0]), decode(bytez[1:33],256), decode(bytez[33:],256)
 
+# https://tools.ietf.org/html/rfc6979#section-3.2
+def deterministic_generate_k(msghash,priv):
+    v = '\x01' * 32
+    k = '\x00' * 32
+    k = hmac.new(k, v+'\x00'+priv+msghash, hashlib.sha256).digest()
+    v = hmac.new(k, v, hashlib.sha256).digest()
+    k = hmac.new(k, v+'\x01'+priv+msghash, hashlib.sha256).digest()
+    v = hmac.new(k, v, hashlib.sha256).digest()
+    return decode(hmac.new(k, v, hashlib.sha256).digest(),256)
+
 def ecdsa_raw_sign(msghash,priv):
 
     z = decode(msghash,16 if len(msghash) == 64 else 256)
     # Gotta be paranoid after that java.SecureRandom fiasco...
-    k = decode(os.urandom(32),256) ^ random.randrange(2**256) ^ int(time.time())**7
+    k = deterministic_generate_k(msghash,priv)
 
     r,y = base10_multiply(G,k)
     s = inv(k,N) * (z + r*decode(priv,16)) % N
