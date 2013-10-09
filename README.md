@@ -19,10 +19,10 @@
     > priv = sha256('some big long brainwallet password')
     > priv
     '57c617d9b4e1f7af6ec97ca2ff57e94a28279a7eedd4d12a99fa11170e94f5a4'
-    > pub = priv_to_pub(priv)
+    > pub = privtopub(priv)
     > pub
     '0420f34c2786b4bae593e22596631b025f3ff46e200fc1d4b52ef49bbdc2ed00b26c584b7e32523fb01be2294a1f8a5eb0cf71a203cc034ced46ea92a8df16c6e9'
-    > addr = pub_to_addr(pub)
+    > addr = pubtoaddr(pub)
     > addr
     '1CQLd3bhw4EzaURHbKCwM5YZbUQfA4ReY6'
     > h = history(addr)
