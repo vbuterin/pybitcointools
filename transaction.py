@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import re, json, copy
 from main import *
 
@@ -5,7 +6,7 @@ from main import *
 
 def json_is_base(obj,base):
     alpha = get_code_string(base)
-    if isinstance(obj,str):
+    if isinstance(obj,(str,unicode)):
         for i in range(len(obj)):
             if alpha.find(obj[i]) == -1: return False
         return True
@@ -20,7 +21,7 @@ def json_is_base(obj,base):
         return True
 
 def json_changebase(obj,changer):
-    if isinstance(obj,str): return changer(obj)
+    if isinstance(obj,(str,unicode)): return changer(obj)
     elif isinstance(obj,(int,float,long)) or obj is None: return obj
     elif isinstance(obj,list): return [json_changebase(x,changer) for x in obj]
     return { x:json_changebase(obj[x],changer) for x in obj }
@@ -57,7 +58,7 @@ def deserialize(tx):
     for i in range(ins):
         obj["ins"].append({
             "outpoint" : {
-                "hash" : read_bytes(32),
+                "hash" : read_bytes(32)[::-1],
                 "index": read_as_int(4)
             },
             "script" : read_var_string(),
@@ -79,7 +80,7 @@ def serialize(txobj):
     o.append(encode(txobj["version"],256,4)[::-1])
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
-        o.append(inp["outpoint"]["hash"])
+        o.append(inp["outpoint"]["hash"][::-1])
         o.append(encode(inp["outpoint"]["index"],256,4)[::-1])
         o.append(num_to_var_int(len(inp["script"]))+inp["script"])
         o.append(encode(inp["sequence"],256,4)[::-1])
@@ -133,23 +134,24 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None,decode(left,16),decode(right,16))
 
-def tx_hash(tx):
+def tx_hash(tx,hashcode=None):
     if re.match('^[0-9a-fA-F]*$',tx):
         tx = changebase(tx,16,256)
-    return bin_dbl_sha256(tx)
+    if hashcode: return bin_dbl_sha256(tx + encode(hashcode,256,4)[::-1])
+    else: return bin_dbl_sha256(tx)[::-1]
 
 def ecdsa_tx_sign(tx,priv,hashcode=SIGHASH_ALL):
-    s = der_encode_sig(*ecdsa_raw_sign(tx_hash(tx),priv))+encode(hashcode,16,2)
-    return s
+    rawsig = ecdsa_raw_sign(tx_hash(tx,hashcode),priv)
+    return der_encode_sig(*rawsig)+encode(hashcode,16,2)
 
-def ecdsa_tx_verify(tx,sig,pub):
-    return ecdsa_raw_verify(tx_hash(tx),der_decode_sig(sig),pub)
+def ecdsa_tx_verify(tx,sig,pub,hashcode=SIGHASH_ALL):
+    return ecdsa_raw_verify(tx_hash(tx,hashcode),der_decode_sig(sig),pub)
 
-def ecdsa_tx_recover(tx,sig):
+def ecdsa_tx_recover(tx,sig,hashcode=SIGHASH_ALL):
+    z = tx_hash(tx,hashcode)
     _,r,s = der_decode_sig(sig)
-    h = tx_hash(tx)
-    left = ecdsa_raw_recover(h,(0,r,s))
-    right = ecdsa_raw_recover(h,(1,r,s))
+    left = ecdsa_raw_recover(z,(0,r,s))
+    right = ecdsa_raw_recover(z,(1,r,s))
     return (left, right)
 
 ### Scripts
@@ -159,6 +161,11 @@ def mk_pubkey_script(addr):
 
 def mk_scripthash_script(addr):
     return 'a914' + b58check_to_hex(addr) + '87'
+
+def mk_output_script(addr):
+    version = 0 if addr[0] == '1' else ord(changebase(addr,58,256)[0])
+    if version == 0: return mk_pubkey_script(addr)
+    else: return mk_scripthash_script(addr)
 
 def deserialize_script(script):
     if re.match('^[0-9a-fA-F]*$',script):
@@ -218,14 +225,14 @@ def verify_tx_input(tx,i,script,sig,pub):
     modtx = signature_form(tx,i,script)
     return ecdsa_tx_verify(modtx,sig,pub)
 
-def sign(tx,i,pk):
+def sign(tx,i,priv):
     if not re.match('^[0-9a-fA-F]*$',tx):
-        return sign(tx.encode('hex'),i,pk).decode('hex')
-    if len(pk) < 64: pk = pk.encode('hex')
-    pub = priv_to_pub(pk)
+        return sign(tx.encode('hex'),i,priv).decode('hex')
+    if len(priv) < 64: priv = priv.encode('hex')
+    pub = priv_to_pub(priv)
     address = pub_to_addr(pub)
     signing_tx = signature_form(tx,i,mk_pubkey_script(address))
-    sig = ecdsa_tx_sign(signing_tx,pk)
+    sig = ecdsa_tx_sign(signing_tx,priv)
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([sig,pub])
     return serialize(txobj)
@@ -244,16 +251,22 @@ def apply_multisignatures(tx,i,script,sigs):
 def mktx(ins,outs):
     txobj = { "locktime" : 0, "version" : 1,"ins" : [], "outs" : [] }
     for i in ins:
-        txobj["ins"].append({ 
-            "outpoint" : { "hash": i[:64], "index": int(i[65:]) },
-            "script": "",
-            "sequence": 4294967295 
-        })
+        if isinstance(i,dict) and "outpoint" in i:
+            txobj["ins"].append(i)
+        else:
+            if isinstance(i,dict) and "output" in i: i = i["output"]
+            txobj["ins"].append({ 
+                "outpoint" : { "hash": i[:64], "index": int(i[65:]) },
+                "script": "",
+                "sequence": 4294967295 
+            })
     for o in outs:
-        if o[0] == '1': script = mk_pubkey_script(o[:o.find(':')])
-        else: script = mk_scripthash_script(o[:o.find(':')])
-        txobj["outs"].append({
-            "script": script,
+        if isinstance(o,str): o = {
+            "address": o[:o.find(':')],
             "value": int(o[o.find(':')+1:])
+        }
+        txobj["outs"].append({
+            "script": mk_output_script(o["address"]),
+            "value": o["value"]
         })
     return serialize(txobj)

@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import hashlib, re, sys, os, base64, time, random, hmac
 
 ### Elliptic curve parameters
