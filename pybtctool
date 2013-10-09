@@ -1,0 +1,8 @@
+#!/usr/bin/python
+import sys
+from pybitcointools import *
+
+if len(sys.argv) == 1:
+    print "pybitcointools <command> <arg1> <arg2> ..."
+else:
+    print vars()[sys.argv[1]](*sys.argv[2:])

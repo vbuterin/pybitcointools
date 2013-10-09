@@ -96,7 +96,7 @@ def multiply(pubkey,privkey):
       return point_to_hex(multiply(hex_to_point(pubkey),privkey))
   return base10_multiply(pubkey,privkey)
 
-def priv_to_pub(privkey):
+def privkey_to_pubkey(privkey):
   if isinstance(privkey,(int,long)):
       return base10_multiply(G,privkey)
   if len(privkey) == 64: 
@@ -108,7 +108,9 @@ def priv_to_pub(privkey):
   elif len(privkey) == 33:
       return compress(base10_multiply(G,decode(privkey[:-1],16)),'bin')
   else:
-      return priv_to_pub(b58check_to_hex(privkey))
+      return privkey_to_pubkey(b58check_to_hex(privkey))
+
+privtopub = privkey_to_pubkey
 
 # Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
@@ -195,12 +197,14 @@ def hex_to_b58check(inp,magicbyte=0):
 
 def b58check_to_hex(inp): return b58check_to_bin(inp).encode('hex')
 
-def pub_to_addr(pubkey,magicbyte=0):
+def pubkey_to_address(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
-       return pub_to_addr(point_to_bin(pubkey),magicbyte)
+       return pubkey_to_address(point_to_bin(pubkey),magicbyte)
    if len(pubkey) in [66,130]:
        return bin_to_b58check(bin_hash160(pubkey.decode('hex')),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
+
+pubtoaddr = pubkey_to_address
 
 def compress(pubkey,out=None):
     if len(pubkey) == 65 and not out: return compress(bin_to_point(pubkey),'bin')
@@ -288,7 +292,7 @@ def electrum_stretch(seed): return slowsha(seed)
 # Accepts seed or stretched seed, returns master public key
 def electrum_mpk(seed):
     if len(seed) == 32: seed = electrum_stretch(seed)
-    return priv_to_pub(seed)[2:]
+    return privkey_to_pubkey(seed)[2:]
 
 # Accepts (seed or stretched seed) and index, returns privkey
 def electrum_privkey(seed,n,for_change=0):

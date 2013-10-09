@@ -229,8 +229,8 @@ def sign(tx,i,priv):
     if not re.match('^[0-9a-fA-F]*$',tx):
         return sign(tx.encode('hex'),i,priv).decode('hex')
     if len(priv) < 64: priv = priv.encode('hex')
-    pub = priv_to_pub(priv)
-    address = pub_to_addr(pub)
+    pub = privkey_to_pubkey(priv)
+    address = pubkey_to_address(pub)
     signing_tx = signature_form(tx,i,mk_pubkey_script(address))
     sig = ecdsa_tx_sign(signing_tx,priv)
     txobj = deserialize(tx)
