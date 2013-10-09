@@ -32,6 +32,7 @@ def get_code_string(base):
    else: raise ValueError("Invalid base!")
 
 def encode(val,base,minlen=0):
+   base, minlen = int(base), int(minlen)
    code_string = get_code_string(base)
    result = ""   
    while val > 0:
@@ -42,6 +43,7 @@ def encode(val,base,minlen=0):
    return result
 
 def decode(string,base):
+   base = int(base)
    code_string = get_code_string(base)
    result = 0
    if base == 16: string = string.lower()
@@ -160,6 +162,7 @@ def slowsha(string):
     return bin_slowsha(string).encode('hex')
 
 def num_to_var_int(x):
+    x = int(x)
     if x < 253: return chr(x)
     elif x < 65536: return chr(253) + encode(x,256,2)[::-1]
     elif x < 4294967296: return chr(254) + encode(x,256,4)[::-1]
@@ -182,7 +185,7 @@ def random_electrum_seed():
 ### Encodings
   
 def bin_to_b58check(inp,magicbyte=0):
-   if isinstance(magicbyte,str): magicbyte = int(magicbyte)
+   magicbyte = int(magicbyte)
    inp_fmtd = chr(magicbyte) + inp
    leadingzbytes = len(re.match('^\x00*',inp_fmtd).group(0))
    checksum = bin_dbl_sha256(inp_fmtd)[:4]
@@ -300,7 +303,7 @@ def electrum_mpk(seed):
 def electrum_privkey(seed,n,for_change=0):
     if len(seed) == 32: seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+mpk.decode('hex')),256)
+    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
     return encode((decode(seed,16) + offset) % N,16,64)
 
 # Accepts (seed or stretched seed or master public key) and index, returns pubkey
@@ -308,5 +311,5 @@ def electrum_pubkey(masterkey,n,for_change=0):
     if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
     else: mpk = masterkey
-    offset = decode(bin_dbl_sha256("%d:%d:"%(n,for_change)+mpk.decode('hex')),256)
+    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
     return add('04'+mpk,point_to_hex(multiply(G,offset)))
