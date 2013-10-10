@@ -8,7 +8,9 @@ def make_request(*args):
     try:
         return opener.open(*args).read().strip()
     except Exception,e:
-        raise Exception(e.read().strip())
+        try: p = e.read().strip()
+        except: p = e
+        raise Exception(p)
 
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent

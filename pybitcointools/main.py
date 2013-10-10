@@ -114,6 +114,10 @@ def privkey_to_pubkey(privkey):
 
 privtopub = privkey_to_pubkey
 
+def privkey_to_address(priv):
+    return pubkey_to_address(privkey_to_pubkey(priv))
+privtoaddr = privkey_to_address
+
 # Addition is mod N, use for private and public keys only, NOT coordinates!
 def add(p1,p2):
   if isinstance(p1,(int,long)):
