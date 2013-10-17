@@ -91,6 +91,21 @@ def point_to_hex(p): return '04'+encode(p[0],16,64)+encode(p[1],16,64)
 def bin_to_point(h): return (decode(h[1:33],256),decode(h[33:],256))
 def point_to_bin(p): return '\x04'+encode(p[0],256,32)+encode(p[1],256,32)
 
+def pub_to_point(p):
+    if len(p) > 66: return hex_to_point(p) # pubkey hex
+    elif len(p) > 2: return bin_to_point(p) # pubkey bin
+    else: return p
+
+# Warning: this method removes compression information
+def priv_to_int(p):
+    if isinstance(p,(int,long)): return p
+    if len(p) >= 64: return decode(p[:64],16) # sha256 hex
+    elif len(p) > 45: return decode(b58check_to_bin(p)[:32],256) # sha256 b58
+    elif len(p) >= 32: return decode(p[:32],256) #sha256 bin
+    else: raise Exception("priv_to_int: what did you throw at me?")
+
+hash_to_int = priv_to_int
+
 def multiply(pubkey,privkey):
   if isinstance(privkey,str): 
       privkey = decode(privkey,16)
@@ -244,6 +259,8 @@ def decode_sig(sig):
 def deterministic_generate_k(msghash,priv):
     v = '\x01' * 32
     k = '\x00' * 32
+    priv = encode(priv_to_int(priv),256,32)
+    msghash = encode(hash_to_int(msghash),256,32)
     k = hmac.new(k, v+'\x00'+priv+msghash, hashlib.sha256).digest()
     v = hmac.new(k, v, hashlib.sha256).digest()
     k = hmac.new(k, v+'\x01'+priv+msghash, hashlib.sha256).digest()
@@ -252,11 +269,11 @@ def deterministic_generate_k(msghash,priv):
 
 def ecdsa_raw_sign(msghash,priv):
 
-    z = decode(msghash,16 if len(msghash) == 64 else 256)
+    z = hash_to_int(msghash)
     k = deterministic_generate_k(msghash,priv)
 
     r,y = base10_multiply(G,k)
-    s = inv(k,N) * (z + r*decode(priv,16)) % N
+    s = inv(k,N) * (z + r*priv_to_int(priv)) % N
 
     return 27+(y%2),r,s
 
@@ -267,10 +284,10 @@ def ecdsa_raw_verify(msghash,vrs,pub):
     v,r,s = vrs
 
     w = inv(s,N)
-    z = decode(msghash,16 if len(msghash) == 64 else 256)
+    z = hash_to_int(msghash)
     
     u1, u2 = z*w % N, r*w % N
-    x,y = base10_add(base10_multiply(G,u1), base10_multiply(hex_to_point(pub),u2))
+    x,y = base10_add(base10_multiply(G,u1), base10_multiply(pub_to_point(pub),u2))
 
     return r == x
 
@@ -283,7 +300,7 @@ def ecdsa_raw_recover(msghash,vrs):
     x = r
     beta = pow(x*x*x+7,(P+1)/4,P)
     y = beta if v%2 ^ beta%2 else (P - beta)
-    z = decode(msghash,16 if len(msghash) == 64 else 256)
+    z = hash_to_int(msghash)
 
     Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))

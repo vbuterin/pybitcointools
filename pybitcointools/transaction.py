@@ -230,7 +230,7 @@ def sign(tx,i,priv):
     i = int(i)
     if not re.match('^[0-9a-fA-F]*$',tx):
         return sign(tx.encode('hex'),i,priv).decode('hex')
-    if len(priv) < 64: priv = priv.encode('hex')
+    if len(priv) <= 33: priv = priv.encode('hex')
     pub = privkey_to_pubkey(priv)
     address = pubkey_to_address(pub)
     signing_tx = signature_form(tx,i,mk_pubkey_script(address))
@@ -240,8 +240,8 @@ def sign(tx,i,priv):
     return serialize(txobj)
 
 def multisign(tx,i,script,pk):
-    if not re.match('^[0-9a-fA-F]*$',tx):
-        return multisign(tx.encode('hex'),i,pk).decode('hex')
+    if re.match('^[0-9a-fA-F]*$',tx): tx = tx.decode('hex')
+    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
     modtx = signature_form(tx,i,script)
     return ecdsa_tx_sign(modtx,pk)
 
