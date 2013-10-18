@@ -50,3 +50,24 @@ def history(addrs):
 def pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$',tx): tx = tx.encode('hex')
     return make_request('http://blockchain.info/pushtx','tx='+tx)
+
+# Gets data about a specific transaction
+# Unfortunately this does not give enough info to reconstruct the transaction
+def get_tx_data(txhash):
+    if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
+    data = make_request('http://blockchain.info/rawtx/'+txhash);
+    jsonobj = json.loads(data)
+    txobj = { "ins": [], "outs": [] }
+    for i in jsonobj["inputs"]:
+        bci_url = 'http://blockchain.info/rawtx/'+str(i["prev_out"]["tx_index"])
+        prevtx = make_request(bci_url)
+        prevtxobj = json.loads(prevtx)
+        txobj["ins"].append({ 
+            "outpoint": {
+                "hash" : prevtxobj["hash"],
+                "index": i["prev_out"]["n"]
+            }
+        })
+    for o in jsonobj["out"]:
+        txobj["outs"].append({ "address": o["addr"], "value": o["value"] })
+    return txobj
