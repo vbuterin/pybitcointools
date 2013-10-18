@@ -3,7 +3,7 @@ import sys, json
 from pybitcointools import *
 
 if len(sys.argv) == 1:
-    print "pybitcointools <command> <arg1> <arg2> ..."
+    print "pybtctool <command> <arg1> <arg2> ..."
 else:
     o = vars()[sys.argv[1]](*sys.argv[2:])
     if isinstance(o,(list,dict)): print json.dumps(o)
