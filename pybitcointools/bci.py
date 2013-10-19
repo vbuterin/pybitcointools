@@ -14,8 +14,13 @@ def make_request(*args):
 
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent
-def history(addrs):
-    if isinstance(addrs,str): addrs = [addrs]
+def history(*args):
+    # Valid input formats: history([addr1, addr2,addr3])
+    #                      history(addr1, addr2, addr3)
+    if len(args) == 0: return []
+    elif isinstance(args[0],list): addrs = args[0]
+    else: addrs = args
+
     txs = []
     for addr in addrs:
         offset = 0
