@@ -121,9 +121,9 @@ def privkey_to_pubkey(privkey):
   elif len(privkey) == 66:
       return compress(base10_multiply(G,decode(privkey[:-2],16)),'hex')
   elif len(privkey) == 32:
-      return point_to_hex(base10_multiply(G,decode(privkey,16)))
+      return point_to_bin(base10_multiply(G,decode(privkey,256)))
   elif len(privkey) == 33:
-      return compress(base10_multiply(G,decode(privkey[:-1],16)),'bin')
+      return compress(base10_multiply(G,decode(privkey[:-1],256)),'bin')
   else:
       return privkey_to_pubkey(b58check_to_hex(privkey))
 
@@ -138,9 +138,9 @@ def add(p1,p2):
   if isinstance(p1,(int,long)):
     return (p1+p2) % N
   elif len(p1) == 64:
-    return encode(decode(p1,16) + decode(p2,16) % N,16,64)
+    return encode((decode(p1,16) + decode(p2,16)) % N,16,64)
   elif len(p1) == 32:
-    return encode(decode(p1,256) + decode(p2,256) % N,256,32)
+    return encode((decode(p1,256) + decode(p2,256)) % N,256,32)
   elif isinstance(p1,(tuple,list)):
     return base10_add(p1,p2)
   elif len(p1) == 65:
@@ -204,17 +204,16 @@ def random_electrum_seed():
 ### Encodings
   
 def bin_to_b58check(inp,magicbyte=0):
-   magicbyte = int(magicbyte)
-   inp_fmtd = chr(magicbyte) + inp
-   leadingzbytes = len(re.match('^\x00*',inp_fmtd).group(0))
-   checksum = bin_dbl_sha256(inp_fmtd)[:4]
-   return '1' * leadingzbytes + changebase(inp_fmtd+checksum,256,58)
+    inp_fmtd = chr(int(magicbyte)) + inp
+    leadingzbytes = len(re.match('^\x00*',inp_fmtd).group(0))
+    checksum = bin_dbl_sha256(inp_fmtd)[:4]
+    return '1' * leadingzbytes + changebase(inp_fmtd+checksum,256,58)
 
 def b58check_to_bin(inp):
-   leadingzbytes = len(re.match('^1*',inp).group(0))
-   data = '\x00' * leadingzbytes + changebase(inp,58,256)
-   assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
-   return data[1:-4]
+    leadingzbytes = len(re.match('^1*',inp).group(0))
+    data = '\x00' * leadingzbytes + changebase(inp,58,256)
+    assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
+    return data[1:-4]
 
 def hex_to_b58check(inp,magicbyte=0):
     return bin_to_b58check(inp.decode('hex'),magicbyte)
@@ -231,12 +230,14 @@ def pubkey_to_address(pubkey,magicbyte=0):
 pubtoaddr = pubkey_to_address
 
 def compress(pubkey,out=None):
+    if len(pubkey) == 33 or len(pubkey) == 66: return pubkey
     if len(pubkey) == 65 and not out: return compress(bin_to_point(pubkey),'bin')
     if len(pubkey) == 130 and not out: return compress(hex_to_point(pubkey),'hex')
     if out == 'bin': return chr(2+(pubkey[1]%2))+encode(pubkey[0],256,32)
     return '0'+str(2+(pubkey[1]%2))+encode(pubkey[0],16,64)
 
 def decompress(pubkey):
+    if len(pubkey) == 65 or len(pubkey) == 130: return pubkey
     if len(pubkey) == 33: x,ymod2 = decode(pubkey[1:],256),ord(pubkey[0])-2
     else: x,ymod2 = decode(pubkey[2:],16),int(pubkey[1])-2
     beta = pow(x*x*x+7,(P+1)/4,P)
@@ -310,27 +311,3 @@ def ecdsa_raw_recover(msghash,vrs):
 
 def ecdsa_recover(msg,sig):
     return ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig))
-
-### Electrum wallets
-
-def electrum_stretch(seed): return slowsha(seed)
-
-# Accepts seed or stretched seed, returns master public key
-def electrum_mpk(seed):
-    if len(seed) == 32: seed = electrum_stretch(seed)
-    return privkey_to_pubkey(seed)[2:]
-
-# Accepts (seed or stretched seed) and index, returns privkey
-def electrum_privkey(seed,n,for_change=0):
-    if len(seed) == 32: seed = electrum_stretch(seed)
-    mpk = electrum_mpk(seed)
-    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
-    return encode((decode(seed,16) + offset) % N,16,64)
-
-# Accepts (seed or stretched seed or master public key) and index, returns pubkey
-def electrum_pubkey(masterkey,n,for_change=0):
-    if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
-    elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
-    else: mpk = masterkey
-    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
-    return add('04'+mpk,point_to_hex(multiply(G,offset)))
