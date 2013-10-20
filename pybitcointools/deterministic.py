@@ -31,6 +31,7 @@ PUBDERIV = '\x04\x88\xB2\x1E'
 
 def raw_bip32_ckd(rawtuple, i):
     vbytes, depth, fingerprint, oldi, chaincode, key = rawtuple
+    i = int(i)
 
     if vbytes == PRIVDERIV:
         priv = key
