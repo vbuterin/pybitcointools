@@ -90,6 +90,10 @@ def bip32_master_key(seed):
     I = hmac.new("Bitcoin seed",seed,hashlib.sha512).digest()
     return bip32_serialize((PRIVDERIV, 0, '\x00'*4, 0, I[32:], I[:32]))
 
-def bip32_bin_extract_key(data): return bip32_deserialize(data)[-1]
+def bip32_bin_extract_key(data):
+    k = bip32_deserialize(data)[-1]
+    return k[1:] if k[0] == '\x00' else k
 
-def bip32_extract_key(data): return bip32_deserialize(data)[-1].encode('hex')
+def bip32_extract_key(data):
+    k = bip32_deserialize(data)[-1]
+    return (k[1:] if k[0] == '\x00' else k).encode('hex')
