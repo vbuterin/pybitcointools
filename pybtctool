@@ -2,9 +2,12 @@
 import sys, json
 from pybitcointools import *
 
+if sys.stdin.isatty(): preargs = []
+else: preargs = [x.strip() for x in sys.stdin.read().split(' ') if len(x) > 0]
+
 if len(sys.argv) == 1:
     print "pybtctool <command> <arg1> <arg2> ..."
 else:
-    o = vars()[sys.argv[1]](*sys.argv[2:])
+    o = vars()[sys.argv[1]](*(preargs+sys.argv[2:]))
     if isinstance(o,(list,dict)): print json.dumps(o)
     else: print o
