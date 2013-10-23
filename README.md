@@ -62,6 +62,13 @@ Or using the pybtctool command line interface:
     @vub: pybtctool bip32_privtopub xprv9s21ZrQH143K2napkeoHT48gWmoJa89KCQj4nqLfdGybyWHP9Z8jvCGzuEDv4ihCyoed7RFPNbc9NxoSF7cAvH9AaNSvepUaeqbSpJZ4rbT
     xpub661MyMwAqRbcFGfHrgLHpC5R4odnyasAZdefbDkHBcWarJcXh6SzTzbUkWuhnP142ZFdKdAJSuTSaiGDYjvm7bCLmA8DZqksYjJbYmcgrYF
 
+The -s option lets you read arguments from the command line
+
+    @vub: pybtctool sha256 'some big long brainwallet password' | pybtctool -s privtoaddr | pybtctool -s history
+    [{'output': u'97f7c7d8ac85e40c255f8a763b6cd9a68f3a94d2e93e8bfa08f977b92e55465e:0', 'value': 50000, 'address': u'1CQLd3bhw4EzaURHbKCwM5YZbUQfA4ReY6'}, {'output': u'4cc806bb04f730c445c60b3e0f4f44b54769a1c196ca37d8d4002135e4abd171:1', 'value': 50000, 'address': u'1CQLd3bhw4EzaURHbKCwM5YZbUQfA4ReY6'}]
+    @vub: pybtctool random_electrum_seed | pybtctool -s electrum_privkey 0 0
+    593240c2205e7b7b5d7c13393b7c9553497854b75c7470b76aeca50cd4a894d7
+
 ### Listing of main commands:
 
 * privkey_to_pubkey    : (privkey) -> pubkey
