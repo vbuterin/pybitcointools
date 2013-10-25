@@ -175,7 +175,7 @@ def deserialize_script(script):
     while pos < len(script):
         code = ord(script[pos])
         if code == 0:
-            out.append('zero')
+            out.append(None)
             pos += 1
         elif code <= 75:
             out.append(script[pos+1:pos+1+code])
