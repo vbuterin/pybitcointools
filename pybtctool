@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys, json
+import sys, json, re
 from pybitcointools import *
 
 if len(sys.argv) == 1:
@@ -7,7 +7,7 @@ if len(sys.argv) == 1:
 else:
     if sys.argv[1] == '-s':
         cmd = sys.argv[2]
-        args = [x.strip() for x in filter(len,sys.stdin.read().split(' '))]+sys.argv[3:]
+        args = re.findall(r'\S\S*',sys.stdin.read())+sys.argv[3:]
     else:
         cmd = sys.argv[1]
         args = sys.argv[2:]

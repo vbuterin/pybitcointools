@@ -210,10 +210,13 @@ def serialize_script(script):
         return serialize_script(json_changebase(script,lambda x:x.decode('hex'))).encode('hex')
     return ''.join(map(serialize_script_unit,script))
 
-def mk_multisig_script(pubs,k,n):
-    return serialize_script([k]+sorted(pubs)+[n,174])
+def mk_multisig_script(*args): # [pubs],k,n or pub1,pub2...pub[n],k,n
+    if len(args) == 3: pubs, k, n = args[0], int(args[1]), int(args[2])
+    else: pubs, k, n = list(args[:-2]), int(args[-2]), int(args[-1])
+    return serialize_script([k]+pubs+[n,174])
 
 def scriptaddr(script):
+    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
     return hex_to_b58check(hash160(script),5)
 
 ### Signing and verifying
@@ -245,12 +248,20 @@ def multisign(tx,i,script,pk):
     modtx = signature_form(tx,i,script)
     return ecdsa_tx_sign(modtx,pk)
 
-def apply_multisignatures(tx,i,script,sigs):
+def apply_multisignatures(*args): # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
+    tx, i, script = args[0], int(args[1]), args[2]
+    sigs = args[3] if isinstance(args[3],list) else list(args[3:])
+
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
     return serialize(txobj)
 
-def mktx(ins,outs):
+def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
+    if isinstance(args[0],list): ins, outs = args[0], args[1]
+    else:
+        def is_inp(arg): return len(arg) > 64 or "output" in arg or "outpoint" in arg
+        ins, outs = filter(is_inp, args), filter(lambda x: not is_inp(x), args)
+
     txobj = { "locktime" : 0, "version" : 1,"ins" : [], "outs" : [] }
     for i in ins:
         if isinstance(i,dict) and "outpoint" in i:
