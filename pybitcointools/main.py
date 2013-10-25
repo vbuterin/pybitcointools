@@ -111,6 +111,9 @@ def multiply(pubkey,privkey):
       privkey = decode(privkey,16)
   if isinstance(pubkey,str):
       return point_to_hex(multiply(hex_to_point(pubkey),privkey))
+  # http://safecurves.cr.yp.to/twist.html
+  if (pubkey[0]**3+7-pubkey[1]*pubkey[1]) % P != 0: 
+      raise Exception("Point not on curve")
   return base10_multiply(pubkey,privkey)
 
 def privkey_to_pubkey(privkey):
