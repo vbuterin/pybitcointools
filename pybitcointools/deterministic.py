@@ -10,20 +10,26 @@ def electrum_mpk(seed):
     if len(seed) == 32: seed = electrum_stretch(seed)
     return privkey_to_pubkey(seed)[2:]
 
-# Accepts (seed or stretched seed) and index, returns privkey
+# Accepts (seed or stretched seed), index and secondary index
+# (conventionally 0 for ordinary addresses, 1 for change) , returns privkey
 def electrum_privkey(seed,n,for_change=0):
     if len(seed) == 32: seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
     offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
     return encode((decode(seed,16) + offset) % N,16,64)
 
-# Accepts (seed or stretched seed or master public key) and index, returns pubkey
+# Accepts (seed or stretched seed or master public key), index and secondary index
+# (conventionally 0 for ordinary addresses, 1 for change) , returns pubkey
 def electrum_pubkey(masterkey,n,for_change=0):
     if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
     else: mpk = masterkey
     offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
     return add('04'+mpk,point_to_hex(multiply(G,offset)))
+
+# seed/stretched seed/pubkey -> address (convenience method)
+def electrum_address(masterkey,n,for_change=0,version=0):
+    return pubkey_to_address(electrum_pubkey(masterkey,n,for_change),version)
 
 # Below code ASSUMES binary inputs and compressed pubkeys
 PRIVDERIV = '\x04\x88\xAD\xE4'
