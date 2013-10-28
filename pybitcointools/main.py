@@ -223,6 +223,12 @@ def hex_to_b58check(inp,magicbyte=0):
 
 def b58check_to_hex(inp): return b58check_to_bin(inp).encode('hex')
 
+def priv_to_wif(inp,magicbyte=0):
+    if len(inp) > 33: inp = inp.decode('hex')
+    return bin_to_b58check(inp,128+(magicbyte % 128))
+
+wif_to_priv = b58check_to_hex
+
 def pubkey_to_address(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
        return pubkey_to_address(point_to_bin(pubkey),magicbyte)
