@@ -15,8 +15,8 @@ def electrum_mpk(seed):
 def electrum_privkey(seed,n,for_change=0):
     if len(seed) == 32: seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
-    return encode((decode(seed,16) + offset) % N,16,64)
+    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master public key), index and secondary index
 # (conventionally 0 for ordinary addresses, 1 for change) , returns pubkey
@@ -24,8 +24,8 @@ def electrum_pubkey(masterkey,n,for_change=0):
     if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
     else: mpk = masterkey
-    offset = decode(bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex')),256)
-    return add('04'+mpk,point_to_hex(multiply(G,offset)))
+    offset = bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    return add_pubkeys('04'+mpk,privtopub(offset))
 
 # seed/stretched seed/pubkey -> address (convenience method)
 def electrum_address(masterkey,n,for_change=0,version=0):
@@ -48,15 +48,15 @@ def raw_bip32_ckd(rawtuple, i):
     if i >= 2**31:
         if vbytes == PUBDERIV:
             raise Exception("Can't do private derivation on public key!")
-        I = hmac.new(chaincode,'\x00'+priv+encode(i,256,4),hashlib.sha512).digest()
+        I = hmac.new(chaincode,'\x00'+priv[:32]+encode(i,256,4),hashlib.sha512).digest()
     else:
         I = hmac.new(chaincode,pub+encode(i,256,4),hashlib.sha512).digest()
 
     if vbytes == PRIVDERIV:
-        newkey = add(I[:32],priv)
-        fingerprint = bin_hash160(compress(privtopub(key)))[:4]
+        newkey = add_privkeys(I[:32]+'\x01',priv)
+        fingerprint = bin_hash160(privtopub(key))[:4]
     if vbytes == PUBDERIV:
-        newkey = compress(add(privtopub(I[:32]),decompress(key)))
+        newkey = add_pubkeys(compress(privtopub(I[:32])),key)
         fingerprint = bin_hash160(key)[:4]
 
     return (vbytes, depth + 1, fingerprint, i, I[32:], newkey)
@@ -94,7 +94,7 @@ def bip32_ckd(data,i):
 
 def bip32_master_key(seed):
     I = hmac.new("Bitcoin seed",seed,hashlib.sha512).digest()
-    return bip32_serialize((PRIVDERIV, 0, '\x00'*4, 0, I[32:], I[:32]))
+    return bip32_serialize((PRIVDERIV, 0, '\x00'*4, 0, I[32:], I[:32]+'\x01'))
 
 def bip32_bin_extract_key(data):
     return bip32_deserialize(data)[-1]

@@ -85,50 +85,114 @@ def base10_multiply(a,n):
   if (n%2) == 0: return base10_double(base10_multiply(a,n/2))
   if (n%2) == 1: return base10_add(base10_double(base10_multiply(a,n/2)),a)
 
-def hex_to_point(h): return (decode(h[2:66],16),decode(h[66:],16))
-def point_to_hex(p): return '04'+encode(p[0],16,64)+encode(p[1],16,64)
+# Functions for handling pubkey and privkey formats
 
-def bin_to_point(h): return (decode(h[1:33],256),decode(h[33:],256))
-def point_to_bin(p): return '\x04'+encode(p[0],256,32)+encode(p[1],256,32)
+def get_pubkey_format(pub):
+    if isinstance(pub,(tuple,list)): return 'decimal'
+    elif len(pub) == 65 and pub[0] == '\x04': return 'bin'
+    elif len(pub) == 130 and pub[0:2] == '04': return 'hex'
+    elif len(pub) == 33 and pub[0] in ['\x02','\x03']: return 'bin_compressed'
+    elif len(pub) == 66 and pub[0:2] in ['02','03']: return 'hex_compressed'
+    else: raise Exception("Pubkey not in recognized format")
 
-def pub_to_point(p):
-    if len(p) > 66: return hex_to_point(p) # pubkey hex
-    elif len(p) > 2: return bin_to_point(p) # pubkey bin
-    else: return p
+def encode_pubkey(pub,formt):
+    if not isinstance(pub,(tuple,list)):
+        pub = decode_pubkey(pub)
+    if formt == 'decimal': return pub
+    elif formt == 'bin': return '\x04' + encode(pub[0],256,32) + encode(pub[1],256,32)
+    elif formt == 'bin_compressed': return chr(2+(pub[1]%2)) + encode(pub[0],256,32)
+    elif formt == 'hex': return '04' + encode(pub[0],16,64) + encode(pub[1],16,64)
+    elif formt == 'hex_compressed': return '0'+str(2+(pub[1]%2)) + encode(pub[0],16,64)
+    else: raise Exception("Invalid format!")
 
-# Warning: this method removes compression information
-def priv_to_int(p):
-    if isinstance(p,(int,long)): return p
-    if len(p) >= 64: return decode(p[:64],16) # sha256 hex
-    elif len(p) > 45: return decode(b58check_to_bin(p)[:32],256) # sha256 b58
-    elif len(p) >= 32: return decode(p[:32],256) #sha256 bin
-    else: raise Exception("priv_to_int: what did you throw at me?")
+def decode_pubkey(pub,formt=None):
+    if not formt: formt = get_pubkey_format(pub)
+    if formt == 'decimal': return pub
+    elif formt == 'bin': return (decode(pub[1:33],256),decode(pub[33:65],256))
+    elif formt == 'bin_compressed':
+        x = decode(pub[1:33],256)
+        beta = pow(x*x*x+7,(P+1)/4,P)
+        y = (P-beta) if ((beta + ord(pub[0])) % 2) else beta
+        return (x,y)
+    elif formt == 'hex': return (decode(pub[2:66],16),decode(pub[66:130],16))
+    elif formt == 'hex_compressed':
+        return decode_pubkey(pub.decode('hex'),'bin_compressed')
+    else: raise Exception("Invalid format!")
 
-hash_to_int = priv_to_int
+def get_privkey_format(priv):
+    if isinstance(priv,(int,long)): return 'decimal'
+    elif len(priv) == 32: return 'bin'
+    elif len(priv) == 33: return 'bin_compressed'
+    elif len(priv) == 64: return 'hex'
+    elif len(priv) == 66: return 'hex_compressed'
+    else:
+        bin_p = b58check_to_bin(priv)
+        if len(bin_p) == 32: return 'wif'
+        elif len(bin_p) == 33: return 'wif_compressed'
+        else: raise Exception("WIF does not represent privkey")
+
+def encode_privkey(priv,formt):
+    if not isinstance(priv,(int,long)):
+        return encode_privkey(decode_privkey(priv),formt)
+    if formt == 'decimal': return priv
+    elif formt == 'bin': return encode(priv,256,32)
+    elif formt == 'bin_compressed': return encode(priv,256,32)+'\x01'
+    elif formt == 'hex': return encode(priv,16,64)
+    elif formt == 'hex_compressed': return encode(priv,16,64)+'01'
+    elif formt == 'wif': return bin_to_b58check(encode(priv,256,32),128)
+    elif formt == 'wif_compressed': return bin_to_b58check(encode(priv,256,32)+'\x01',128)
+    else: raise Exception("Invalid format!")
+
+def decode_privkey(priv,formt=None):
+    if not formt: formt = get_privkey_format(priv)
+    if formt == 'decimal': return priv
+    elif formt == 'bin': return decode(priv,256)
+    elif formt == 'bin_compressed': return decode(priv[:32],256)
+    elif formt == 'hex': return decode(priv,16)
+    elif formt == 'hex_compressed': return decode(priv[:64],16)
+    else:
+        bin_p = base58_to_bin(priv)
+        if len(bin_p) == 32: return decode(bin_p,256)
+        elif len(bin_p) == 33: return decode(bin_p[:32],256)
+        else: raise Exception("WIF does not represent privkey")
+
+def add_pubkeys(p1,p2):
+  f1,f2 = get_pubkey_format(p1), get_pubkey_format(p2)
+  return encode_pubkey(base10_add(decode_pubkey(p1,f1),decode_pubkey(p2,f2)),f1)
+
+def add_privkeys(p1,p2):
+  f1,f2 = get_privkey_format(p1), get_privkey_format(p2)
+  return encode_privkey((decode_privkey(p1,f1) + decode_privkey(p2,f2)) % N,f1)
 
 def multiply(pubkey,privkey):
-  if isinstance(privkey,str): 
-      privkey = decode(privkey,16)
-  if isinstance(pubkey,str):
-      return point_to_hex(multiply(hex_to_point(pubkey),privkey))
+  f1,f2 = get_pubkey_format(pubkey), get_privkey_format(privkey)
+  pubkey, privkey = decode_pubkey(pubkey,f1), decode_privkey(privkey,f2)
   # http://safecurves.cr.yp.to/twist.html
   if (pubkey[0]**3+7-pubkey[1]*pubkey[1]) % P != 0: 
       raise Exception("Point not on curve")
-  return base10_multiply(pubkey,privkey)
+  return encode_pubkey(base10_multiply(pubkey,privkey),f1)
+
+def compress(pubkey):
+    f = get_pubkey_format(pubkey)
+    if 'compressed' in f: return pubkey
+    elif f == 'bin': return encode_pubkey(decode_pubkey(pubkey,f),'bin_compressed')
+    elif f == 'hex' or f == 'decimal':
+        return encode_pubkey(decode_pubkey(pubkey,f),'hex_compressed')
+
+def decompress(pubkey):
+    f = get_pubkey_format(pubkey)
+    if 'compressed' not in f: return pubkey
+    elif f == 'bin_compressed': return encode_pubkey(decode_pubkey(pubkey,f),'bin')
+    elif f == 'hex_compressed' or f == 'decimal':
+        return encode_pubkey(decode_pubkey(pubkey,f),'hex')
 
 def privkey_to_pubkey(privkey):
-  if isinstance(privkey,(int,long)):
-      return base10_multiply(G,privkey)
-  if len(privkey) == 64: 
-      return point_to_hex(base10_multiply(G,decode(privkey,16)))
-  elif len(privkey) == 66:
-      return compress(base10_multiply(G,decode(privkey[:-2],16)),'hex')
-  elif len(privkey) == 32:
-      return point_to_bin(base10_multiply(G,decode(privkey,256)))
-  elif len(privkey) == 33:
-      return compress(base10_multiply(G,decode(privkey[:-1],256)),'bin')
-  else:
-      return privkey_to_pubkey(b58check_to_hex(privkey))
+    f = get_privkey_format(privkey)
+    privkey = decode_privkey(privkey,f)
+    if f in ['bin','bin_compressed','hex','hex_compressed','decimal']:
+        return encode_pubkey(base10_multiply(G,privkey),f)
+    else:
+        return encode_pubkey(base10_multiply(G,privkey),f.replace('wif','hex'))
 
 privtopub = privkey_to_pubkey
 
@@ -136,26 +200,13 @@ def privkey_to_address(priv):
     return pubkey_to_address(privkey_to_pubkey(priv))
 privtoaddr = privkey_to_address
 
-# Addition is mod N, use for private and public keys only, NOT coordinates!
-def add(p1,p2):
-  if isinstance(p1,(int,long)):
-    return (p1+p2) % N
-  elif len(p1) == 64:
-    return encode((decode(p1,16) + decode(p2,16)) % N,16,64)
-  elif len(p1) == 32:
-    return encode((decode(p1,256) + decode(p2,256)) % N,256,32)
-  elif isinstance(p1,(tuple,list)):
-    return base10_add(p1,p2)
-  elif len(p1) == 65:
-    return point_to_bin(base10_add(bin_to_point(p1),bin_to_point(p2)))
-  elif len(p1) == 130:
-    return point_to_hex(base10_add(hex_to_point(p1),hex_to_point(p2)))
-  else:
-    raise Exception("What in the world are you feeding me??")
+# Deprecated method
+def add(p1,p2): raise Exception("Use add_privkeys or add_pubkeys instead")
 
 def neg(pubkey): 
-    if isinstance(pubkey,(list,tuple)): return (pubkey[0],P-pubkey[1])
-    else: return point_to_hex(neg(hex_to_point(pubkey)))
+    f = get_pubkey_format(pubkey)
+    pubkey = decode_pubkey(pubkey,f)
+    return encode_pubkey((pubkey[0],P-pubkey[1]),f)
 
 ### Hashes
 
@@ -182,6 +233,10 @@ def bin_slowsha(string):
     return string
 def slowsha(string):
     return bin_slowsha(string).encode('hex')
+
+def hash_to_int(x):
+    if len(x) in [40,64]: return decode(x,16)
+    else: return decode(x,256)
 
 def num_to_var_int(x):
     x = int(x)
@@ -223,37 +278,14 @@ def hex_to_b58check(inp,magicbyte=0):
 
 def b58check_to_hex(inp): return b58check_to_bin(inp).encode('hex')
 
-def priv_to_wif(inp,magicbyte=0):
-    if len(inp) > 33: inp = inp.decode('hex')
-    return bin_to_b58check(inp,128+(magicbyte % 128))
-
-wif_to_priv = b58check_to_hex
-
 def pubkey_to_address(pubkey,magicbyte=0):
    if isinstance(pubkey,(list,tuple)):
-       return pubkey_to_address(point_to_bin(pubkey),magicbyte)
+       pubkey = encode_pubkey(pubkey,'bin')
    if len(pubkey) in [66,130]:
        return bin_to_b58check(bin_hash160(pubkey.decode('hex')),magicbyte)
    return bin_to_b58check(bin_hash160(pubkey),magicbyte)
 
 pubtoaddr = pubkey_to_address
-
-def compress(pubkey,out=None):
-    if len(pubkey) == 33 or len(pubkey) == 66: return pubkey
-    if len(pubkey) == 65 and not out: return compress(bin_to_point(pubkey),'bin')
-    if len(pubkey) == 130 and not out: return compress(hex_to_point(pubkey),'hex')
-    if out == 'bin': return chr(2+(pubkey[1]%2))+encode(pubkey[0],256,32)
-    return '0'+str(2+(pubkey[1]%2))+encode(pubkey[0],16,64)
-
-def decompress(pubkey):
-    if len(pubkey) == 65 or len(pubkey) == 130: return pubkey
-    if len(pubkey) == 33: x,ymod2 = decode(pubkey[1:],256),ord(pubkey[0])-2
-    else: x,ymod2 = decode(pubkey[2:],16),int(pubkey[1])-2
-    beta = pow(x*x*x+7,(P+1)/4,P)
-    y = (P-beta) if (beta%2) ^ ymod2 else beta
-    if len(pubkey) == 33: return '\x04'+pubkey[1:]+encode(y,256,32)
-    else: return '04'+pubkey[2:]+encode(y,16,64)
-
 
 ### EDCSA
 
@@ -269,7 +301,7 @@ def decode_sig(sig):
 def deterministic_generate_k(msghash,priv):
     v = '\x01' * 32
     k = '\x00' * 32
-    priv = encode(priv_to_int(priv),256,32)
+    priv = encode_privkey(priv,'bin')
     msghash = encode(hash_to_int(msghash),256,32)
     k = hmac.new(k, v+'\x00'+priv+msghash, hashlib.sha256).digest()
     v = hmac.new(k, v, hashlib.sha256).digest()
@@ -283,7 +315,7 @@ def ecdsa_raw_sign(msghash,priv):
     k = deterministic_generate_k(msghash,priv)
 
     r,y = base10_multiply(G,k)
-    s = inv(k,N) * (z + r*priv_to_int(priv)) % N
+    s = inv(k,N) * (z + r*decode_privkey(priv)) % N
 
     return 27+(y%2),r,s
 
@@ -297,7 +329,7 @@ def ecdsa_raw_verify(msghash,vrs,pub):
     z = hash_to_int(msghash)
     
     u1, u2 = z*w % N, r*w % N
-    x,y = base10_add(base10_multiply(G,u1), base10_multiply(pub_to_point(pub),u2))
+    x,y = base10_add(base10_multiply(G,u1), base10_multiply(decode_pubkey(pub),u2))
 
     return r == x
 
@@ -315,7 +347,7 @@ def ecdsa_raw_recover(msghash,vrs):
     Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))
 
-    if ecdsa_raw_verify(msghash,vrs,point_to_hex(Q)): return point_to_hex(Q)
+    if ecdsa_raw_verify(msghash,vrs,Q): return encode_pubkey(Q,'hex')
     return False
 
 def ecdsa_recover(msg,sig):
