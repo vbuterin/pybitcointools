@@ -102,4 +102,4 @@ def bip32_bin_extract_key(data):
 
 def bip32_extract_key(data):
     k = bip32_deserialize(data)[-1]
-    return (k[1:] if k[0] == '\x00' else k).encode('hex')
+    return (k[1:]+'\x01' if k[0] == '\x00' else k).encode('hex')
