@@ -196,8 +196,8 @@ def privkey_to_pubkey(privkey):
 
 privtopub = privkey_to_pubkey
 
-def privkey_to_address(priv):
-    return pubkey_to_address(privkey_to_pubkey(priv))
+def privkey_to_address(priv,magicbyte=0):
+    return pubkey_to_address(privkey_to_pubkey(priv),magicbyte)
 privtoaddr = privkey_to_address
 
 # Deprecated method

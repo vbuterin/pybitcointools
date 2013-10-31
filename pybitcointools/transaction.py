@@ -157,16 +157,30 @@ def ecdsa_tx_recover(tx,sig,hashcode=SIGHASH_ALL):
 
 ### Scripts
 
-def mk_pubkey_script(addr):
+def mk_pubkey_script(addr): # Keep the auxiliary functions around for altcoins' sake
     return '76a914' + b58check_to_hex(addr) + '88ac'
 
 def mk_scripthash_script(addr):
     return 'a914' + b58check_to_hex(addr) + '87'
 
-def mk_output_script(addr):
-    version = 0 if addr[0] == '1' else ord(changebase(addr,58,256)[0])
-    if version == 0: return mk_pubkey_script(addr)
-    else: return mk_scripthash_script(addr)
+# Address representation to output script
+def address_to_script(addr):
+    if addr[0] == '3': return mk_scripthash_script(addr)
+    else: return mk_pubkey_script(addr)
+
+# Output script to address representation
+def script_to_address(script):
+    if re.match('^[0-9a-fA-F]*$',script):
+        script = script.decode('hex')
+    if script[:3] == '\x76\xa9\x14' and script[-2:] == '\x88\xac' and len(script) == 25:
+        return bin_to_b58check(script[3:-2]) # pubkey hash addresses
+    else:
+        return bin_to_b58check(script[2:-1],5) # BIP0016 scripthash addresses
+
+def p2sh_scriptaddr(script):
+    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
+    return hex_to_b58check(hash160(script),5)
+scriptaddr = p2sh_scriptaddr
 
 def deserialize_script(script):
     if re.match('^[0-9a-fA-F]*$',script):
@@ -214,10 +228,6 @@ def mk_multisig_script(*args): # [pubs],k,n or pub1,pub2...pub[n],k,n
     if len(args) == 3: pubs, k, n = args[0], int(args[1]), int(args[2])
     else: pubs, k, n = list(args[:-2]), int(args[-2]), int(args[-1])
     return serialize_script([k]+pubs+[n,174])
-
-def scriptaddr(script):
-    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
-    return hex_to_b58check(hash160(script),5)
 
 ### Signing and verifying
 
@@ -279,7 +289,7 @@ def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
             "value": int(o[o.find(':')+1:])
         }
         txobj["outs"].append({
-            "script": mk_output_script(o["address"]),
+            "script": address_to_script(o["address"]),
             "value": o["value"]
         })
     return serialize(txobj)

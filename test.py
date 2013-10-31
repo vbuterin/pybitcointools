@@ -102,7 +102,7 @@ if argv[7] == 'y':
     pubs = [privtopub(priv) for priv in privs]
     addresses = [pubtoaddr(pub) for pub in pubs]
     mscript = mk_multisig_script(pubs[1:],2,3)
-    msigaddr = scriptaddr(mscript)
+    msigaddr = p2sh_scriptaddr(mscript)
     tx = mktx(['01'*32+':1','23'*32+':2'],[msigaddr+':20202',addresses[0]+':40404'])
     tx1 = sign(tx,1,privs[0])
     sig1 = multisign(tx,0,mscript,privs[1])
@@ -156,3 +156,11 @@ if argv[9] == 'y':
             print tv[0]
             print [x.encode('hex') if isinstance(x,str) else x for x in bip32_deserialize(left)]
             print [x.encode('hex') if isinstance(x,str) else x for x in bip32_deserialize(right)]
+
+if argv[10] == 'y':
+    print "Starting address and script generation consistency tests"
+    for i in range(5):
+        a = privtoaddr(random_key())
+        print a == script_to_address(address_to_script(a))
+        b = privtoaddr(random_key(),5)
+        print b == script_to_address(address_to_script(b))
