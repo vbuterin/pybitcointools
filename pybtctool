@@ -8,6 +8,9 @@ else:
     if sys.argv[1] == '-s':
         cmd = sys.argv[2]
         args = re.findall(r'\S\S*',sys.stdin.read())+sys.argv[3:]
+    elif sys.argv[1] == '-b':
+        cmd = sys.argv[2]
+        args = sys.stdin.read()+sys.argv[3:]
     else:
         cmd = sys.argv[1]
         args = sys.argv[2:]
