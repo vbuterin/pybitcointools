@@ -76,3 +76,9 @@ def get_tx_data(txhash):
     for o in jsonobj["out"]:
         txobj["outs"].append({ "address": o["addr"], "value": o["value"] })
     return txobj
+
+def firstbits(address):
+    if len(address) >= 25:
+        return make_request('https://blockchain.info/q/getfirstbits/'+address)
+    else:
+        return make_request('https://blockchain.info/q/resolvefirstbits/'+address)
