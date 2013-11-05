@@ -2,7 +2,7 @@ import random, os, json, sys
 
 from pybitcointools import *
 
-argv = sys.argv + ['y']*9
+argv = sys.argv + ['y']*15
 
 if argv[1] == 'y':
     print "Starting ECC arithmetic tests"

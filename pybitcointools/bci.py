@@ -56,6 +56,14 @@ def pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$',tx): tx = tx.encode('hex')
     return make_request('http://blockchain.info/pushtx','tx='+tx)
 
+def eligius_pushtx(tx):
+    if not re.match('^[0-9a-fA-F]*$',tx): tx = tx.encode('hex')
+    s = make_request('http://eligius.st/~wizkid057/newstats/pushtxn.php','transaction='+tx+'&send=Push')
+    strings = re.findall('string[^"]*"[^"]*"',s)
+    for string in strings:
+        quote = re.findall('"[^"]*"',string)[0]
+        if len(quote) >= 5: return quote[1:-1]
+
 # Gets data about a specific transaction
 # Unfortunately this does not give enough info to reconstruct the transaction
 def get_tx_data(txhash):

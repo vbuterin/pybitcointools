@@ -168,7 +168,7 @@ def multiply(pubkey,privkey):
   f1,f2 = get_pubkey_format(pubkey), get_privkey_format(privkey)
   pubkey, privkey = decode_pubkey(pubkey,f1), decode_privkey(privkey,f2)
   # http://safecurves.cr.yp.to/twist.html
-  if (pubkey[0]**3+7-pubkey[1]*pubkey[1]) % P != 0: 
+  if not isinf(pubkey) and (pubkey[0]**3+7-pubkey[1]*pubkey[1]) % P != 0: 
       raise Exception("Point not on curve")
   return encode_pubkey(base10_multiply(pubkey,privkey),f1)
 
@@ -189,6 +189,8 @@ def decompress(pubkey):
 def privkey_to_pubkey(privkey):
     f = get_privkey_format(privkey)
     privkey = decode_privkey(privkey,f)
+    if privkey == 0 or privkey >= N:
+        raise Exception("Invalid privkey")
     if f in ['bin','bin_compressed','hex','hex_compressed','decimal']:
         return encode_pubkey(base10_multiply(G,privkey),f)
     else:
