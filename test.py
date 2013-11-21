@@ -20,6 +20,7 @@ for i in range(8 if argv[1] == 'y' else 0):
     p = privtopub(sha256(str(x)))
     if i%2 == 1: p = changebase(p,16,256)
     print decompress(compress(p)) == p
+    print multiply(divide(G,x),x)[0] == G[0]
 
 if argv[2] == 'y':
     print "Starting Electrum wallet internal consistency tests"

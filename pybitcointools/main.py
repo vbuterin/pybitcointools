@@ -64,7 +64,7 @@ def base10_add(a,b):
   if isinf(a): return b[0],b[1]
   if isinf(b): return a[0],a[1]
   if a[0] == b[0]: 
-    if a[1] == b[1]: return base10_double(a[0],a[1])
+    if a[1] == b[1]: return base10_double((a[0],a[1]))
     else: return (0,0)
   m = ((b[1]-a[1]) * inv(b[0]-a[0],P)) % P
   x = (m*m-a[0]-b[0]) % P
@@ -172,6 +172,10 @@ def multiply(pubkey,privkey):
       raise Exception("Point not on curve")
   return encode_pubkey(base10_multiply(pubkey,privkey),f1)
 
+def divide(pubkey,privkey):
+    factor = inv(decode_privkey(privkey),N)
+    return multiply(pubkey,factor)
+
 def compress(pubkey):
     f = get_pubkey_format(pubkey)
     if 'compressed' in f: return pubkey
@@ -202,13 +206,25 @@ def privkey_to_address(priv,magicbyte=0):
     return pubkey_to_address(privkey_to_pubkey(priv),magicbyte)
 privtoaddr = privkey_to_address
 
-# Deprecated method
-def add(p1,p2): raise Exception("Use add_privkeys or add_pubkeys instead")
-
-def neg(pubkey): 
+def neg_pubkey(pubkey): 
     f = get_pubkey_format(pubkey)
     pubkey = decode_pubkey(pubkey,f)
-    return encode_pubkey((pubkey[0],P-pubkey[1]),f)
+    return encode_pubkey((pubkey[0],(P-pubkey[1]) % P),f)
+
+def neg_privkey(privkey):
+    f = get_privkey_format(privkey)
+    privkey = decode_privkey(privkey,f)
+    return encode_privkey((P - privkey) % P,f)
+
+def subtract_pubkeys(p1, p2):
+  f1,f2 = get_pubkey_format(p1), get_pubkey_format(p2)
+  k2 = decode_pubkey(p2,f2)
+  return encode_pubkey(base10_add(decode_pubkey(p1,f1),(k2[0],(P - k2[1]) % P)),f1)
+
+def subtract_privkeys(p1, p2):
+  f1,f2 = get_privkey_format(p1), get_privkey_format(p2)
+  k2 = decode_privkey(p2,f2)
+  return encode_privkey((decode_privkey(p1,f1) - k2) % P,f1)
 
 ### Hashes
 
@@ -346,7 +362,7 @@ def ecdsa_raw_recover(msghash,vrs):
     y = beta if v%2 ^ beta%2 else (P - beta)
     z = hash_to_int(msghash)
 
-    Qr = base10_add(neg(base10_multiply(G,z)),base10_multiply((x,y),s))
+    Qr = base10_add(neg_pubkey(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))
 
     if ecdsa_raw_verify(msghash,vrs,Q): return encode_pubkey(Q,'hex')

