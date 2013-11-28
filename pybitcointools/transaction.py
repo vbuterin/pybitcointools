@@ -24,7 +24,7 @@ def json_changebase(obj,changer):
     if isinstance(obj,(str,unicode)): return changer(obj)
     elif isinstance(obj,(int,float,long)) or obj is None: return obj
     elif isinstance(obj,list): return [json_changebase(x,changer) for x in obj]
-    return { x:json_changebase(obj[x],changer) for x in obj }
+    return dict((x, json_changebase(obj[x], changer)) for x in obj)
 
 ### Transaction serialization and deserialization
 
