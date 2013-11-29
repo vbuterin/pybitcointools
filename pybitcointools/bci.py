@@ -64,13 +64,18 @@ def eligius_pushtx(tx):
         quote = re.findall('"[^"]*"',string)[0]
         if len(quote) >= 5: return quote[1:-1]
 
+def last_block_height():
+    data = make_request('http://blockchain.info/latestblock')
+    jsonobj = json.loads(data)
+    return jsonobj["height"]
+
 # Gets data about a specific transaction
 # Unfortunately this does not give enough info to reconstruct the transaction
 def get_tx_data(txhash):
     if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
     data = make_request('http://blockchain.info/rawtx/'+txhash);
     jsonobj = json.loads(data)
-    txobj = { "ins": [], "outs": [] }
+    txobj = { "ins": [], "outs": [], "block_height": jsonobj.get("block_height",None) }
     for i in jsonobj["inputs"]:
         bci_url = 'http://blockchain.info/rawtx/'+str(i["prev_out"]["tx_index"])
         prevtx = make_request(bci_url)

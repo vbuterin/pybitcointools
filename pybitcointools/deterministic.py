@@ -24,7 +24,8 @@ def electrum_pubkey(masterkey,n,for_change=0):
     if len(masterkey) == 32: mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64: mpk = electrum_mpk(masterkey)
     else: mpk = masterkey
-    offset = bin_dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    bin_mpk = encode_pubkey(mpk,'bin_electrum')
+    offset = bin_dbl_sha256(str(n)+':'+str(for_change)+':'+bin_mpk)
     return add_pubkeys('04'+mpk,privtopub(offset))
 
 # seed/stretched seed/pubkey -> address (convenience method)
@@ -35,7 +36,8 @@ def electrum_address(masterkey,n,for_change=0,version=0):
 # cracks the secret exponent which can be used to generate all other private
 # keys in the wallet
 def crack_electrum_wallet(mpk,pk,n,for_change=0):
-    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    bin_mpk = encode_pubkey(mpk,'bin_electrum')
+    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+bin_mpk)
     return subtract_privkeys(pk, offset)
 
 # Below code ASSUMES binary inputs and compressed pubkeys
