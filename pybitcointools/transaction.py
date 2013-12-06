@@ -169,11 +169,11 @@ def address_to_script(addr):
     else: return mk_pubkey_script(addr)
 
 # Output script to address representation
-def script_to_address(script):
+def script_to_address(script,vbyte=0):
     if re.match('^[0-9a-fA-F]*$',script):
         script = script.decode('hex')
     if script[:3] == '\x76\xa9\x14' and script[-2:] == '\x88\xac' and len(script) == 25:
-        return bin_to_b58check(script[3:-2]) # pubkey hash addresses
+        return bin_to_b58check(script[3:-2],vbyte) # pubkey hash addresses
     else:
         return bin_to_b58check(script[2:-1],5) # BIP0016 scripthash addresses
 

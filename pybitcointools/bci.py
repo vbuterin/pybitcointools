@@ -42,7 +42,8 @@ def history(*args):
                 outs[key] = { 
                     "address" : o["addr"],
                     "value" : o["value"],
-                    "output" : tx["hash"]+':'+str(o["n"])
+                    "output" : tx["hash"]+':'+str(o["n"]),
+                    "block_height" : tx.get("block_height",None)
                 }
     for tx in txs:
         for i, inp in enumerate(tx["inputs"]):
