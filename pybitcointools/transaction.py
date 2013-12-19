@@ -135,25 +135,28 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None,decode(left,16),decode(right,16))
 
-def tx_hash(tx,hashcode=None):
+def txhash(tx,hashcode=None):
     if re.match('^[0-9a-fA-F]*$',tx):
         tx = changebase(tx,16,256)
-    if hashcode: return bin_dbl_sha256(tx + encode(int(hashcode),256,4)[::-1])
-    else: return bin_dbl_sha256(tx)[::-1]
+    if hashcode: return dbl_sha256(tx + encode(int(hashcode),256,4)[::-1])
+    else: return dbl_sha256(tx)[::-1]
+
+def bin_txhash(tx,hashcode=None):
+    return txhash(tx,hashcode).decode('hex')
 
 def ecdsa_tx_sign(tx,priv,hashcode=SIGHASH_ALL):
-    rawsig = ecdsa_raw_sign(tx_hash(tx,hashcode),priv)
+    rawsig = ecdsa_raw_sign(bin_txhash(tx,hashcode),priv)
     return der_encode_sig(*rawsig)+encode(hashcode,16,2)
 
 def ecdsa_tx_verify(tx,sig,pub,hashcode=SIGHASH_ALL):
-    return ecdsa_raw_verify(tx_hash(tx,hashcode),der_decode_sig(sig),pub)
+    return ecdsa_raw_verify(bin_txhash(tx,hashcode),der_decode_sig(sig),pub)
 
 def ecdsa_tx_recover(tx,sig,hashcode=SIGHASH_ALL):
-    z = tx_hash(tx,hashcode)
+    z = bin_txhash(tx,hashcode)
     _,r,s = der_decode_sig(sig)
     left = ecdsa_raw_recover(z,(0,r,s))
     right = ecdsa_raw_recover(z,(1,r,s))
-    return (left, right)
+    return (encode_pubkey(left,'hex'), encode_pubkey(right,'hex'))
 
 ### Scripts
 

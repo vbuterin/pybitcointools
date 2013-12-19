@@ -43,7 +43,7 @@ if argv[3] == 'y':
     wallet = "/tmp/tempwallet_"+str(random.randrange(2**40))
     print "Starting wallet tests with: "+wallet
     os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
-    seed = str(json.loads(os.popen("electrum -w %s getseed" % wallet).read())['hex'])
+    seed = str(json.loads(os.popen("electrum -w %s getseed" % wallet).read())['seed'])
     addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
     for i in range(5):
         if addies[i] != electrum_address(seed,i,0):
@@ -54,7 +54,7 @@ if argv[3] == 'y':
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
         msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20,200))])
         addy = random.choice(addies)
-        wif = os.popen('electrum -w %s dumpprivkey %s' % (wallet, addy)).readlines()[-1].strip()
+        wif = os.popen('electrum -w %s dumpprivkey %s' % (wallet, addy)).readlines()[-2].replace('"','').strip()
         priv = b58check_to_hex(wif)
         pub = privtopub(priv)
     

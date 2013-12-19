@@ -70,26 +70,11 @@ def last_block_height():
     jsonobj = json.loads(data)
     return jsonobj["height"]
 
-# Gets data about a specific transaction
-# Unfortunately this does not give enough info to reconstruct the transaction
-def get_tx_data(txhash):
+# Gets a specific transaction
+def fetchtx(txhash):
     if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
-    data = make_request('http://blockchain.info/rawtx/'+txhash);
-    jsonobj = json.loads(data)
-    txobj = { "ins": [], "outs": [], "block_height": jsonobj.get("block_height",None) }
-    for i in jsonobj["inputs"]:
-        bci_url = 'http://blockchain.info/rawtx/'+str(i["prev_out"]["tx_index"])
-        prevtx = make_request(bci_url)
-        prevtxobj = json.loads(prevtx)
-        txobj["ins"].append({ 
-            "outpoint": {
-                "hash" : prevtxobj["hash"],
-                "index": i["prev_out"]["n"]
-            }
-        })
-    for o in jsonobj["out"]:
-        txobj["outs"].append({ "address": o["addr"], "value": o["value"] })
-    return txobj
+    data = make_request('http://blockchain.info/rawtx/'+txhash+'?format=hex');
+    return data
 
 def firstbits(address):
     if len(address) >= 25:

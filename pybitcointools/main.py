@@ -13,48 +13,51 @@ G = (Gx,Gy)
 ### Extended Euclidean Algorithm
 
 def inv(a,n):
-  lm, hm = 1,0
-  low, high = a%n,n
-  while low > 1:
-    r = high/low
-    nm, new = hm-lm*r, high-low*r
-    lm, low, hm, high = nm, new, lm, low
-  return lm % n
+    lm, hm = 1,0
+    low, high = a%n,n
+    while low > 1:
+        r = high/low
+        nm, new = hm-lm*r, high-low*r
+        lm, low, hm, high = nm, new, lm, low
+    return lm % n
 
 ### Base switching
 
 def get_code_string(base):
-   if base == 2: return '01'
-   elif base == 10: return '0123456789'
-   elif base == 16: return "0123456789abcdef"
-   elif base == 58: return "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-   elif base == 256: return ''.join([chr(x) for x in range(256)])
-   else: raise ValueError("Invalid base!")
+    if base == 2: return '01'
+    elif base == 10: return '0123456789'
+    elif base == 16: return "0123456789abcdef"
+    elif base == 58: return "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    elif base == 256: return ''.join([chr(x) for x in range(256)])
+    else: raise ValueError("Invalid base!")
+
+def lpad(msg,symbol,length):
+    if len(msg) >= length: return msg
+    return symbol * (length - len(msg)) + msg
 
 def encode(val,base,minlen=0):
-   base, minlen = int(base), int(minlen)
-   code_string = get_code_string(base)
-   result = ""   
-   while val > 0:
-      result = code_string[val % base] + result
-      val /= base
-   if len(result) < minlen:
-      result = code_string[0]*(minlen-len(result))+result
-   return result
+    base, minlen = int(base), int(minlen)
+    code_string = get_code_string(base)
+    result = ""   
+    while val > 0:
+        result = code_string[val % base] + result
+        val /= base
+    return lpad(result,code_string[0],minlen)
 
 def decode(string,base):
-   base = int(base)
-   code_string = get_code_string(base)
-   result = 0
-   if base == 16: string = string.lower()
-   while len(string) > 0:
-      result *= base
-      result += code_string.find(string[0])
-      string = string[1:]
-   return result
+    base = int(base)
+    code_string = get_code_string(base)
+    result = 0
+    if base == 16: string = string.lower()
+    while len(string) > 0:
+        result *= base
+        result += code_string.find(string[0])
+        string = string[1:]
+    return result
 
 def changebase(string,frm,to,minlen=0):
-   return encode(decode(string,frm),to,minlen)
+    if frm == to: return lpad(string,minlen)
+    return encode(decode(string,frm),to,minlen)
 
 ### Elliptic Curve functions
 
@@ -139,16 +142,18 @@ def get_privkey_format(priv):
         elif len(bin_p) == 33: return 'wif_compressed'
         else: raise Exception("WIF does not represent privkey")
 
-def encode_privkey(priv,formt):
+def encode_privkey(priv,formt,vbyte=0):
     if not isinstance(priv,(int,long)):
-        return encode_privkey(decode_privkey(priv),formt)
+        return encode_privkey(decode_privkey(priv),formt,vbyte)
     if formt == 'decimal': return priv
     elif formt == 'bin': return encode(priv,256,32)
     elif formt == 'bin_compressed': return encode(priv,256,32)+'\x01'
     elif formt == 'hex': return encode(priv,16,64)
     elif formt == 'hex_compressed': return encode(priv,16,64)+'01'
-    elif formt == 'wif': return bin_to_b58check(encode(priv,256,32),128)
-    elif formt == 'wif_compressed': return bin_to_b58check(encode(priv,256,32)+'\x01',128)
+    elif formt == 'wif':
+        return bin_to_b58check(encode(priv,256,32),128+int(vbyte))
+    elif formt == 'wif_compressed':
+        return bin_to_b58check(encode(priv,256,32)+'\x01',128+int(vbyte))
     else: raise Exception("Invalid format!")
 
 def decode_privkey(priv,formt=None):
@@ -373,8 +378,8 @@ def ecdsa_raw_recover(msghash,vrs):
     Qr = base10_add(neg_pubkey(base10_multiply(G,z)),base10_multiply((x,y),s))
     Q = base10_multiply(Qr,inv(r,N))
 
-    if ecdsa_raw_verify(msghash,vrs,Q): return encode_pubkey(Q,'hex')
+    if ecdsa_raw_verify(msghash,vrs,Q): return Q
     return False
 
 def ecdsa_recover(msg,sig):
-    return ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig))
+    return encode_pubkey(ecdsa_raw_recover(electrum_sig_hash(msg),decode_sig(sig)),'hex')
