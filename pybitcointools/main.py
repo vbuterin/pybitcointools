@@ -291,7 +291,7 @@ def random_electrum_seed():
     return sha256(entropy)[:32]
 
 ### Encodings
-  
+
 def bin_to_b58check(inp,magicbyte=0):
     inp_fmtd = chr(int(magicbyte)) + inp
     leadingzbytes = len(re.match('^\x00*',inp_fmtd).group(0))
@@ -303,6 +303,12 @@ def b58check_to_bin(inp):
     data = '\x00' * leadingzbytes + changebase(inp,58,256)
     assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
     return data[1:-4]
+
+def get_version_byte(inp):
+    leadingzbytes = len(re.match('^1*',inp).group(0))
+    data = '\x00' * leadingzbytes + changebase(inp,58,256)
+    assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
+    return ord(data[0])
 
 def hex_to_b58check(inp,magicbyte=0):
     return bin_to_b58check(inp.decode('hex'),magicbyte)
