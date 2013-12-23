@@ -26,8 +26,9 @@ def inv(a,n):
 def get_code_string(base):
     if base == 2: return '01'
     elif base == 10: return '0123456789'
-    elif base == 16: return "0123456789abcdef"
-    elif base == 58: return "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    elif base == 16: return '0123456789abcdef'
+    elif base == 32: return 'abcdefghijklmnopqrstuvwxyz2345657'
+    elif base == 58: return '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
     elif base == 256: return ''.join([chr(x) for x in range(256)])
     else: raise ValueError("Invalid base!")
 
