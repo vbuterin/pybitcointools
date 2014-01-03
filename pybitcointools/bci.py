@@ -12,6 +12,27 @@ def make_request(*args):
         except: p = e
         raise Exception(p)
 
+# Gets the unspent outputs of one or more addresses
+def unspent(*args):
+    # Valid input formats: history([addr1, addr2,addr3])
+    #                      history(addr1, addr2, addr3)
+    if len(args) == 0: return []
+    elif isinstance(args[0],list): addrs = args[0]
+    else: addrs = args
+    u = []
+    for addr in addrs:
+        data = make_request('http://blockchain.info/unspent?address='+addr)
+        try:
+            jsonobj = json.loads(data)
+            for o in jsonobj["unspent_outputs"]:
+                u.append({
+                    "output": o['tx_hash']+':'+str(o['tx_output_n']),
+                    "value": o['value'] 
+                })
+        except:
+            raise Exception("Failed to decode data: "+data)
+    return u
+
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent
 def history(*args):
