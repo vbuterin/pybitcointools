@@ -265,6 +265,11 @@ def apply_multisignatures(*args): # tx,i,script,sigs OR tx,i,script,sig1,sig2...
     tx, i, script = args[0], int(args[1]), args[2]
     sigs = args[3] if isinstance(args[3],list) else list(args[3:])
 
+    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
+    sigs = [x.decode('hex') if x[:2] == '30' else x for x in sigs]
+    if re.match('^[0-9a-fA-F]*$',tx):
+        return apply_multisignatures(tx.decode('hex'),i,script,sigs).encode('hex')
+
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
     return serialize(txobj)
