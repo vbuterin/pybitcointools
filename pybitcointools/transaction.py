@@ -139,7 +139,7 @@ def txhash(tx,hashcode=None):
     if re.match('^[0-9a-fA-F]*$',tx):
         tx = changebase(tx,16,256)
     if hashcode: return dbl_sha256(tx + encode(int(hashcode),256,4)[::-1])
-    else: return dbl_sha256(tx)[::-1]
+    else: return bin_dbl_sha256(tx)[::-1].encode('hex')
 
 def bin_txhash(tx,hashcode=None):
     return txhash(tx,hashcode).decode('hex')
