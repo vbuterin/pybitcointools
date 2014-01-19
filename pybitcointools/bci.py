@@ -25,8 +25,9 @@ def unspent(*args):
         try:
             jsonobj = json.loads(data)
             for o in jsonobj["unspent_outputs"]:
+                h = o['tx_hash'].decode('hex')[::-1].encode('hex')
                 u.append({
-                    "output": o['tx_hash']+':'+str(o['tx_output_n']),
+                    "output": h+':'+str(o['tx_output_n']),
                     "value": o['value'] 
                 })
         except:
