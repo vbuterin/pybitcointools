@@ -121,7 +121,7 @@ def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
 ### Making the actual signatures
 
 def der_encode_sig(v,r,s):
-    b1, b2 = encode(r,16,64), encode(s,16,64)
+    b1, b2 = encode(r,256).encode('hex'), encode(s,256).encode('hex')
     if r >= 2**255: b1 = '00' + b1
     if s >= 2**255: b2 = '00' + b2
     left = '02'+encode(len(b1)/2,16,2)+b1
