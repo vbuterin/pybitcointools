@@ -21,9 +21,13 @@ def unspent(*args):
     else: addrs = args
     u = []
     for addr in addrs:
-        data = make_request('http://blockchain.info/unspent?address='+addr)
+        try: data = make_request('https://blockchain.info/unspent?address='+addr)
+        except Exception,e: 
+            if str(e) == 'No free outputs to spend': continue
+            else: raise Exception(e)
         try:
             jsonobj = json.loads(data)
+            #print 'd',data
             for o in jsonobj["unspent_outputs"]:
                 h = o['tx_hash'].decode('hex')[::-1].encode('hex')
                 u.append({
@@ -33,6 +37,23 @@ def unspent(*args):
         except:
             raise Exception("Failed to decode data: "+data)
     return u
+
+def blockr_unspent(*args):
+    # Valid input formats: history([addr1, addr2,addr3])
+    #                      history(addr1, addr2, addr3)
+    if len(args) == 0: return []
+    elif isinstance(args[0],list): addrs = args[0]
+    else: addrs = args
+    res = make_request('https://btc.blockr.io/api/v1/address/unspent/'+','.join(addrs))
+    data = json.loads(res)['data']
+    o = []
+    for dat in data:
+        for u in dat['unspent']:
+            o.append({
+                "output": u['tx']+':'+str(u['n']),
+                "value": int(u['amount'].replace('.',''))
+            })
+    return o
 
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent
@@ -47,7 +68,7 @@ def history(*args):
     for addr in addrs:
         offset = 0
         while 1:
-            data = make_request('http://blockchain.info/address/%s?format=json&offset=%s' % (addr,offset))
+            data = make_request('https://blockchain.info/address/%s?format=json&offset=%s' % (addr,offset))
             try:
                 jsonobj = json.loads(data)
             except:
@@ -74,10 +95,10 @@ def history(*args):
                 if outs.get(key): outs[key]["spend"] = tx["hash"]+':'+str(i)
     return [outs[k] for k in outs]
 
-# Pushes a transaction to the network using http://blockchain.info/pushtx
+# Pushes a transaction to the network using https://blockchain.info/pushtx
 def pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$',tx): tx = tx.encode('hex')
-    return make_request('http://blockchain.info/pushtx','tx='+tx)
+    return make_request('https://blockchain.info/pushtx','tx='+tx)
 
 def eligius_pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$',tx): tx = tx.encode('hex')
@@ -88,15 +109,24 @@ def eligius_pushtx(tx):
         if len(quote) >= 5: return quote[1:-1]
 
 def last_block_height():
-    data = make_request('http://blockchain.info/latestblock')
+    data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data)
     return jsonobj["height"]
 
 # Gets a specific transaction
-def fetchtx(txhash):
+def bci_fetchtx(txhash):
     if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
-    data = make_request('http://blockchain.info/rawtx/'+txhash+'?format=hex');
+    data = make_request('https://blockchain.info/rawtx/'+txhash+'?format=hex')
     return data
+
+def blockr_fetchtx(txhash):
+    if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
+    jsondata = json.loads(make_request('https://btc.blockr.io/api/v1/tx/raw/'+txhash))
+    return jsondata['data']['tx']['hex']
+
+def fetchtx(txhash):
+    try: return bci_fetchtx(txhash)
+    except: return blockr_fetchtx(txhash)
 
 def firstbits(address):
     if len(address) >= 25:
