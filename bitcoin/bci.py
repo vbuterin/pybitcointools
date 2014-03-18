@@ -47,6 +47,7 @@ def blockr_unspent(*args):
     res = make_request('https://btc.blockr.io/api/v1/address/unspent/'+','.join(addrs))
     data = json.loads(res)['data']
     o = []
+    if 'unspent' in data: data = [data]
     for dat in data:
         for u in dat['unspent']:
             o.append({
