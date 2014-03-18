@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='bitcoin',
-      version='1.1.4',
+      version='1.1.5',
       description='Python Bitcoin Tools',
       author='Vitalik Buterin',
       author_email='vbuterin@gmail.com',
