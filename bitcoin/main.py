@@ -60,6 +60,29 @@ def changebase(string,frm,to,minlen=0):
     if frm == to: return lpad(string,minlen)
     return encode(decode(string,frm),to,minlen)
 
+### JSON access (for pybtctool convenience)
+
+def access(obj,prop):
+    if isinstance(obj,dict):
+        if prop in obj: return obj[prop]
+        elif '.' in prop: return obj[float(prop)]
+        else: return obj[int(prop)]
+    else:
+        return obj[int(prop)]
+
+def multiaccess(obj,prop):
+    return [access(o,prop) for o in obj]
+
+def slice(obj,start=0,end=2**200):
+    return obj[int(start):int(end)]
+
+def count(obj):
+    return len(obj)
+
+_sum = sum
+def sum(obj):
+    return _sum(obj)
+    
 ### Elliptic Curve functions
 
 def isinf(p): return p[0] == 0 and p[1] == 0

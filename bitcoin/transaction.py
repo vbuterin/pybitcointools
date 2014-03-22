@@ -255,6 +255,11 @@ def sign(tx,i,priv):
     txobj["ins"][i]["script"] = serialize_script([sig,pub])
     return serialize(txobj)
 
+def signall(tx,priv):
+    for i in range(len(deserialize(tx)["ins"])):
+        tx = sign(tx,i,priv)
+    return tx
+
 def multisign(tx,i,script,pk):
     if re.match('^[0-9a-fA-F]*$',tx): tx = tx.decode('hex')
     if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
@@ -274,11 +279,16 @@ def apply_multisignatures(*args): # tx,i,script,sigs OR tx,i,script,sig1,sig2...
     txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
     return serialize(txobj)
 
+def is_inp(arg):
+    return len(arg) > 64 or "output" in arg or "outpoint" in arg
+
 def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
-    if isinstance(args[0],list): ins, outs = args[0], args[1]
-    else:
-        def is_inp(arg): return len(arg) > 64 or "output" in arg or "outpoint" in arg
-        ins, outs = filter(is_inp, args), filter(lambda x: not is_inp(x), args)
+    ins, outs = [], []
+    for arg in args:
+        if isinstance(arg,list):
+            for a in arg: (ins if is_inp(a) else outs).append(a)
+        else:
+            (ins if is_inp(arg) else outs).append(arg)
 
     txobj = { "locktime" : 0, "version" : 1,"ins" : [], "outs" : [] }
     for i in ins:
@@ -301,3 +311,45 @@ def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
             "value": o["value"]
         })
     return serialize(txobj)
+
+def select(unspent,value):
+    value = int(value)
+    high = [u for u in unspent if u["value"] >= value]
+    high.sort(key=lambda u:u["value"])
+    low = [u for u in unspent if u["value"] < value]
+    low.sort(key=lambda u:-u["value"])
+    if len(high): return [high[0]]
+    i, tv = 0, 0
+    while tv < value and i < len(low):
+        tv += low[i]["value"]
+        i += 1
+    if tv < value: raise Exception("Not enough funds")
+    return low[:i]
+
+# Only takes inputs of the form { "output": blah, "value": foo }
+def mksend(*args):
+    argz, change, fee = args[:-2], args[-2], int(args[-1])
+    ins, outs = [], []
+    for arg in argz:
+        if isinstance(arg,list):
+            for a in arg: (ins if is_inp(a) else outs).append(a)
+        else:
+            (ins if is_inp(arg) else outs).append(arg)
+
+    isum = sum([i["value"] for i in ins])
+    osum, outputs2 = 0, []
+    for o in outs:
+        if isinstance(o,str): o2 = {
+            "address": o[:o.find(':')],
+            "value": int(o[o.find(':')+1:])
+        }
+        else: o2 = o
+        outputs2.append(o2)
+        osum += o2["value"]
+        
+    if isum < osum+fee:
+        raise Exception("Not enough money")
+    elif isum > osum+fee+5430:
+        outputs2 += [{"address": change, "value": isum-osum-fee }]
+
+    return mktx(ins,outputs2)
