@@ -238,8 +238,8 @@ def verify_tx_input(tx,i,script,sig,pub):
     if re.match('^[0-9a-fA-F]*$',tx): tx = tx.decode('hex')
     if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
     if not re.match('^[0-9a-fA-F]*$',sig): sig = sig.encode('hex')
-    hashcode = ord(sig[-1])
-    modtx = signature_form(tx,int(i),script)
+    hashcode = decode(sig[-2:],16)
+    modtx = signature_form(tx,int(i),script,hashcode)
     return ecdsa_tx_verify(modtx,sig,pub)
 
 def sign(tx,i,priv):
