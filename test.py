@@ -1,4 +1,5 @@
 import random, os, json, sys
+import pybitcointools.ripemd as ripemd
 
 from pybitcointools import *
 
@@ -165,3 +166,43 @@ if argv[10] == 'y':
         print a == script_to_address(address_to_script(a))
         b = privtoaddr(random_key(),5)
         print b == script_to_address(address_to_script(b))
+
+if argv[11] == 'y':
+    print "Testing the pure python backup for ripemd160."
+
+    strvec = [""]*4
+
+    strvec[0] = ""
+    strvec[1] = "The quick brown fox jumps over the lazy dog"
+    strvec[2] = "The quick brown fox jumps over the lazy cog"
+    strvec[3] = "Nobody inspects the spammish repetition"
+
+    target = ['']*4
+
+    target[0] = '9c1185a5c5e9fc54612808977ee8f548b2258d31'
+    target[1] = '37f332f68db77bd9d7edd4969571ad671cf9dd3b'
+    target[2] = '132072df690933835eb8b6ad0b77e7b6f14acad7'
+    target[3] = 'cc4a5ce1b3df48aec5d22d1f16b894a0b894eccc'
+
+    hash160target = ['']*4
+
+    hash160target[0] = 'b472a266d0bd89c13706a4132ccfb16f7c3b9fcb'
+    hash160target[1] = '0e3397b4abc7a382b3ea2365883c3c7ca5f07600'
+    hash160target[2] = '53e0dacac5249e46114f65cb1f30d156b14e0bdc'
+    hash160target[3] = '1c9b7b48049a8f98699bca22a5856c5ef571cd68'
+
+    success = True
+    try:
+        for i in range(len(strvec)):
+            digest = ripemd.RIPEMD160(strvec[i]).digest()
+            hash160digest = ripemd.RIPEMD160(bin_sha256(strvec[i])).digest()
+            assert digest.encode('hex') == target[i]
+            assert hash160digest.encode('hex') == hash160target[i]
+            assert bin_hash160(strvec[i]).encode('hex') == hash160target[i]
+            assert hash160(strvec[i]) == hash160target[i]
+    except AssertionError:
+        print 'ripemd160 test failed.'
+        success = False
+    
+    if success:
+        print "ripemd160 test successful."
