@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import hashlib, re, sys, os, base64, time, random, hmac
 
-### Elliptic curve parameters
+### Elliptic curve parameters (secp256k1)
 
 P = 2**256-2**32-2**9-2**8-2**7-2**6-2**4-1
 N = 115792089237316195423570985008687907852837564279074904382605163141518161494337
@@ -27,7 +27,7 @@ def get_code_string(base):
     if base == 2: return '01'
     elif base == 10: return '0123456789'
     elif base == 16: return '0123456789abcdef'
-    elif base == 32: return 'abcdefghijklmnopqrstuvwxyz2345657'
+    elif base == 32: return 'abcdefghijklmnopqrstuvwxyz234567'
     elif base == 58: return '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
     elif base == 256: return ''.join([chr(x) for x in range(256)])
     else: raise ValueError("Invalid base!")
