@@ -109,6 +109,10 @@ def eligius_pushtx(tx):
         quote = re.findall('"[^"]*"',string)[0]
         if len(quote) >= 5: return quote[1:-1]
 
+def blockr_pushtx(tx):
+    if not re.match('^[0-9a-fA-F]*$', tx): tx = tx.encode('hex')
+    return make_request('http://btc.blockr.io/api/v1/tx/push', '{"hex":"%s"}' % tx)
+
 def last_block_height():
     data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data)
