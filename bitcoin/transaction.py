@@ -181,7 +181,7 @@ def script_to_address(script,vbyte=0):
         return bin_to_b58check(script[2:-1],5) # BIP0016 scripthash addresses
 
 
-def p2sh_scriptaddr(script, magicbyte=0):
+def p2sh_scriptaddr(script, magicbyte=5):
     if re.match('^[0-9a-fA-F]*$', script):
         script = script.decode('hex')
     return hex_to_b58check(hash160(script), magicbyte)
