@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import hashlib, re, sys, os, base64, time, random, hmac
+import ripemd
 
 ### Elliptic curve parameters (secp256k1)
 
@@ -267,7 +268,12 @@ def subtract_privkeys(p1, p2):
 
 def bin_hash160(string):
    intermed = hashlib.sha256(string).digest()
-   return hashlib.new('ripemd160',intermed).digest()
+   digest = ''
+   try:
+       digest = hashlib.new('ripemd160',intermed).digest()
+   except:
+       digest = ripemd.RIPEMD160(intermed).digest()
+   return digest
 def hash160(string):
     return bin_hash160(string).encode('hex')
 
