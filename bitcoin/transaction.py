@@ -43,7 +43,7 @@ def deserialize(tx):
         pos[0] += 1
         if ord(tx[pos[0]-1]) < 253: return ord(tx[pos[0]-1])
         return read_as_int(pow(2,ord(tx[pos[0]-1]) - 252))
-        
+
     def read_bytes(bytez):
         pos[0] += bytez
         return tx[pos[0]-bytez:pos[0]]
@@ -180,10 +180,13 @@ def script_to_address(script,vbyte=0):
     else:
         return bin_to_b58check(script[2:-1],5) # BIP0016 scripthash addresses
 
-def p2sh_scriptaddr(script):
-    if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
-    return hex_to_b58check(hash160(script),5)
+
+def p2sh_scriptaddr(script, magicbyte=5):
+    if re.match('^[0-9a-fA-F]*$', script):
+        script = script.decode('hex')
+    return hex_to_b58check(hash160(script), magicbyte)
 scriptaddr = p2sh_scriptaddr
+
 
 def deserialize_script(script):
     if re.match('^[0-9a-fA-F]*$',script):
@@ -296,10 +299,10 @@ def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
             txobj["ins"].append(i)
         else:
             if isinstance(i,dict) and "output" in i: i = i["output"]
-            txobj["ins"].append({ 
+            txobj["ins"].append({
                 "outpoint" : { "hash": i[:64], "index": int(i[65:]) },
                 "script": "",
-                "sequence": 4294967295 
+                "sequence": 4294967295
             })
     for o in outs:
         if isinstance(o,str): o = {
@@ -346,7 +349,7 @@ def mksend(*args):
         else: o2 = o
         outputs2.append(o2)
         osum += o2["value"]
-        
+
     if isum < osum+fee:
         raise Exception("Not enough money")
     elif isum > osum+fee+5430:
