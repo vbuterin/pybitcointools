@@ -263,11 +263,11 @@ def signall(tx,priv):
         tx = sign(tx,i,priv)
     return tx
 
-def multisign(tx,i,script,pk):
+def multisign(tx,i,script,pk,hashcode = SIGHASH_ALL):
     if re.match('^[0-9a-fA-F]*$',tx): tx = tx.decode('hex')
     if re.match('^[0-9a-fA-F]*$',script): script = script.decode('hex')
-    modtx = signature_form(tx,i,script)
-    return ecdsa_tx_sign(modtx,pk)
+    modtx = signature_form(tx,i,script,hashcode)
+    return ecdsa_tx_sign(modtx,pk,hashcode)
 
 def apply_multisignatures(*args): # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
     tx, i, script = args[0], int(args[1]), args[2]
