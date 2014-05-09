@@ -101,7 +101,7 @@ SIGHASH_ANYONECANPAY = 80
 def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx,str):
-        return serialize(signature_form(deserialize(tx),i,script))
+        return serialize(signature_form(deserialize(tx),i,script,hashcode))
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]: inp["script"] = ""
     newtx["ins"][i]["script"] = script
@@ -243,7 +243,7 @@ def verify_tx_input(tx,i,script,sig,pub):
     if not re.match('^[0-9a-fA-F]*$',sig): sig = sig.encode('hex')
     hashcode = decode(sig[-2:],16)
     modtx = signature_form(tx,int(i),script,hashcode)
-    return ecdsa_tx_verify(modtx,sig,pub)
+    return ecdsa_tx_verify(modtx,sig,pub,hashcode)
 
 def sign(tx,i,priv):
     i = int(i)
