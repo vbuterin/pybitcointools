@@ -96,7 +96,9 @@ def serialize(txobj):
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-SIGHASH_ANYONECANPAY = 80
+# this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
+# we fix the constant
+SIGHASH_ANYONECANPAY = 0x81
 
 def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
@@ -251,15 +253,15 @@ def verify_tx_input(tx,i,script,sig,pub):
     modtx = signature_form(tx,int(i),script,hashcode)
     return ecdsa_tx_verify(modtx,sig,pub,hashcode)
 
-def sign(tx,i,priv):
+def sign(tx,i,priv,hashcode=SIGHASH_ALL):
     i = int(i)
     if not re.match('^[0-9a-fA-F]*$',tx):
         return sign(tx.encode('hex'),i,priv).decode('hex')
     if len(priv) <= 33: priv = priv.encode('hex')
     pub = privkey_to_pubkey(priv)
     address = pubkey_to_address(pub)
-    signing_tx = signature_form(tx,i,mk_pubkey_script(address))
-    sig = ecdsa_tx_sign(signing_tx,priv)
+    signing_tx = signature_form(tx,i,mk_pubkey_script(address),hashcode)
+    sig = ecdsa_tx_sign(signing_tx,priv,hashcode)
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([sig,pub])
     return serialize(txobj)
