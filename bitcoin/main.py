@@ -153,7 +153,7 @@ def decode_pubkey(pub,formt=None):
     elif formt == 'bin': return (decode(pub[1:33],256),decode(pub[33:65],256))
     elif formt == 'bin_compressed':
         x = decode(pub[1:33],256)
-        beta = pow(x*x*x+B,(P+1)/4,P)
+        beta = pow(x*x*x+A*x+B,(P+1)/4,P)
         y = (P-beta) if ((beta + ord(pub[0])) % 2) else beta
         return (x,y)
     elif formt == 'hex': return (decode(pub[2:66],16),decode(pub[66:130],16))
@@ -417,7 +417,7 @@ def ecdsa_raw_recover(msghash,vrs):
     v,r,s = vrs
 
     x = r
-    beta = pow(x*x*x+B,(P+1)/4,P)
+    beta = pow(x*x*x+A*x+B,(P+1)/4,P)
     y = beta if v%2 ^ beta%2 else (P - beta)
     z = hash_to_int(msghash)
 
