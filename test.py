@@ -1,7 +1,7 @@
 import random, os, json, sys
-import pybitcointools.ripemd as ripemd
+import bitcoin.ripemd as ripemd
 
-from pybitcointools import *
+from bitcoin import *
 
 argv = sys.argv + ['y']*15
 

@@ -7,6 +7,7 @@ import ripemd
 P = 2**256-2**32-2**9-2**8-2**7-2**6-2**4-1
 N = 115792089237316195423570985008687907852837564279074904382605163141518161494337
 A = 0
+B = 7
 Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
 Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
 G = (Gx,Gy)
@@ -143,7 +144,7 @@ def decode_pubkey(pub,formt=None):
     elif formt == 'bin': return (decode(pub[1:33],256),decode(pub[33:65],256))
     elif formt == 'bin_compressed':
         x = decode(pub[1:33],256)
-        beta = pow(x*x*x+7,(P+1)/4,P)
+        beta = pow(x*x*x+B,(P+1)/4,P)
         y = (P-beta) if ((beta + ord(pub[0])) % 2) else beta
         return (x,y)
     elif formt == 'hex': return (decode(pub[2:66],16),decode(pub[66:130],16))
@@ -206,7 +207,7 @@ def multiply(pubkey,privkey):
   f1,f2 = get_pubkey_format(pubkey), get_privkey_format(privkey)
   pubkey, privkey = decode_pubkey(pubkey,f1), decode_privkey(privkey,f2)
   # http://safecurves.cr.yp.to/twist.html
-  if not isinf(pubkey) and (pubkey[0]**3+7-pubkey[1]*pubkey[1]) % P != 0: 
+  if not isinf(pubkey) and (pubkey[0]**3+B-pubkey[1]*pubkey[1]) % P != 0: 
       raise Exception("Point not on curve")
   return encode_pubkey(base10_multiply(pubkey,privkey),f1)
 
@@ -407,7 +408,7 @@ def ecdsa_raw_recover(msghash,vrs):
     v,r,s = vrs
 
     x = r
-    beta = pow(x*x*x+7,(P+1)/4,P)
+    beta = pow(x*x*x+B,(P+1)/4,P)
     y = beta if v%2 ^ beta%2 else (P - beta)
     z = hash_to_int(msghash)
 
