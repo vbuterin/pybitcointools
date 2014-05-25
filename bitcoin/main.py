@@ -18,7 +18,7 @@ def change_curve(p, n, a, b, gx, gy):
     P, N, A, B, Gx, Gy = p, n, a, b, gx, gy
     G = (Gx, Gy)
 
-def G():
+def getG():
     return G
 
 ### Extended Euclidean Algorithm
