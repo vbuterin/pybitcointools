@@ -12,6 +12,12 @@ Gx = 550662630222773436695787188951685343262506034537775941755001873603891167292
 Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
 G = (Gx,Gy)
 
+
+def change_curve(p, n, a, b, gx, gy):
+    global P, N, A, B, Gx, Gy, G
+    P, N, A, B, Gx, Gy = p, n, a, b, gx, gy
+    G = (Gx, Gy)
+
 ### Extended Euclidean Algorithm
 
 def inv(a,n):
