@@ -41,19 +41,23 @@ def unspent(*args):
 def blockr_unspent(*args):
     # Valid input formats: blockr_unspent([addr1, addr2,addr3])
     #                      blockr_unspent(addr1, addr2, addr3)
-    #                      blockr_unspent([addr1, addr2, addr3], use_testnet)
-    #                      blockr_unspent(addr1, addr2, addr3, use_testnet)
-    use_testnet = False
+    #                      blockr_unspent([addr1, addr2, addr3], network)
+    #                      blockr_unspent(addr1, addr2, addr3, network)
+    # Where network is 'btc' or 'testnet'
+    
+    network = 'btc'
     addr_args = args
-    if len(args) >= 1 and isinstance(args[-1], bool):
-        use_testnet = args[-1]
+    if len(args) >= 1 and args[-1] in ('testnet', 'btc'):
+        network = args[-1]
         addr_args = args[:-1]
 
-    if use_testnet:
+    if network == 'testnet':
         blockr_url = 'https://tbtc.blockr.io/api/v1/address/unspent/'
-    else:
+    elif network == 'btc':
         blockr_url = 'https://btc.blockr.io/api/v1/address/unspent/'
-        
+    else:
+        raise Exception('Unsupported network {0} for blockr_unspent'.format(network))
+
     if len(addr_args) == 0: return []
     elif isinstance(addr_args[0],list): addrs = addr_args[0]
     else: addrs = addr_args
@@ -122,12 +126,15 @@ def eligius_pushtx(tx):
         quote = re.findall('"[^"]*"',string)[0]
         if len(quote) >= 5: return quote[1:-1]
 
-def blockr_pushtx(tx, use_testnet=False):
-    if use_testnet:
+def blockr_pushtx(tx, network='btc'):
+    
+    if network == 'testnet':
         blockr_url = 'https://tbtc.blockr.io/api/v1/tx/push'
-    else:
+    elif network == 'btc':
         blockr_url = 'https://btc.blockr.io/api/v1/tx/push'
-                
+    else:
+        raise Exception('Unsupported network {0} for blockr_pushtx'.format(network))
+                    
     if not re.match('^[0-9a-fA-F]*$', tx): tx = tx.encode('hex')
     return make_request(blockr_url, '{"hex":"%s"}' % tx)
 
@@ -142,11 +149,14 @@ def bci_fetchtx(txhash):
     data = make_request('https://blockchain.info/rawtx/'+txhash+'?format=hex')
     return data
 
-def blockr_fetchtx(txhash, use_testnet=False):
-    if use_testnet:
+def blockr_fetchtx(txhash, network='btc'):
+    
+    if network == 'testnet':
         blockr_url = 'https://tbtc.blockr.io/api/v1/tx/raw/'
-    else:
+    elif network == 'btc':
         blockr_url = 'https://btc.blockr.io/api/v1/tx/raw/'
+    else:
+        raise Exception('Unsupported network {0} for blockr_fetchtx'.format(network))
 
     if not re.match('^[0-9a-fA-F]*$',txhash): txhash = txhash.encode('hex')
     jsondata = json.loads(make_request(blockr_url+txhash))
