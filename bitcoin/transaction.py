@@ -168,7 +168,7 @@ def mk_scripthash_script(addr):
 
 # Address representation to output script
 def address_to_script(addr):
-    if addr[0] == '3': return mk_scripthash_script(addr)
+    if addr[0] == '3' or addr[0] == '2': return mk_scripthash_script(addr)
     else: return mk_pubkey_script(addr)
 
 # Output script to address representation
@@ -178,7 +178,13 @@ def script_to_address(script,vbyte=0):
     if script[:3] == '\x76\xa9\x14' and script[-2:] == '\x88\xac' and len(script) == 25:
         return bin_to_b58check(script[3:-2],vbyte) # pubkey hash addresses
     else:
-        return bin_to_b58check(script[2:-1],5) # BIP0016 scripthash addresses
+        if vbyte == 111:
+            # Testnet
+            scripthash_byte = 192
+        else:
+            scripthash_byte = 5
+            
+        return bin_to_b58check(script[2:-1],scripthash_byte) # BIP0016 scripthash addresses
 
 
 def p2sh_scriptaddr(script, magicbyte=5):
