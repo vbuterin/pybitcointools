@@ -68,7 +68,7 @@ def decode(string,base):
     return result
 
 def changebase(string,frm,to,minlen=0):
-    if frm == to: return lpad(string,minlen)
+    if frm == to: return lpad(string,get_code_string(frm)[0],minlen)
     return encode(decode(string,frm),to,minlen)
 
 ### JSON access (for pybtctool convenience)
