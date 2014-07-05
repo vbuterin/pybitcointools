@@ -218,12 +218,16 @@ if argv[12] == 'y':
     inputs = [{'output': 'cd6219ea108119dc62fce09698b649efde56eca7ce223a3315e8b431f6280ce7:0',
                'value': 158000}]
 
-    outputs = [None] * 4
+    outputs = [None] * 8
     outputs[0] = [{'address' : addr0, 'value' : 1000}, {'address' : addr1, 'value' : 2000}]
     outputs[1] = [{'script' : script0, 'value' : 1000}, {'address' : addr1, 'value' : 2000}]
     outputs[2] = [{'address' : addr0, 'value' : 1000}, {'script' : script1, 'value' : 2000}]
     outputs[3] = [{'script' : script0, 'value' : 1000}, {'script' : script1, 'value' : 2000}]
-
+    outputs[4] = [addr0 + ':1000', addr1 + ':2000']
+    outputs[5] = [script0 + ':1000', addr1 + ':2000']
+    outputs[6] = [addr0 + ':1000', script1 + ':2000']
+    outputs[7] = [script0 + ':1000', script1 + ':2000']
+    
     for i in range(len(outputs)):
         outs = outputs[i]
         tx_struct = deserialize(mktx(inputs, outs))
