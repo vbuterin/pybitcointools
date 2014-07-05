@@ -311,14 +311,26 @@ def mktx(*args): # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
                 "sequence": 4294967295
             })
     for o in outs:
-        if isinstance(o,str): o = {
-            "address": o[:o.find(':')],
-            "value": int(o[o.find(':')+1:])
-        }
-        txobj["outs"].append({
-            "script": address_to_script(o["address"]),
-            "value": o["value"]
-        })
+        if isinstance(o,str):
+            addr = o[:o.find(':')]
+            val = int(o[o.find(':')+1:])
+            o = {}
+            if re.match('^[0-9a-fA-F]*$',addr):
+                o["script"] = addr
+            else:
+                o["address"] = addr
+            o["value"] = val
+            
+        outobj = {}
+        if "address" in o:
+            outobj["script"] = address_to_script(o["address"])
+        elif "script" in o:
+            outobj["script"] = o["script"]
+        else:
+            raise Exception("Could not find 'address' or 'script' in output.")
+        outobj["value"] = o["value"]
+        txobj["outs"].append(outobj)
+        
     return serialize(txobj)
 
 def select(unspent,value):
