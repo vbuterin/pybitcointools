@@ -136,11 +136,20 @@ def crack_bip32_privkey(parent_pub,priv):
 
 def coinvault_pub_to_bip32(*args):
     if len(args) == 1:
-        args = args.split(' ')
+        args = args[0].split(' ')
     vals = map(int, args[34:])
     I1 = ''.join(map(chr, vals[:33]))
     I2 = ''.join(map(chr, vals[35:67]))
     return bip32_serialize((PUBLIC, 0, '\x00'*4, 0, I2, I1))
+
+
+def coinvault_priv_to_bip32(*args):
+    if len(args) == 1:
+        args = args[0].split(' ')
+    vals = map(int, args[34:])
+    I2 = ''.join(map(chr, vals[35:67]))
+    I3 = ''.join(map(chr, vals[72:104]))
+    return bip32_serialize((PRIVATE, 0, '\x00'*4, 0, I2, I3+'\x01'))
 
 
 def bip32_descend(*args):
