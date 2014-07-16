@@ -132,3 +132,22 @@ def crack_bip32_privkey(parent_pub,priv):
     dsppub = bip32_deserialize(parent_pub)
     dspriv = bip32_deserialize(priv)
     return bip32_serialize(raw_crack_bip32_privkey(dsppub,dspriv))
+
+
+def coinvault_pub_to_bip32(*args):
+    if len(args) == 1:
+        args = args.split(' ')
+    vals = map(int, args[34:])
+    I1 = ''.join(map(chr, vals[:33]))
+    I2 = ''.join(map(chr, vals[35:67]))
+    return bip32_serialize((PUBLIC, 0, '\x00'*4, 0, I2, I1))
+
+
+def bip32_descend(*args):
+    if len(args) == 2:
+        key, path = args
+    else:
+        key, path = args[0], map(int, args[1:])
+    for p in path:
+        key = bip32_ckd(key, p)
+    return bip32_extract_key(key)

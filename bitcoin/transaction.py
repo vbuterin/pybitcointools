@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import re, json, copy
+import re, json, copy, sys
 from main import *
 
 ### Hex to bin converter and vice versa for objects
@@ -236,10 +236,14 @@ def serialize_script(script):
         return serialize_script(json_changebase(script,lambda x:x.decode('hex'))).encode('hex')
     return ''.join(map(serialize_script_unit,script))
 
-def mk_multisig_script(*args): # [pubs],k,n or pub1,pub2...pub[n],k,n
-    if len(args) == 3: pubs, k, n = args[0], int(args[1]), int(args[2])
-    else: pubs, k, n = list(args[:-2]), int(args[-2]), int(args[-1])
-    return serialize_script([k]+pubs+[n,174])
+
+def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
+    if isinstance(args[0], list):
+        pubs, k = args[0], int(args[1])
+    else:
+        pubs = filter(lambda x: len(str(x)) >= 32, args)
+        k = args[pubs]
+    return serialize_script([k]+pubs+[len(pubs), 174])
 
 ### Signing and verifying
 
