@@ -34,6 +34,7 @@ def bip32_hdm_addr(*args):
 
 def setup_coinvault_tx(tx, script):
     txobj = deserialize(tx)
+    N = deserialize_script(script)[-2]
     for inp in txobj["ins"]:
-        inp["script"] = serialize_script([None, None, None, None, script])
+        inp["script"] = serialize_script([None] * (N+1) + [script])
     return serialize(txobj)
