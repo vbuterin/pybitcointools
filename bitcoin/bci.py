@@ -176,6 +176,13 @@ def blockr_pushtx(tx, network='btc'):
     return make_request(blockr_url, '{"hex":"%s"}' % tx)
 
 
+def helloblock_pushtx(tx):
+    if not re.match('^[0-9a-fA-F]*$', tx):
+        tx = tx.encode('hex')
+    return make_request('https://mainnet.helloblock.io/v1/transactions',
+                        'rawTxHex='+tx)
+
+
 def last_block_height():
     data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data)
