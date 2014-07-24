@@ -8,9 +8,9 @@ from deterministic import *
 def send(frm, to, value, fee=1000):
     u = unspent(privtoaddr(frm))
     u2 = select(u, int(value)+int(fee))
-    argz = u2 + [to+':'+str(value), privtoaddr(to), fee]
+    argz = u2 + [to+':'+str(value), to, fee]
     tx = mksend(argz)
-    tx2 = signall(tx, privtoaddr(to))
+    tx2 = signall(tx, frm)
     pushtx(tx2)
 
 
