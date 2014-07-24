@@ -7,7 +7,7 @@ from deterministic import *
 # Takes privkey, address, value (satoshis), fee (satoshis)
 def send(frm, to, value, fee=1000):
     u = unspent(privtoaddr(frm))
-    u2 = select(u, value+fee)
+    u2 = select(u, int(value)+int(fee))
     argz = u2 + [to+':'+str(value), privtoaddr(to), fee]
     tx = mksend(argz)
     tx2 = signall(tx, privtoaddr(to))
