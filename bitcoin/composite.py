@@ -9,9 +9,9 @@ def send(frm, to, value, fee=1000):
     u = unspent(privtoaddr(frm))
     u2 = select(u, int(value)+int(fee))
     argz = u2 + [to+':'+str(value), to, fee]
-    tx = mksend(argz)
+    tx = mksend(*argz)
     tx2 = signall(tx, frm)
-    pushtx(tx2)
+    return pushtx(tx2)
 
 
 def bip32_hdm_script(*args):

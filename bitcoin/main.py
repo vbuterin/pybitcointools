@@ -123,7 +123,91 @@ def base10_multiply(a,n):
   if (n%2) == 0: return base10_double(base10_multiply(a,n/2))
   if (n%2) == 1: return base10_add(base10_double(base10_multiply(a,n/2)),a)
 
+### Elliptic curve Jordan form functions
+# P = (m, n, p, q) where m/n = x, p/q = y
+
+
+def jordan_isinf(p):
+    return p[0][0] == 0 and p[1][0] == 0
+
+
+def mulcoords(c1, c2):
+    return (c1[0] * c2[0] % P, c1[1] * c2[1] % P)
+
+
+def mul_by_const(c, v):
+    return (c[0] * v % P, c[1])
+
+
+def addcoords(c1, c2):
+    return ((c1[0] * c2[1] + c2[0] * c1[1]) % P, c1[1] * c2[1] % P)
+
+
+def subcoords(c1, c2):
+    return ((c1[0] * c2[1] - c2[0] * c1[1]) % P, c1[1] * c2[1] % P)
+
+
+def invcoords(c):
+    return (c[1], c[0])
+
+
+def jordan_add(a, b):
+    if jordan_isinf(a):
+        return b
+    if jordan_isinf(b):
+        return a
+
+    if (a[0][0] * b[0][1] - b[0][0] * a[0][1]) % P == 0:
+        if (a[1][0] * b[1][1] - b[1][0] * a[1][1]) % P == 0:
+            return jordan_double(a)
+        else:
+            return ((0, 1), (0, 1))
+    xdiff = subcoords(b[0], a[0])
+    ydiff = subcoords(b[1], a[1])
+    m = mulcoords(ydiff, invcoords(xdiff))
+    x = subcoords(subcoords(mulcoords(m, m), a[0]), b[0])
+    y = subcoords(mulcoords(m, subcoords(a[0], x)), a[1])
+    return (x, y)
+
+
+def jordan_double(a):
+    if isinf(a):
+        return ((0, 1), (0, 1))
+    num = addcoords(mul_by_const(mulcoords(a[0], a[0]), 3), (A, 1))
+    den = mul_by_const(a[1], 2)
+    m = mulcoords(num, invcoords(den))
+    x = subcoords(mulcoords(m, m), mul_by_const(a[0], 2))
+    y = subcoords(mulcoords(m, subcoords(a[0], x)), a[1])
+    return (x, y)
+
+
+def jordan_multiply(a,n):
+    if jordan_isinf(a) or n == 0:
+        return ((0, 0), (0, 0))
+    if n == 1:
+        return a
+    if n < 0 or n >= N:
+        return jordan_multiply(a, n%N)
+    if (n%2) == 0:
+        return jordan_double(jordan_multiply(a, n/2))
+    if (n%2) == 1:
+        return jordan_add(jordan_double(jordan_multiply(a, n/2)), a)
+
+
+def to_jordan(p):
+    return ((p[0], 1), (p[1], 1))
+
+
+def from_jordan(p):
+    return (p[0][0] * inv(p[0][1], P) % P, p[1][0] * inv(p[1][1], P) % P)
+    return (p[0][0] * inv(p[0][1], P) % P, p[1][0] * inv(p[1][1], P) % P)
+
+
+def fast_multiply(a, n):
+    return from_jordan(jordan_multiply(to_jordan(a), n))
+
 # Functions for handling pubkey and privkey formats
+
 
 def get_pubkey_format(pub):
     if isinstance(pub,(tuple,list)): return 'decimal'
@@ -218,7 +302,7 @@ def multiply(pubkey,privkey):
   # http://safecurves.cr.yp.to/twist.html
   if not isinf(pubkey) and (pubkey[0]**3+B-pubkey[1]*pubkey[1]) % P != 0: 
       raise Exception("Point not on curve")
-  return encode_pubkey(base10_multiply(pubkey,privkey),f1)
+  return encode_pubkey(fast_multiply(pubkey,privkey),f1)
 
 def divide(pubkey,privkey):
     factor = inv(decode_privkey(privkey),N)
@@ -244,9 +328,9 @@ def privkey_to_pubkey(privkey):
     if privkey == 0 or privkey >= N:
         raise Exception("Invalid privkey")
     if f in ['bin','bin_compressed','hex','hex_compressed','decimal']:
-        return encode_pubkey(base10_multiply(G,privkey),f)
+        return encode_pubkey(fast_multiply(G,privkey),f)
     else:
-        return encode_pubkey(base10_multiply(G,privkey),f.replace('wif','hex'))
+        return encode_pubkey(fast_multiply(G,privkey),f.replace('wif','hex'))
 
 privtopub = privkey_to_pubkey
 
