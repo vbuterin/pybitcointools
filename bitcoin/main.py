@@ -475,7 +475,7 @@ def ecdsa_raw_sign(msghash,priv):
     z = hash_to_int(msghash)
     k = deterministic_generate_k(msghash,priv)
 
-    r,y = base10_multiply(G,k)
+    r,y = fast_multiply(G,k)
     s = inv(k,N) * (z + r*decode_privkey(priv)) % N
 
     return 27+(y%2),r,s
@@ -490,7 +490,7 @@ def ecdsa_raw_verify(msghash,vrs,pub):
     z = hash_to_int(msghash)
     
     u1, u2 = z*w % N, r*w % N
-    x,y = base10_add(base10_multiply(G,u1), base10_multiply(decode_pubkey(pub),u2))
+    x,y = base10_add(fast_multiply(G,u1), fast_multiply(decode_pubkey(pub),u2))
 
     return r == x
 
@@ -505,8 +505,8 @@ def ecdsa_raw_recover(msghash,vrs):
     y = beta if v%2 ^ beta%2 else (P - beta)
     z = hash_to_int(msghash)
 
-    Qr = base10_add(neg_pubkey(base10_multiply(G,z)),base10_multiply((x,y),s))
-    Q = base10_multiply(Qr,inv(r,N))
+    Qr = base10_add(neg_pubkey(fast_multiply(G,z)),fast_multiply((x,y),s))
+    Q = fast_multiply(Qr,inv(r,N))
 
     if ecdsa_raw_verify(msghash,vrs,Q): return Q
     return False
