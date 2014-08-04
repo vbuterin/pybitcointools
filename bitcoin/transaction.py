@@ -180,7 +180,7 @@ def script_to_address(script,vbyte=0):
     else:
         if vbyte == 111:
             # Testnet
-            scripthash_byte = 192
+            scripthash_byte = 196
         else:
             scripthash_byte = 5
             
