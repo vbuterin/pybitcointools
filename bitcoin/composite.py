@@ -38,3 +38,20 @@ def setup_coinvault_tx(tx, script):
     for inp in txobj["ins"]:
         inp["script"] = serialize_script([None] * (N+1) + [script])
     return serialize(txobj)
+
+
+def sign_coinvault_tx(tx, priv):
+    pub = privtopub(priv)
+    txobj = deserialize(tx)
+    subscript = deserialize_script(txobj['ins'][0]['script'])
+    oscript = deserialize_script(subscript[-1])
+    k, pubs = oscript[0], oscript[1:-2]
+    for j in range(len(txobj['ins'])):
+        scr = deserialize_script(txobj['ins'][j]['script'])
+        for i, p in enumerate(pubs):
+            if p == pub:
+                scr[i+1] = multisign(tx, j, subscript[-1], priv)
+        if len(filter(lambda x: x, scr[1:-1])) >= k:
+            scr = [None] + filter(lambda x: x, scr[1:-1])[:k] + [scr[-1]]
+        txobj['ins'][j]['script'] = serialize_script(scr)
+    return serialize(txobj)
