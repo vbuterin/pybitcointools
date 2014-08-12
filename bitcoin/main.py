@@ -445,12 +445,16 @@ def electrum_sig_hash(message):
 
 def random_key():
     # Gotta be secure after that java.SecureRandom fiasco...
-    entropy = os.urandom(32)+str(random.randrange(2**256))+str(int(time.time())**7)
+    entropy = os.urandom(32) \
+        + str(random.randrange(2**256)) \
+        + str(int(time.time() * 1000000))
     return sha256(entropy)
 
 
 def random_electrum_seed():
-    entropy = os.urandom(32)+str(random.randrange(2**256))+str(int(time.time())**7)
+    entropy = os.urandom(32) \
+        + str(random.randrange(2**256)) \
+        + str(int(time.time() * 1000000))
     return sha256(entropy)[:32]
 
 # Encodings
