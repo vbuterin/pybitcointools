@@ -288,8 +288,8 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
     if isinstance(args[0], list):
         pubs, k = args[0], int(args[1])
     else:
-        pubs = filter(lambda x: len(str(x)) >= 32, args)
-        k = args[pubs]
+        pubs = list(filter(lambda x: len(str(x)) >= 32, args))
+        k = int(args[len(pubs)])
     return serialize_script([k]+pubs+[len(pubs), 174])
 
 # Signing and verifying

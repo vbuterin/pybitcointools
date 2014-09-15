@@ -14,6 +14,14 @@ def send(frm, to, value, fee=1000):
     return pushtx(tx2)
 
 
+# Takes address, address, value (satoshis), fee(satoshis)
+def preparetx(frm, to, value, fee=10000):
+    u = blockr_unspent(frm)
+    u2 = select(u, int(value)+int(fee))
+    argz = u2 + [to+':'+str(value), to, fee]
+    return mksend(*argz)
+
+
 def bip32_hdm_script(*args):
     if len(args) == 3:
         keys, req, path = args

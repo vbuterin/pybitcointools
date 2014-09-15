@@ -563,9 +563,11 @@ def ecdsa_raw_recover(msghash, vrs):
     beta = pow(x*x*x+A*x+B, (P+1)/4, P)
     y = beta if v % 2 ^ beta % 2 else (P - beta)
     z = hash_to_int(msghash)
-
-    Qr = fast_add(neg_pubkey(fast_multiply(G, z)), fast_multiply((x, y), s))
-    Q = fast_multiply(Qr, inv(r, N))
+    Gz = jordan_multiply(((Gx, 1), (Gy, 1)), (N - z) % N)
+    XY = jordan_multiply(((x, 1), (y, 1)), s)
+    Qr = jordan_add(Gz, XY)
+    Q = jordan_multiply(Qr, inv(r, N))
+    Q = from_jordan(Q)
 
     if ecdsa_raw_verify(msghash, vrs, Q):
         return Q
