@@ -74,45 +74,54 @@ def TestElectrumWalletInternalConsistency(unittest.TestCase):
                 )
 
 
-if argv[3] == 'y':
-    # Requires Electrum
-    wallet = "/tmp/tempwallet_"+str(random.randrange(2**40))
-    print "Starting wallet tests with: "+wallet
-    os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
-    seed = str(json.loads(os.popen("electrum -w %s getseed" % wallet).read())['seed'])
-    addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
-    for i in range(5):
-        if addies[i] != electrum_address(seed, i, 0):
-            print "Address does not match!!!, seed: %s, i: %d" % (seed, i)
+def TestElectrumSignVerify(unittest.TestCase):
+    """Requires Electrum."""
 
-    print "Electrum-style signing and verification tests, against actual Electrum"
-    for i in range(8):
+    @classmethod
+    def setUpClass(cls):
+        cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
+        print "Starting wallet tests with: " + wallet
+        os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
+        cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % wallet).read())['seed'])
+        cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
+
+    def test_address(self):
+        for i in range(5):
+            self.assertEqual(
+                addies[i]
+                electrum_address(seed, i, 0),
+                "Address does not match! Details:\nseed %s, i: %d" % (seed, i)
+            )
+
+    def test_sign_verify(self):
+        print "Electrum-style signing and verification tests, against actual Electrum"
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
-        msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
-        addy = random.choice(addies)
-        wif = os.popen('electrum -w %s dumpprivkey %s' % (wallet, addy)).readlines()[-2].replace('"', '').strip()
-        priv = b58check_to_hex(wif)
-        pub = privtopub(priv)
+        for i in range(8):
+            msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
+            addy = random.choice(addies)
+            wif = os.popen('electrum -w %s dumpprivkey %s' % (wallet, addy)).readlines()[-2].replace('"', '').strip()
+            priv = b58check_to_hex(wif)
+            pub = privtopub(priv)
 
-        sig = os.popen('electrum -w %s signmessage %s %s' % (wallet, addy, msg)).readlines()[-1].strip()
-        verified = ecdsa_verify(msg, sig, pub)
-        print "Verified" if verified else "Verification error"
-        rec = ecdsa_recover(msg, sig)
-        if pub == rec:
-            print "Recovery successful"
-        if pub != rec or not verified:
-            print "msg: "+msg
-            print "sig: "+sig
-            print "priv: "+priv
-            print "addy: "+addy
-        if pub != rec:
-            print "Recovery error"
-            print "original  pub: "+pub, hex_to_point(pub)[1]
-            print "recovered pub: "+rec
+            sig = os.popen('electrum -w %s signmessage %s %s' % (wallet, addy, msg)).readlines()[-1].strip()
+            self.assertTrue(
+                ecdsa_verify(msg, sig, pub),
+                "Verification error. Details:\nmsg: %s\nsig: %s\npriv: %s\naddy: %s\npub: %s" % (
+                    msg, sig, priv, addy, pub
+                )
+            )
 
-        mysig = ecdsa_sign(msg, priv)
-        v = os.popen('electrum -w %s verifymessage %s %s %s' % (wallet, addy, sig, msg)).read()
-        print v
+            rec = ecdsa_recover(msg, sig),
+            self.assertEqual(
+                pub,
+                rec,
+                "Recovery error. Details:\nmsg: %s\nsig: %s\npriv: %s\naddy: %s\noriginal pub: %s, %s\nrecovered pub: %s" % (
+                    msg, sig, priv, addy, pub, hex_to_point(pub)[1], rec
+                )
+            )
+
+            mysig = ecdsa_sign(msg, priv)
+            print os.popen('electrum -w %s verifymessage %s %s %s' % (wallet, addy, sig, msg)).read()
 
 
 def TestTransactionSignVerify(unittest.TestCase):
