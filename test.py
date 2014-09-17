@@ -351,5 +351,56 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
             self.assertEqual(tx_struct['outs'], outputs[3])
 
 
+class TestConversions(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.privkey_hex = (
+            "e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262"
+        )
+        cls.privkey_bin = (
+            "\xe9\x87=y\xc6\xd8}\xc0\xfbjWxc3\x89\xf4E2\x130=\xa6\x1f \xbdg\xfc#:\xa32b"
+        )
+
+        cls.pubkey_hex = (
+            "04588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9f88ff2a00d7e752d44cbe16e1ebcf0890b76ec7c78886109dee76ccfc8445424"
+        )
+        cls.pubkey_bin = (
+            "\x04X\x8d *\xfc\xc1\xeeJ\xb5%LxG\xec%\xb9\xa15\xbb\xda\x0f+\xc6\x9e\xe1\xa7\x14t\x9f\xd7}\xc9\xf8\x8f\xf2\xa0\r~u-D\xcb\xe1n\x1e\xbc\xf0\x89\x0bv\xec|x\x88a\t\xde\xe7l\xcf\xc8DT$"
+        )
+
+    def test_privkey_to_pubkey(self):
+        pubkey_hex = privkey_to_pubkey(self.privkey_hex)
+        self.assertEqual(pubkey_hex, self.pubkey_hex)
+
+    def test_changebase(self):
+        self.assertEqual(
+            self.pubkey_bin,
+            changebase(
+                self.pubkey_hex, 16, 256, minlen=len(self.pubkey_bin)
+            )
+        )
+
+        self.assertEqual(
+            self.pubkey_hex,
+            changebase(
+                self.pubkey_bin, 256, 16, minlen=len(self.pubkey_hex)
+            )
+        )
+
+        self.assertEqual(
+            self.privkey_bin,
+            changebase(
+                self.privkey_hex, 16, 256, minlen=len(self.privkey_bin)
+            )
+        )
+
+        self.assertEqual(
+            self.privkey_hex,
+            changebase(
+                self.privkey_bin, 256, 16, minlen=len(self.privkey_hex)
+            )
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
