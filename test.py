@@ -158,21 +158,28 @@ def TestSerialize(unittest.TestCase):
             "Script serialize roundtrip failed"
         )
 
-if argv[7] == 'y':
-    print "Attempting transaction creation"
-    privs = [sha256(str(random.randrange(2**256))) for x in range(4)]
-    pubs = [privtopub(priv) for priv in privs]
-    addresses = [pubtoaddr(pub) for pub in pubs]
-    mscript = mk_multisig_script(pubs[1:], 2, 3)
-    msigaddr = p2sh_scriptaddr(mscript)
-    tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
-    tx1 = sign(tx, 1, privs[0])
-    sig1 = multisign(tx, 0, mscript, privs[1])
-    print "Verifying sig1:", verify_tx_input(tx1, 0, mscript, sig1, pubs[1])
-    sig3 = multisign(tx, 0, mscript, privs[3])
-    print "Verifying sig3:", verify_tx_input(tx1, 0, mscript, sig3, pubs[3])
-    tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
-    print "Outputting transaction: ", tx2
+
+def TestTransaction(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        print "Attempting transaction creation"
+
+    # FIXME: I don't know how to write this as a unit test.
+    # What should be asserted?
+    def test_all(self):
+        privs = [sha256(str(random.randrange(2**256))) for x in range(4)]
+        pubs = [privtopub(priv) for priv in privs]
+        addresses = [pubtoaddr(pub) for pub in pubs]
+        mscript = mk_multisig_script(pubs[1:], 2, 3)
+        msigaddr = p2sh_scriptaddr(mscript)
+        tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
+        tx1 = sign(tx, 1, privs[0])
+        sig1 = multisign(tx, 0, mscript, privs[1])
+        print "Verifying sig1:", verify_tx_input(tx1, 0, mscript, sig1, pubs[1])
+        sig3 = multisign(tx, 0, mscript, privs[3])
+        print "Verifying sig3:", verify_tx_input(tx1, 0, mscript, sig3, pubs[3])
+        tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
+        print "Outputting transaction: ", tx2
 
 if argv[8] == 'y':
     # Created with python-ecdsa 0.9
