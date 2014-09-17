@@ -9,7 +9,7 @@ from bitcoin import *
 
 argv = sys.argv + ['y']*15
 
-def TestECCArithmetic(unittest.TestCase):
+class TestECCArithmetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -51,7 +51,7 @@ def TestECCArithmetic(unittest.TestCase):
             self.assertEqual(G[0], multiply(divide(G, x), x)[0])
 
 
-def TestElectrumWalletInternalConsistency(unittest.TestCase):
+class TestElectrumWalletInternalConsistency(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -69,28 +69,28 @@ def TestElectrumWalletInternalConsistency(unittest.TestCase):
                     pub,
                     pub2,
                     'Does not match! Details:\nseed: %s\nmpk: %s\npriv: %s\npub: %s\npub2: %s' % (
-                        seed, mpk, priv, pub, pub2
+                        seed, mpk, pk, pub, pub2
                     )
                 )
 
 
-def TestElectrumSignVerify(unittest.TestCase):
+class TestElectrumSignVerify(unittest.TestCase):
     """Requires Electrum."""
 
     @classmethod
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
-        print "Starting wallet tests with: " + wallet
-        os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % wallet).read()
-        cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % wallet).read())['seed'])
-        cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % wallet).read())
+        print "Starting wallet tests with: " + cls.wallet
+        os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
+        cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
+        cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
 
     def test_address(self):
         for i in range(5):
             self.assertEqual(
-                addies[i]
-                electrum_address(seed, i, 0),
-                "Address does not match! Details:\nseed %s, i: %d" % (seed, i)
+                self.addies[i],
+                electrum_address(self.seed, i, 0),
+                "Address does not match! Details:\nseed %s, i: %d" % (self.seed, i)
             )
 
     def test_sign_verify(self):
@@ -98,12 +98,12 @@ def TestElectrumSignVerify(unittest.TestCase):
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
         for i in range(8):
             msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
-            addy = random.choice(addies)
-            wif = os.popen('electrum -w %s dumpprivkey %s' % (wallet, addy)).readlines()[-2].replace('"', '').strip()
+            addy = random.choice(self.addies)
+            wif = os.popen('electrum -w %s dumpprivkey %s' % (self.wallet, addy)).readlines()[-2].replace('"', '').strip()
             priv = b58check_to_hex(wif)
             pub = privtopub(priv)
 
-            sig = os.popen('electrum -w %s signmessage %s %s' % (wallet, addy, msg)).readlines()[-1].strip()
+            sig = os.popen('electrum -w %s signmessage %s %s' % (self.wallet, addy, msg)).readlines()[-1].strip()
             self.assertTrue(
                 ecdsa_verify(msg, sig, pub),
                 "Verification error. Details:\nmsg: %s\nsig: %s\npriv: %s\naddy: %s\npub: %s" % (
@@ -121,10 +121,10 @@ def TestElectrumSignVerify(unittest.TestCase):
             )
 
             mysig = ecdsa_sign(msg, priv)
-            print os.popen('electrum -w %s verifymessage %s %s %s' % (wallet, addy, sig, msg)).read()
+            print os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, sig, msg)).read()
 
 
-def TestTransactionSignVerify(unittest.TestCase):
+class TestTransactionSignVerify(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -149,7 +149,7 @@ def TestTransactionSignVerify(unittest.TestCase):
             )
 
 
-def TestSerialize(unittest.TestCase):
+class TestSerialize(unittest.TestCase):
 
     def test_serialize(self):
         tx = '0100000001239f932c780e517015842f3b02ff765fba97f9f63f9f1bc718b686a56ed9c73400000000fd5d010047304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053aeffffffff0310270000000000001976a914a89733100315c37d228a529853af341a9d290a4588ac409c00000000000017a9142b56f9a4009d9ff99b8f97bea4455cd71135f5dd87409c00000000000017a9142b56f9a4009d9ff99b8f97bea4455cd71135f5dd8700000000'
@@ -159,8 +159,8 @@ def TestSerialize(unittest.TestCase):
             "Serialize roundtrip failed"
         )
 
-        def test_serialize_script(self):
-            script = '47304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053ae'
+    def test_serialize_script(self):
+        script = '47304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053ae'
         self.assertEqual(
             serialize_script(deserialize_script(script)),
             script,
@@ -168,7 +168,7 @@ def TestSerialize(unittest.TestCase):
         )
 
 
-def TestTransaction(unittest.TestCase):
+class TestTransaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print "Attempting transaction creation"
@@ -191,7 +191,7 @@ def TestTransaction(unittest.TestCase):
         print "Outputting transaction: ", tx2
 
 
-def TestDeterministicGenerate(unittest.TestCase):
+class TestDeterministicGenerate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print "Beginning RFC6979 deterministic signing tests"
@@ -228,7 +228,7 @@ def TestDeterministicGenerate(unittest.TestCase):
             )
 
 
-def TestBIP0032(unittest.TestCase):
+class TestBIP0032(unittest.TestCase):
     """See: https://en.bitcoin.it/wiki/BIP_0032"""
     @classmethod
     def setUpClass(cls):
@@ -254,20 +254,20 @@ def TestBIP0032(unittest.TestCase):
 
         mk = bip32_master_key('000102030405060708090a0b0c0d0e0f'.decode('hex'))
 
-    for tv in test_vectors:
-        left, right = self._full_derive(mk, tv[0]), tv[1]
-        self.assertEqual(
-            left,
-            right,
-            "Test vector does not match. Details: \n%s\n%s\n\%s" % (
-                tv[0],
-                [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(left)],
-                [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(right)],
+        for tv in test_vectors:
+            left, right = self._full_derive(mk, tv[0]), tv[1]
+            self.assertEqual(
+                left,
+                right,
+                "Test vector does not match. Details: \n%s\n%s\n\%s" % (
+                    tv[0],
+                    [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(left)],
+                    [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(right)],
+                )
             )
-        )
 
 
-def TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
+class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print "Starting address and script generation consistency tests"
@@ -280,7 +280,7 @@ def TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
             self.assertEqual(b, script_to_address(address_to_script(b)))
 
 
-def TestRipeMD160PythonBackup(unittest.TestCase):
+class TestRipeMD160PythonBackup(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -310,14 +310,14 @@ def TestRipeMD160PythonBackup(unittest.TestCase):
 
         for i, s in enumerate(strvec):
             digest = ripemd.RIPEMD160(s).digest()
-            hash160digest = ripemd.RIPEMD160(bin_sha256(s).digest())
+            hash160digest = ripemd.RIPEMD160(bin_sha256(s)).digest()
             self.assertEqual(digest.encode('hex'), target[i])
             self.assertEqual(hash160digest.encode('hex'), hash160target[i])
             self.assertEqual(bin_hash160(s).encode('hex'), hash160target[i])
             self.assertEqual(hash160(s), hash160target[i])
 
 
-def TestScriptVsAddressOutputs(unittest.TestCase):
+class TestScriptVsAddressOutputs(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
