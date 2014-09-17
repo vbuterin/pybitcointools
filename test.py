@@ -114,18 +114,30 @@ if argv[3] == 'y':
         v = os.popen('electrum -w %s verifymessage %s %s %s' % (wallet, addy, sig, msg)).read()
         print v
 
-if argv[4] == 'y':
-    print "Transaction-style signing and verification tests"
-    for i in range(10):
+
+def TestTransactionSignVerify(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print "Transaction-style signing and verification tests"
+
+    def test_all(self):
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
-        msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
-        priv = sha256(str(random.randrange(2**256)))
-        pub = privtopub(priv)
-        sig = ecdsa_tx_sign(msg, priv)
-        v = ecdsa_tx_verify(msg, sig, pub)
-        print "Verified" if v else "Verification error"
-        rec = ecdsa_tx_recover(msg, sig)
-        print "Recovered" if pub in rec else "Recovery failed"
+        for i in range(10):
+            msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
+            priv = sha256(str(random.randrange(2**256)))
+            pub = privtopub(priv)
+            sig = ecdsa_tx_sign(msg, priv)
+            self.assertTrue(
+                ecdsa_tx_verify(msg, sig, pub),
+                "Verification error"
+            )
+
+            self.assertIn(
+                pub,
+                ecdsa_tx_recover(msg, sig),
+                "Recovery failed"
+            )
 
 if argv[5] == 'y':
     tx = '0100000001239f932c780e517015842f3b02ff765fba97f9f63f9f1bc718b686a56ed9c73400000000fd5d010047304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053aeffffffff0310270000000000001976a914a89733100315c37d228a529853af341a9d290a4588ac409c00000000000017a9142b56f9a4009d9ff99b8f97bea4455cd71135f5dd87409c00000000000017a9142b56f9a4009d9ff99b8f97bea4455cd71135f5dd8700000000'
