@@ -181,24 +181,43 @@ def TestTransaction(unittest.TestCase):
         tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
         print "Outputting transaction: ", tx2
 
-if argv[8] == 'y':
-    # Created with python-ecdsa 0.9
-    # Code to make your own vectors:
-    # class gen:
-    #     def order(self): return 115792089237316195423570985008687907852837564279074904382605163141518161494337
-    # dummy = gen()
-    # for i in range(10): ecdsa.rfc6979.generate_k(dummy, i, hashlib.sha256, hashlib.sha256(str(i)).digest())
-    test_vectors = [32783320859482229023646250050688645858316445811207841524283044428614360139869L, 109592113955144883013243055602231029997040992035200230706187150761552110229971L, 65765393578006003630736298397268097590176526363988568884298609868706232621488L, 85563144787585457107933685459469453513056530050186673491900346620874099325918L, 99829559501561741463404068005537785834525504175465914981205926165214632019533L, 7755945018790142325513649272940177083855222863968691658328003977498047013576L, 81516639518483202269820502976089105897400159721845694286620077204726637043798L, 52824159213002398817852821148973968315579759063230697131029801896913602807019L, 44033460667645047622273556650595158811264350043302911918907282441675680538675L, 32396602643737403620316035551493791485834117358805817054817536312402837398361L]
-    print "Beginning RFC6979 deterministic signing tests"
-    for i in range(10):
-        ti = test_vectors[i]
-        mine = deterministic_generate_k(bin_sha256(str(i)), encode(i, 256, 32))
-        if ti == mine:
-            print "Test vector matches"
-        else:
-            print "Test vector does not match"
-            print ti
-            print mine
+
+def TestDeterministicGenerate(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        print "Beginning RFC6979 deterministic signing tests"
+
+    def test_all(self):
+        # Created with python-ecdsa 0.9
+        # Code to make your own vectors:
+        # class gen:
+        #     def order(self): return 115792089237316195423570985008687907852837564279074904382605163141518161494337
+        # dummy = gen()
+        # for i in range(10): ecdsa.rfc6979.generate_k(dummy, i, hashlib.sha256, hashlib.sha256(str(i)).digest())
+        test_vectors = [
+            32783320859482229023646250050688645858316445811207841524283044428614360139869L,
+            109592113955144883013243055602231029997040992035200230706187150761552110229971L,
+            65765393578006003630736298397268097590176526363988568884298609868706232621488L,
+            85563144787585457107933685459469453513056530050186673491900346620874099325918L,
+            99829559501561741463404068005537785834525504175465914981205926165214632019533L,
+            7755945018790142325513649272940177083855222863968691658328003977498047013576L,
+            81516639518483202269820502976089105897400159721845694286620077204726637043798L,
+            52824159213002398817852821148973968315579759063230697131029801896913602807019L,
+            44033460667645047622273556650595158811264350043302911918907282441675680538675L,
+            32396602643737403620316035551493791485834117358805817054817536312402837398361L
+        ]
+
+        for i, ti in enumerate(test_vectors):
+            mine = deterministic_generate_k(bin_sha256(str(i)), encode(i, 256, 32))
+            self.assertEqual(
+                ti,
+                mine,
+                "Test vector does not match. Details:\n%s\n%s" % (
+                    ti,
+                    mine
+                )
+            )
+
 
 def TestBIP0032(unittest.TestCase):
     """See: https://en.bitcoin.it/wiki/BIP_0032"""
@@ -320,3 +339,6 @@ def TestScriptVsAddressOutputs(unittest.TestCase):
         for outs in outputs:
             tx_struct = deserialize(mktx(inputs, outs))
             self.assertEqual(tx_struct['outs'], outputs[3])
+
+if __name__ == '__main__':
+    unittest.main()
