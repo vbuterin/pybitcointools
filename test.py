@@ -109,12 +109,12 @@ class TestElectrumSignVerify(unittest.TestCase):
                 )
             )
 
-            rec = ecdsa_recover(msg, sig),
+            rec = ecdsa_recover(msg, sig)
             self.assertEqual(
                 pub,
                 rec,
                 "Recovery error. Details:\nmsg: %s\nsig: %s\npriv: %s\naddy: %s\noriginal pub: %s, %s\nrecovered pub: %s" % (
-                    msg, sig, priv, addy, pub, hex_to_point(pub)[1], rec
+                    msg, sig, priv, addy, pub, decode_pubkey(pub, 'hex')[1], rec
                 )
             )
 

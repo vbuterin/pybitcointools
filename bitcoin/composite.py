@@ -8,7 +8,7 @@ from deterministic import *
 def send(frm, to, value, fee=1000):
     u = unspent(privtoaddr(frm))
     u2 = select(u, int(value)+int(fee))
-    argz = u2 + [to+':'+str(value), to, fee]
+    argz = u2 + [to+':'+str(value), frm, fee]
     tx = mksend(*argz)
     tx2 = signall(tx, frm)
     return pushtx(tx2)
@@ -18,7 +18,7 @@ def send(frm, to, value, fee=1000):
 def preparetx(frm, to, value, fee=10000):
     u = blockr_unspent(frm)
     u2 = select(u, int(value)+int(fee))
-    argz = u2 + [to+':'+str(value), to, fee]
+    argz = u2 + [to+':'+str(value), frm, fee]
     return mksend(*argz)
 
 
