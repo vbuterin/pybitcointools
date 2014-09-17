@@ -1,13 +1,11 @@
 import json
 import os
 import random
-import sys
 import unittest
 
 import bitcoin.ripemd as ripemd
 from bitcoin import *
 
-argv = sys.argv + ['y']*15
 
 class TestECCArithmetic(unittest.TestCase):
 
@@ -351,6 +349,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
         for outs in outputs:
             tx_struct = deserialize(mktx(inputs, outs))
             self.assertEqual(tx_struct['outs'], outputs[3])
+
 
 if __name__ == '__main__':
     unittest.main()
