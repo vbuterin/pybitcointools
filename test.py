@@ -51,22 +51,28 @@ def TestECCArithmetic(unittest.TestCase):
             self.assertEqual(G[0], multiply(divide(G, x), x)[0])
 
 
-if argv[2] == 'y':
-    print "Starting Electrum wallet internal consistency tests"
-    for i in range(3):
-        seed = sha256(str(random.randrange(2**40)))[:32]
-        mpk = electrum_mpk(seed)
-        print 'seed: ', seed
-        print 'mpk: ', mpk
-        for i in range(5):
-            pk = electrum_privkey(seed, i)
-            pub = electrum_pubkey((mpk, seed)[i % 2], i)
-            pub2 = privtopub(pk)
-            print 'priv: ', pk
-            print 'pub: ', pub
-            print pub == pub2
-            if pub != pub2:
-                print 'DOES NOT MATCH!!!!\npub2: '+pub2
+def TestElectrumWalletInternalConsistency(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print 'Starting Electrum wallet internal consistency tests'
+
+    def test_all(self):
+        for i in range(3):
+            seed = sha256(str(random.randrange(2**40)))[:32]
+            mpk = electrum_mpk(seed)
+            for i in range(5):
+                pk = electrum_privkey(seed, i)
+                pub = electrum_pubkey((mpk, seed)[i % 2], i)
+                pub2 = privtopub(pk)
+                self.assertEqual(
+                    pub,
+                    pub2,
+                    'Does not match! Details:\nseed: %s\nmpk: %s\npriv: %s\npub: %s\npub2: %s' % (
+                        seed, mpk, priv, pub, pub2
+                    )
+                )
+
 
 if argv[3] == 'y':
     # Requires Electrum
