@@ -199,13 +199,19 @@ if argv[9] == 'y':
             print [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(left)]
             print [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(right)]
 
-if argv[10] == 'y':
-    print "Starting address and script generation consistency tests"
-    for i in range(5):
-        a = privtoaddr(random_key())
-        print a == script_to_address(address_to_script(a))
-        b = privtoaddr(random_key(), 5)
-        print b == script_to_address(address_to_script(b))
+
+def TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        print "Starting address and script generation consistency tests"
+
+    def test_all(self):
+        for i in range(5):
+            a = privtoaddr(random_key())
+            self.assertEqual(a, script_to_address(address_to_script(a)))
+            b = privtoaddr(random_key(), 5)
+            self.assertEqual(b, script_to_address(address_to_script(b)))
+
 
 def TestRipeMD160PythonBackup(unittest.TestCase):
 
