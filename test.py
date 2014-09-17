@@ -183,10 +183,13 @@ class TestTransaction(unittest.TestCase):
         msigaddr = p2sh_scriptaddr(mscript)
         tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
         tx1 = sign(tx, 1, privs[0])
+
         sig1 = multisign(tx, 0, mscript, privs[1])
-        print "Verifying sig1:", verify_tx_input(tx1, 0, mscript, sig1, pubs[1])
+        self.assertTrue(verify_tx_input(tx1, 0, mscript, sig1, pubs[1]), "Verification Error")
+
         sig3 = multisign(tx, 0, mscript, privs[3])
-        print "Verifying sig3:", verify_tx_input(tx1, 0, mscript, sig3, pubs[3])
+        self.assertTrue(verify_tx_input(tx1, 0, mscript, sig3, pubs[3]), "Verification Error")
+
         tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
         print "Outputting transaction: ", tx2
 
