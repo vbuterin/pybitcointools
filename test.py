@@ -200,35 +200,43 @@ if argv[8] == 'y':
             print ti
             print mine
 
-if argv[9] == 'y':
-    # From https://en.bitcoin.it/wiki/BIP_0032
-    def full_derive(key, chain):
+def TestBIP0032(unittest.TestCase):
+    """See: https://en.bitcoin.it/wiki/BIP_0032"""
+    @classmethod
+    def setUpClass(cls):
+        print "Beginning BIP0032 tests"
+
+    def _full_derive(self, key, chain):
         if len(chain) == 0:
             return key
         elif chain[0] == 'pub':
-            return full_derive(bip32_privtopub(key), chain[1:])
+            return self._full_derive(bip32_privtopub(key), chain[1:])
         else:
-            return full_derive(bip32_ckd(key, chain[0]), chain[1:])
-    test_vectors = [
-        [[], 'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'],
-        [['pub'], 'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'],
-        [[2**31], 'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'],
-        [[2**31, 1], 'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'],
-        [[2**31, 1, 2**31 + 2], 'xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM'],
-        [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
-    ]
-    print "Beginning BIP0032 tests"
-    mk = bip32_master_key('000102030405060708090a0b0c0d0e0f'.decode('hex'))
-    print 'Master key:', mk
+            return self._full_derive(bip32_ckd(key, chain[0]), chain[1:])
+
+    def test_all(self):
+        test_vectors = [
+            [[], 'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'],
+            [['pub'], 'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'],
+            [[2**31], 'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'],
+            [[2**31, 1], 'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'],
+            [[2**31, 1, 2**31 + 2], 'xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM'],
+            [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
+        ]
+
+        mk = bip32_master_key('000102030405060708090a0b0c0d0e0f'.decode('hex'))
+
     for tv in test_vectors:
-        left, right = full_derive(mk, tv[0]), tv[1]
-        if left == right:
-            print "Test vector matches"
-        else:
-            print "Test vector does not match"
-            print tv[0]
-            print [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(left)]
-            print [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(right)]
+        left, right = self._full_derive(mk, tv[0]), tv[1]
+        self.assertEqual(
+            left,
+            right,
+            "Test vector does not match. Details: \n%s\n%s\n\%s" % (
+                tv[0],
+                [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(left)],
+                [x.encode('hex') if isinstance(x, str) else x for x in bip32_deserialize(right)],
+            )
+        )
 
 
 def TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
