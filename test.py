@@ -2,30 +2,54 @@ import json
 import os
 import random
 import sys
+import unittest
 
 import bitcoin.ripemd as ripemd
 from bitcoin import *
 
 argv = sys.argv + ['y']*15
 
-if argv[1] == 'y':
-    print "Starting ECC arithmetic tests"
-for i in range(8 if argv[1] == 'y' else 0):
-    print "### Round %d" % (i+1)
-    x, y = random.randrange(2**256), random.randrange(2**256)
-    print multiply(multiply(G, x), y)[0] == multiply(multiply(G, y), x)[0]
-    print add_pubkeys(multiply(G, x), multiply(G, y))[0] == multiply(G, add_privkeys(x, y))[0]
-    hx, hy = encode(x % N, 16, 64), encode(y % N, 16, 64)
-    print multiply(multiply(G, hx), hy)[0] == multiply(multiply(G, hy), hx)[0]
-    print add_pubkeys(multiply(G, hx), multiply(G, hy))[0] == multiply(G, add_privkeys(hx, hy))[0]
-    h1601 = b58check_to_hex(pubtoaddr(privtopub(x)))
-    h1602 = b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
-    print h1601 == h1602
-    p = privtopub(sha256(str(x)))
-    if i % 2 == 1:
-        p = changebase(p, 16, 256)
-    print decompress(compress(p)) == p
-    print multiply(divide(G, x), x)[0] == G[0]
+def TestECCArithmetic(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print 'Starting ECC arithmetic tests'
+
+    def test_all(self):
+        for i in range(8):
+            print '### Round %d' % (i+1)
+            x, y = random.randrange(2**256), random.randrange(2**256)
+            self.assertEqual(
+                multiply(multiply(G, x), y)[0],
+                multiply(multiply(G, y), x)[0]
+            )
+            self.assertEqual(
+                add_pubkeys(multiply(G, x), multiply(G, y))[0],
+                multiply(G, add_privkeys(x, y))[0]
+            )
+
+            hx, hy = encode(x % N, 16, 64), encode(y % N, 16, 64)
+            self.assertEqual(
+                multiply(multiply(G, hx), hy)[0],
+                multiply(multiply(G, hy), hx)[0]
+            )
+            self.assertEqual(
+                add_pubkeys(multiply(G, hx), multiply(G, hy))[0],
+                multiply(G, add_privkeys(hx, hy))[0]
+            )
+
+            self.assertEqual(
+                b58check_to_hex(pubtoaddr(privtopub(x))),
+                b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
+            )
+
+            p = privtopub(sha256(str(x)))
+            if i % 2 == 1:
+                p = changebase(p, 16, 256)
+            self.assertEqual(p, decompress(compress(p)))
+
+            self.assertEqual(G[0], multiply(divide(G, x), x)[0])
+
 
 if argv[2] == 'y':
     print "Starting Electrum wallet internal consistency tests"
