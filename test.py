@@ -1,6 +1,9 @@
-import random, os, json, sys
-import bitcoin.ripemd as ripemd
+import json
+import os
+import random
+import sys
 
+import bitcoin.ripemd as ripemd
 from bitcoin import *
 
 argv = sys.argv + ['y']*15
