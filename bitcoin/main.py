@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import binascii
 import hashlib
 import re
 import sys
@@ -8,6 +9,7 @@ import time
 import random
 import hmac
 import ripemd
+import six
 
 # Elliptic curve parameters (secp256k1)
 
@@ -71,7 +73,7 @@ def encode(val, base, minlen=0):
     result = ""
     while val > 0:
         result = code_string[val % base] + result
-        val /= base
+        val //= base
     return lpad(result, code_string[0], minlen)
 
 
@@ -262,7 +264,7 @@ def decode_pubkey(pub, formt=None):
     else: raise Exception("Invalid format!")
 
 def get_privkey_format(priv):
-    if isinstance(priv, (int, long)): return 'decimal'
+    if isinstance(priv, six.integer_types): return 'decimal'
     elif len(priv) == 32: return 'bin'
     elif len(priv) == 33: return 'bin_compressed'
     elif len(priv) == 64: return 'hex'
@@ -274,7 +276,7 @@ def get_privkey_format(priv):
         else: raise Exception("WIF does not represent privkey")
 
 def encode_privkey(priv, formt, vbyte=0):
-    if not isinstance(priv, (int, long)):
+    if not isinstance(priv, six.integer_types):
         return encode_privkey(decode_privkey(priv), formt, vbyte)
     if formt == 'decimal': return priv
     elif formt == 'bin': return encode(priv, 256, 32)
@@ -393,7 +395,7 @@ def bin_hash160(string):
 
 
 def hash160(string):
-    return bin_hash160(string).encode('hex')
+    return binascii.hexlify(bin_hash160(string))
 
 
 def bin_sha256(string):
@@ -401,7 +403,7 @@ def bin_sha256(string):
 
 
 def sha256(string):
-    return bin_sha256(string).encode('hex')
+    return binascii.hexlify(bin_sha256(string))
 
 
 def bin_dbl_sha256(string):
@@ -409,7 +411,7 @@ def bin_dbl_sha256(string):
 
 
 def dbl_sha256(string):
-    return bin_dbl_sha256(string).encode('hex')
+    return binascii.hexlify(bin_dbl_sha256(string))
 
 
 def bin_slowsha(string):
@@ -420,7 +422,7 @@ def bin_slowsha(string):
 
 
 def slowsha(string):
-    return bin_slowsha(string).encode('hex')
+    return binascii.hexlify(bin_slowsha(string))
 
 
 def hash_to_int(x):
@@ -482,18 +484,19 @@ def get_version_byte(inp):
 
 
 def hex_to_b58check(inp, magicbyte=0):
-    return bin_to_b58check(inp.decode('hex'), magicbyte)
+    return bin_to_b58check(binascii.unhexlify(inp), magicbyte)
 
 
 def b58check_to_hex(inp):
-    return b58check_to_bin(inp).encode('hex')
+    return binascii.hexlify(b58check_to_bin(inp))
 
 
 def pubkey_to_address(pubkey, magicbyte=0):
     if isinstance(pubkey, (list, tuple)):
         pubkey = encode_pubkey(pubkey, 'bin')
     if len(pubkey) in [66, 130]:
-        return bin_to_b58check(bin_hash160(pubkey.decode('hex')), magicbyte)
+        return bin_to_b58check(
+            bin_hash160(binascii.unhexlify(pubkey)), magicbyte)
     return bin_to_b58check(bin_hash160(pubkey), magicbyte)
 
 pubtoaddr = pubkey_to_address

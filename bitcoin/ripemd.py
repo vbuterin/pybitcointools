@@ -43,6 +43,8 @@ try:
 except ImportError:
     pass
 
+from six.moves import range
+
 #block_size = 1
 digest_size = 20
 digestsize = 20
@@ -362,13 +364,14 @@ def RMD160Update(ctx, inp, inplen):
     if type(inp) == str:
         inp = [ord(i)&0xff for i in inp]
     
-    have = (ctx.count / 8) % 64
+    have = int((ctx.count / 8) % 64)
+    inplen = int(inplen)
     need = 64 - have
     ctx.count += 8 * inplen
     off = 0
     if inplen >= need:
         if have:
-            for i in xrange(need):
+            for i in range(need):
                 ctx.buffer[have+i] = inp[i]
             RMD160Transform(ctx.state, ctx.buffer)
             off = need
@@ -378,7 +381,7 @@ def RMD160Update(ctx, inp, inplen):
             off += 64
     if off < inplen:
         # memcpy(ctx->buffer + have, input+off, len-off);
-        for i in xrange(inplen - off):
+        for i in range(inplen - off):
             ctx.buffer[have+i] = inp[off+i]
 
 def RMD160Final(ctx):

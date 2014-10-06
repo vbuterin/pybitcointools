@@ -11,11 +11,11 @@ class TestECCArithmetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print 'Starting ECC arithmetic tests'
+        print('Starting ECC arithmetic tests')
 
     def test_all(self):
         for i in range(8):
-            print '### Round %d' % (i+1)
+            print('### Round %d' % (i+1))
             x, y = random.randrange(2**256), random.randrange(2**256)
             self.assertEqual(
                 multiply(multiply(G, x), y)[0],
@@ -53,7 +53,7 @@ class TestElectrumWalletInternalConsistency(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print 'Starting Electrum wallet internal consistency tests'
+        print('Starting Electrum wallet internal consistency tests')
 
     def test_all(self):
         for i in range(3):
@@ -78,7 +78,7 @@ class TestElectrumSignVerify(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
-        print "Starting wallet tests with: " + cls.wallet
+        print("Starting wallet tests with: " + cls.wallet)
         os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
         cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
         cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
@@ -92,7 +92,7 @@ class TestElectrumSignVerify(unittest.TestCase):
             )
 
     def test_sign_verify(self):
-        print "Electrum-style signing and verification tests, against actual Electrum"
+        print("Electrum-style signing and verification tests, against actual Electrum")
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
         for i in range(8):
             msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
@@ -119,14 +119,14 @@ class TestElectrumSignVerify(unittest.TestCase):
             )
 
             mysig = ecdsa_sign(msg, priv)
-            print os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, sig, msg)).read()
+            print(os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, sig, msg)).read())
 
 
 class TestTransactionSignVerify(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print "Transaction-style signing and verification tests"
+        print("Transaction-style signing and verification tests")
 
     def test_all(self):
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
@@ -169,7 +169,7 @@ class TestSerialize(unittest.TestCase):
 class TestTransaction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print "Attempting transaction creation"
+        print("Attempting transaction creation")
 
     # FIXME: I don't know how to write this as a unit test.
     # What should be asserted?
@@ -189,13 +189,13 @@ class TestTransaction(unittest.TestCase):
         self.assertTrue(verify_tx_input(tx1, 0, mscript, sig3, pubs[3]), "Verification Error")
 
         tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
-        print "Outputting transaction: ", tx2
+        print("Outputting transaction: ", tx2)
 
 
 class TestDeterministicGenerate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print "Beginning RFC6979 deterministic signing tests"
+        print("Beginning RFC6979 deterministic signing tests")
 
     def test_all(self):
         # Created with python-ecdsa 0.9
@@ -205,16 +205,16 @@ class TestDeterministicGenerate(unittest.TestCase):
         # dummy = gen()
         # for i in range(10): ecdsa.rfc6979.generate_k(dummy, i, hashlib.sha256, hashlib.sha256(str(i)).digest())
         test_vectors = [
-            32783320859482229023646250050688645858316445811207841524283044428614360139869L,
-            109592113955144883013243055602231029997040992035200230706187150761552110229971L,
-            65765393578006003630736298397268097590176526363988568884298609868706232621488L,
-            85563144787585457107933685459469453513056530050186673491900346620874099325918L,
-            99829559501561741463404068005537785834525504175465914981205926165214632019533L,
-            7755945018790142325513649272940177083855222863968691658328003977498047013576L,
-            81516639518483202269820502976089105897400159721845694286620077204726637043798L,
-            52824159213002398817852821148973968315579759063230697131029801896913602807019L,
-            44033460667645047622273556650595158811264350043302911918907282441675680538675L,
-            32396602643737403620316035551493791485834117358805817054817536312402837398361L
+            32783320859482229023646250050688645858316445811207841524283044428614360139869,
+            109592113955144883013243055602231029997040992035200230706187150761552110229971,
+            65765393578006003630736298397268097590176526363988568884298609868706232621488,
+            85563144787585457107933685459469453513056530050186673491900346620874099325918,
+            99829559501561741463404068005537785834525504175465914981205926165214632019533,
+            7755945018790142325513649272940177083855222863968691658328003977498047013576,
+            81516639518483202269820502976089105897400159721845694286620077204726637043798,
+            52824159213002398817852821148973968315579759063230697131029801896913602807019,
+            44033460667645047622273556650595158811264350043302911918907282441675680538675,
+            32396602643737403620316035551493791485834117358805817054817536312402837398361
         ]
 
         for i, ti in enumerate(test_vectors):
@@ -233,7 +233,7 @@ class TestBIP0032(unittest.TestCase):
     """See: https://en.bitcoin.it/wiki/BIP_0032"""
     @classmethod
     def setUpClass(cls):
-        print "Beginning BIP0032 tests"
+        print("Beginning BIP0032 tests")
 
     def _full_derive(self, key, chain):
         if len(chain) == 0:
@@ -271,7 +271,7 @@ class TestBIP0032(unittest.TestCase):
 class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        print "Starting address and script generation consistency tests"
+        print("Starting address and script generation consistency tests")
 
     def test_all(self):
         for i in range(5):
@@ -285,7 +285,7 @@ class TestRipeMD160PythonBackup(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print 'Testing the pure python backup for ripemd160'
+        print('Testing the pure python backup for ripemd160')
 
     def test_all(self):
         strvec = [
@@ -322,7 +322,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print 'Testing script vs address outputs'
+        print('Testing script vs address outputs')
 
     def test_all(self):
         addr0 = '1Lqgj1ThNfwLgHMp5qJUerYsuUEm8vHmVG'
