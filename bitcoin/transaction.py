@@ -116,7 +116,7 @@ SIGHASH_ANYONECANPAY = 80
 
 def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
-    if isinstance(tx, str):
+    if isinstance(tx, (str, unicode)):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
@@ -379,7 +379,7 @@ def mktx(*args):
                 "sequence": 4294967295
             })
     for o in outs:
-        if isinstance(o, str):
+        if isinstance(o, (str, unicode)):
             addr = o[:o.find(':')]
             val = int(o[o.find(':')+1:])
             o = {}
@@ -434,7 +434,7 @@ def mksend(*args):
     isum = sum([i["value"] for i in ins])
     osum, outputs2 = 0, []
     for o in outs:
-        if isinstance(o, str):
+        if isinstance(o, (str, unicode)):
             o2 = {
                 "address": o[:o.find(':')],
                 "value": int(o[o.find(':')+1:])
