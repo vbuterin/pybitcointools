@@ -1,19 +1,19 @@
 #!/usr/bin/python
-import urllib2
 import json
 import re
 import random
 import sys
+from six.moves import urllib
 
 
 # Makes a request to a given URL (first arg) and optional params (second arg)
 def make_request(*args):
-    opener = urllib2.build_opener()
+    opener = urllib.request.build_opener()
     opener.addheaders = [('User-agent',
                           'Mozilla/5.0'+str(random.randrange(1000000)))]
     try:
         return opener.open(*args).read().strip()
-    except Exception, e:
+    except Exception as e:
         try:
             p = e.read().strip()
         except:
@@ -35,7 +35,7 @@ def unspent(*args):
     for a in addrs:
         try:
             data = make_request('https://blockchain.info/unspent?address='+a)
-        except Exception, e:
+        except Exception as e:
             if str(e) == 'No free outputs to spend':
                 continue
             else:

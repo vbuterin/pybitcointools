@@ -1,4 +1,4 @@
-from main import *
+from bitcoin.main import *
 import hmac
 import hashlib
 
@@ -24,7 +24,7 @@ def electrum_privkey(seed, n, for_change=0):
     if len(seed) == 32:
         seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+mpk.decode('hex'))
+    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+binascii.unhexlify(mpk))
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
@@ -138,7 +138,7 @@ def bip32_bin_extract_key(data):
 
 
 def bip32_extract_key(data):
-    return bip32_deserialize(data)[-1].encode('hex')
+    return binascii.hexlify(bip32_deserialize(data)[-1])
 
 # Exploits the same vulnerability as above in Electrum wallets
 # Takes a BIP32 pubkey and one of the child privkeys of its corresponding
