@@ -406,6 +406,18 @@ def sha256(string):
     return binascii.hexlify(bin_sha256(string))
 
 
+def bin_ripemd160(string):
+    try:
+        digest = hashlib.new('ripemd160', string).digest()
+    except:
+        digest = ripemd.RIPEMD160(string).digest()
+    return digest
+
+
+def ripemd160(string):
+    return binascii.hexlify(bin_ripemd160(string))
+
+
 def bin_dbl_sha256(string):
     return hashlib.sha256(hashlib.sha256(string).digest()).digest()
 

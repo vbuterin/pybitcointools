@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='bitcoin',
-      version='1.1.17',
+      version='1.1.18',
       description='Python Bitcoin Tools',
       author='Vitalik Buterin',
       author_email='vbuterin@gmail.com',
