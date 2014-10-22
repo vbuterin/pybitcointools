@@ -46,7 +46,7 @@ def inv(a, n):
 # Base switching
 code_strings = {
     2: '01',
-    10: '012356789',
+    10: '0123456789',
     16: '0123456789abcdef',
     32: 'abcdefghijklmnopqrstuvwxyz234567',
     58: '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
