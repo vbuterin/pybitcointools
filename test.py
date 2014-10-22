@@ -119,7 +119,11 @@ class TestElectrumSignVerify(unittest.TestCase):
             )
 
             mysig = ecdsa_sign(msg, priv)
-            print(os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, sig, msg)).read())
+            self.assertEqual(
+                os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, mysig, msg)).read().strip(),
+                "true",
+                "Electrum verify message does not match"
+            )
 
 
 class TestTransactionSignVerify(unittest.TestCase):

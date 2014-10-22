@@ -309,7 +309,7 @@ def verify_tx_input(tx, i, script, sig, pub):
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
 
-def sign(tx, i, priv):
+def sign(tx, i, priv, hashcode=SIGHASH_ALL):
     i = int(i)
     if not re.match('^[0-9a-fA-F]*$', tx):
         return binascii.unhexlify(sign(binascii.hexlify(tx), i, priv))
@@ -328,13 +328,14 @@ def signall(tx, priv):
     # if priv is a dictionary, assume format is
     # { 'txinhash:txinidx' : privkey }
     if isinstance(priv, dict):
-        for e,i in enumerate(deserialize(tx)["ins"]):
-            k = priv["%s:%d" % (i["outpoint"]["hash"],i["outpoint"]["index"])]
+        for e, i in enumerate(deserialize(tx)["ins"]):
+            k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
             tx = sign(tx, e, k)
     else:
         for i in range(len(deserialize(tx)["ins"])):
             tx = sign(tx, i, priv)
     return tx
+
 
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     if re.match('^[0-9a-fA-F]*$', tx):
