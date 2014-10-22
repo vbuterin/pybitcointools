@@ -91,7 +91,7 @@ def serialize(txobj):
     o = []
     if json_is_base(txobj, 16):
         return binascii.hexlify(serialize(json_changebase(txobj,
-                         lambda x: binascii.unhexlify(x))))
+                                lambda x: binascii.unhexlify(x))))
     o.append(encode(txobj["version"], 256, 4)[::-1])
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
@@ -111,10 +111,12 @@ def serialize(txobj):
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-SIGHASH_ANYONECANPAY = 80
+# this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
+# we fix the constant
+SIGHASH_ANYONECANPAY = 0x81
 
 
-def signature_form(tx, i, script, hashcode = SIGHASH_ALL):
+def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, str):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
@@ -154,7 +156,7 @@ def der_decode_sig(sig):
     left = sig[8:8+leftlen]
     rightlen = decode(sig[10+leftlen:12+leftlen], 16)*2
     right = sig[12+leftlen:12+leftlen+rightlen]
-    return (None,decode(left,16),decode(right,16))
+    return (None, decode(left, 16), decode(right, 16))
 
 
 def txhash(tx, hashcode=None):
@@ -315,8 +317,8 @@ def sign(tx, i, priv):
         priv = binascii.hexlify(priv)
     pub = privkey_to_pubkey(priv)
     address = pubkey_to_address(pub)
-    signing_tx = signature_form(tx, i, mk_pubkey_script(address))
-    sig = ecdsa_tx_sign(signing_tx, priv)
+    signing_tx = signature_form(tx, i, mk_pubkey_script(address), hashcode)
+    sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([sig, pub])
     return serialize(txobj)
