@@ -118,7 +118,7 @@ SIGHASH_ANYONECANPAY = 0x81
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
-    if isinstance(tx, str):
+    if isinstance(tx, (str, unicode)):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
@@ -325,10 +325,16 @@ def sign(tx, i, priv):
 
 
 def signall(tx, priv):
-    for i in range(len(deserialize(tx)["ins"])):
-        tx = sign(tx, i, priv)
+    # if priv is a dictionary, assume format is
+    # { 'txinhash:txinidx' : privkey }
+    if isinstance(priv, dict):
+        for e,i in enumerate(deserialize(tx)["ins"]):
+            k = priv["%s:%d" % (i["outpoint"]["hash"],i["outpoint"]["index"])]
+            tx = sign(tx, e, k)
+    else:
+        for i in range(len(deserialize(tx)["ins"])):
+            tx = sign(tx, i, priv)
     return tx
-
 
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     if re.match('^[0-9a-fA-F]*$', tx):
@@ -381,7 +387,7 @@ def mktx(*args):
                 "sequence": 4294967295
             })
     for o in outs:
-        if isinstance(o, str):
+        if isinstance(o, (str, unicode)):
             addr = o[:o.find(':')]
             val = int(o[o.find(':')+1:])
             o = {}
@@ -436,7 +442,7 @@ def mksend(*args):
     isum = sum([i["value"] for i in ins])
     osum, outputs2 = 0, []
     for o in outs:
-        if isinstance(o, str):
+        if isinstance(o, (str, unicode)):
             o2 = {
                 "address": o[:o.find(':')],
                 "value": int(o[o.find(':')+1:])
