@@ -49,6 +49,34 @@ class TestECCArithmetic(unittest.TestCase):
             self.assertEqual(G[0], multiply(divide(G, x), x)[0])
 
 
+class TestBases(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting base change tests')
+
+    def test_all(self):
+        data = [
+            [10, '65535', 16, 'ffff'],
+            [16, 'deadbeef', 10, '3735928559'],
+            [10, '0', 16, ''],
+            [256, '34567', 10, '219919234615'],
+            [10, '444', 16, '1bc'],
+            [256, '\x03\x04\x05\x06\x07', 10, '12952339975'],
+            [16, '3132333435', 256, '12345']
+        ]
+        for prebase, preval, postbase, postval in data:
+            self.assertEqual(changebase(preval, prebase, postbase), postval)
+
+        for i in range(100):
+            x = random.randrange(1, 9999999999999999)
+            frm = random.choice([2, 10, 16, 58, 256])
+            to = random.choice([2, 10, 16, 58, 256])
+            self.assertEqual(decode(encode(x, to), to), x)
+            self.assertEqual(changebase(encode(x, frm), frm, to), encode(x, to))
+            self.assertEqual(decode(changebase(encode(x, frm), frm, to), to), x)
+
+
 class TestElectrumWalletInternalConsistency(unittest.TestCase):
 
     @classmethod
