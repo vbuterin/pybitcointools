@@ -53,14 +53,14 @@ def unspent(*args):
     return u
 
 
-def blockr_unspent(*args):
+def blockr_unspent(*args, **kwargs):
     # Valid input formats: blockr_unspent([addr1, addr2,addr3])
     #                      blockr_unspent(addr1, addr2, addr3)
     #                      blockr_unspent([addr1, addr2, addr3], network)
     #                      blockr_unspent(addr1, addr2, addr3, network)
     # Where network is 'btc' or 'testnet'
-    network = 'btc'
     addr_args = args
+    network = kwargs.get('network', 'btc')
     if len(args) >= 1 and args[-1] in ('testnet', 'btc'):
         network = args[-1]
         addr_args = args[:-1]
