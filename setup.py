@@ -10,6 +10,5 @@ setup(name='bitcoin',
       url='http://github.com/vbuterin/pybitcointools',
       install_requires='six==1.8.0',
       packages=['bitcoin'],
-      scripts=['pybtctool'],
-      data_files=[("", ["LICENSE"])]
+      scripts=['pybtctool']
       )
