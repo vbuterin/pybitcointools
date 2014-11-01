@@ -22,6 +22,7 @@ class TestECCArithmetic(unittest.TestCase):
                 multiply(multiply(G, y), x)[0]
             )
             self.assertEqual(
+
                 add_pubkeys(multiply(G, x), multiply(G, y))[0],
                 multiply(G, add_privkeys(x, y))[0]
             )

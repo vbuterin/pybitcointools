@@ -33,11 +33,11 @@ def preparetx(frm, to, value, fee=10000):
     return preparemultitx(frm, tovalues, fee)
 
 
-# Takes address, "address1:value1,address2:value2" (satoshis), fee(satoshis)
-def preparemultitx(frm, tovalues, fee=10000):
+# Takes address, address:value, address:value ... (satoshis), fee(satoshis)
+def preparemultitx(frm, *args):
+    tv, fee = args[:-1], int(args[-1])
     outs = []
     outvalue = 0
-    tv = tovalues.split(",")
     for a in tv:
         outs.append(a)
         outvalue += int(a.split(":")[1])
