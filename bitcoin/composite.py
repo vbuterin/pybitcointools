@@ -6,9 +6,22 @@ from bitcoin.deterministic import *
 
 # Takes privkey, address, value (satoshis), fee (satoshis)
 def send(frm, to, value, fee=1000):
+    tovalues = to + ":" + value
+    return sendmultitx(frm, tovalue, fee)
+
+
+# Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
+def sendmultitx(frm, tovalues, fee=1000):
+    outs = []
+    outvalue = 0
+    tv = tovalues.split(",")
+    for a in tv:
+        outs.append(a)
+        outvalue += int(a.split(":")[1])
+
     u = unspent(privtoaddr(frm))
-    u2 = select(u, int(value)+int(fee))
-    argz = u2 + [to+':'+str(value), frm, fee]
+    u2 = select(u, int(outvalue)+int(fee))
+    argz = u2 + outs + [frm, fee]
     tx = mksend(*argz)
     tx2 = signall(tx, frm)
     return pushtx(tx2)
@@ -16,9 +29,22 @@ def send(frm, to, value, fee=1000):
 
 # Takes address, address, value (satoshis), fee(satoshis)
 def preparetx(frm, to, value, fee=10000):
+    tovalues = to + ":" + value
+    return preparemultitx(frm, tovalues, fee)
+
+
+# Takes address, "address1:value1,address2:value2" (satoshis), fee(satoshis)
+def preparemultitx(frm, tovalues, fee=10000):
+    outs = []
+    outvalue = 0
+    tv = tovalues.split(",")
+    for a in tv:
+        outs.append(a)
+        outvalue += int(a.split(":")[1])
+
     u = blockr_unspent(frm)
-    u2 = select(u, int(value)+int(fee))
-    argz = u2 + [to+':'+str(value), frm, fee]
+    u2 = select(u, int(outvalue)+int(fee))
+    argz = u2 + outs + [frm, fee]
     return mksend(*argz)
 
 
