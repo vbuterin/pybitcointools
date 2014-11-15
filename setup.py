@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-
-from setuptools import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(name='bitcoin',
       version='1.1.19',
@@ -11,5 +13,6 @@ setup(name='bitcoin',
       install_requires='six==1.8.0',
       packages=['bitcoin'],
       scripts=['pybtctool'],
-      data_files=[("", ["LICENSE"])]
+      include_package_data=True,
+      package_data={"": ["LICENSE"]},
       )
