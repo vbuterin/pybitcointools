@@ -344,7 +344,7 @@ def decompress(pubkey):
 def privkey_to_pubkey(privkey):
     f = get_privkey_format(privkey)
     privkey = decode_privkey(privkey, f)
-    if privkey == 0 or privkey >= N:
+    if privkey >= N:
         raise Exception("Invalid privkey")
     if f in ['bin', 'bin_compressed', 'hex', 'hex_compressed', 'decimal']:
         return encode_pubkey(fast_multiply(G, privkey), f)

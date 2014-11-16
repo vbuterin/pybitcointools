@@ -29,7 +29,7 @@ def sendmultitx(frm, tovalues, fee=1000):
 
 # Takes address, address, value (satoshis), fee(satoshis)
 def preparetx(frm, to, value, fee=10000):
-    tovalues = to + ":" + value
+    tovalues = to + ":" + str(value)
     return preparemultitx(frm, tovalues, fee)
 
 
