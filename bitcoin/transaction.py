@@ -440,7 +440,7 @@ def mksend(*args):
         else:
             (ins if is_inp(arg) else outs).append(arg)
 
-    isum = sum([i["value"] for i in ins])
+    isum = sum(i["value"] for i in ins)
     osum, outputs2 = 0, []
     for o in outs:
         if isinstance(o, (str, unicode)):
