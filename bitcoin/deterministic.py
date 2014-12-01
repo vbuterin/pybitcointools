@@ -59,12 +59,8 @@ def crack_electrum_wallet(mpk, pk, n, for_change=0):
     return subtract_privkeys(pk, offset)
 
 # Below code ASSUMES binary inputs and compressed pubkeys
-MAINNET_PRIVATE = '\x04\x88\xAD\xE4'
-MAINNET_PUBLIC = '\x04\x88\xB2\x1E'
-TESTNET_PRIVATE = '\x04\x35\x87\xCF'
-TESTNET_PUBLIC = '\x04\x35\x83\x94'
-PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE]
-PUBLIC = [MAINNET_PUBLIC, TESTNET_PUBLIC]
+PRIVATE = '\x04\x88\xAD\xE4'
+PUBLIC = '\x04\x88\xB2\x1E'
 
 # BIP32 child key derivation
 
@@ -73,23 +69,23 @@ def raw_bip32_ckd(rawtuple, i):
     vbytes, depth, fingerprint, oldi, chaincode, key = rawtuple
     i = int(i)
 
-    if vbytes in PRIVATE:
+    if vbytes == PRIVATE:
         priv = key
         pub = privtopub(key)
     else:
         pub = key
 
     if i >= 2**31:
-        if vbytes in PUBLIC:
+        if vbytes == PUBLIC:
             raise Exception("Can't do private derivation on public key!")
         I = hmac.new(chaincode, '\x00'+priv[:32]+encode(i, 256, 4), hashlib.sha512).digest()
     else:
         I = hmac.new(chaincode, pub+encode(i, 256, 4), hashlib.sha512).digest()
 
-    if vbytes in PRIVATE:
+    if vbytes == PRIVATE:
         newkey = add_privkeys(I[:32]+'\x01', priv)
         fingerprint = bin_hash160(privtopub(key))[:4]
-    if vbytes in PUBLIC:
+    if vbytes == PUBLIC:
         newkey = add_pubkeys(compress(privtopub(I[:32])), key)
         fingerprint = bin_hash160(key)[:4]
 
@@ -101,7 +97,7 @@ def bip32_serialize(rawtuple):
     depth = chr(depth % 256)
     i = encode(i, 256, 4)
     chaincode = encode(hash_to_int(chaincode), 256, 32)
-    keydata = '\x00'+key[:-1] if vbytes in PRIVATE else key
+    keydata = '\x00'+key[:-1] if vbytes == PRIVATE else key
     bindata = vbytes + depth + fingerprint + i + chaincode + keydata
     return changebase(bindata+bin_dbl_sha256(bindata)[:4], 256, 58)
 
@@ -115,14 +111,13 @@ def bip32_deserialize(data):
     fingerprint = dbin[5:9]
     i = decode(dbin[9:13], 256)
     chaincode = dbin[13:45]
-    key = dbin[46:78]+'\x01' if vbytes in PRIVATE else dbin[45:78]
+    key = dbin[46:78]+'\x01' if vbytes == PRIVATE else dbin[45:78]
     return (vbytes, depth, fingerprint, i, chaincode, key)
 
 
 def raw_bip32_privtopub(rawtuple):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
-    newvbytes = MAINNET_PUBLIC if vbytes == MAINNET_PRIVATE else TESTNET_PUBLIC
-    return (newvbytes, depth, fingerprint, i, chaincode, privtopub(key))
+    return (PUBLIC, depth, fingerprint, i, chaincode, privtopub(key))
 
 
 def bip32_privtopub(data):
@@ -133,9 +128,9 @@ def bip32_ckd(data, i):
     return bip32_serialize(raw_bip32_ckd(bip32_deserialize(data), i))
 
 
-def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
+def bip32_master_key(seed):
     I = hmac.new("Bitcoin seed", seed, hashlib.sha512).digest()
-    return bip32_serialize((vbytes, 0, '\x00'*4, 0, I[32:], I[:32]+'\x01'))
+    return bip32_serialize((PRIVATE, 0, '\x00'*4, 0, I[32:], I[:32]+'\x01'))
 
 
 def bip32_bin_extract_key(data):
@@ -162,8 +157,7 @@ def raw_crack_bip32_privkey(parent_pub, priv):
 
     pprivkey = subtract_privkeys(key, I[:32]+'\x01')
 
-    newvbytes = MAINNET_PRIVATE if vbytes == MAINNET_PRIVATE else TESTNET_PUBLIC
-    return (newvbytes, pdepth, pfingerprint, pi, pchaincode, pprivkey)
+    return (PRIVATE, pdepth, pfingerprint, pi, pchaincode, pprivkey)
 
 
 def crack_bip32_privkey(parent_pub, priv):
@@ -178,7 +172,7 @@ def coinvault_pub_to_bip32(*args):
     vals = map(int, args[34:])
     I1 = ''.join(map(chr, vals[:33]))
     I2 = ''.join(map(chr, vals[35:67]))
-    return bip32_serialize((MAINNET_PUBLIC, 0, '\x00'*4, 0, I2, I1))
+    return bip32_serialize((PUBLIC, 0, '\x00'*4, 0, I2, I1))
 
 
 def coinvault_priv_to_bip32(*args):
@@ -187,7 +181,7 @@ def coinvault_priv_to_bip32(*args):
     vals = map(int, args[34:])
     I2 = ''.join(map(chr, vals[35:67]))
     I3 = ''.join(map(chr, vals[72:104]))
-    return bip32_serialize((MAINNET_PRIVATE, 0, '\x00'*4, 0, I2, I3+'\x01'))
+    return bip32_serialize((PRIVATE, 0, '\x00'*4, 0, I2, I3+'\x01'))
 
 
 def bip32_descend(*args):
