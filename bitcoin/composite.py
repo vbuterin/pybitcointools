@@ -7,7 +7,7 @@ from bitcoin.deterministic import *
 # Takes privkey, address, value (satoshis), fee (satoshis)
 def send(frm, to, value, fee=1000):
     tovalues = to + ":" + value
-    return sendmultitx(frm, tovalue, fee)
+    return sendmultitx(frm, tovalues, fee)
 
 
 # Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
