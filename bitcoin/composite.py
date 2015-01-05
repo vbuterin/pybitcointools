@@ -2,6 +2,7 @@ from bitcoin.main import *
 from bitcoin.transaction import *
 from bitcoin.bci import *
 from bitcoin.deterministic import *
+from bitcoin.blocks import *
 
 
 # Takes privkey, address, value (satoshis), fee (satoshis)
@@ -117,3 +118,11 @@ def inspect(tx):
         'outs': outs,
         'ins': ins
     }
+
+
+def merkle_prove(txhash):
+    blocknum = str(get_block_height(txhash))
+    header = get_block_header_data(blocknum)
+    hashes = get_txs_in_block(blocknum)
+    i = hashes.index(txhash)
+    return mk_merkle_proof(header, hashes, i)

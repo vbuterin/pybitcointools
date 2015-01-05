@@ -224,3 +224,44 @@ def firstbits(address):
     else:
         return make_request(
             'https://blockchain.info/q/resolvefirstbits/'+address)
+
+
+def get_block_at_height(height):
+    j = json.loads(make_request("https://blockchain.info/block-height/" +
+                   str(height)+"?format=json"))
+    for b in j['blocks']:
+        if b['main_chain'] is True:
+            return b
+    raise Exception("Block at this height not found")
+
+
+def _get_block(inp):
+    if len(str(inp)) < 64:
+        return get_block_at_height(inp)
+    else:
+        return json.loads(make_request(
+                          'https://blockchain.info/rawblock/'+inp))
+
+
+def get_block_header_data(inp):
+    j = _get_block(inp)
+    return {
+        'version': j['ver'],
+        'hash': j['hash'],
+        'prevhash': j['prev_block'],
+        'timestamp': j['time'],
+        'merkle_root': j['mrkl_root'],
+        'bits': j['bits'],
+        'nonce': j['nonce'],
+    }
+
+
+def get_txs_in_block(inp):
+    j = _get_block(inp)
+    hashes = [t['hash'] for t in j['tx']]
+    return hashes
+
+
+def get_block_height(txhash):
+    j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash))
+    return j['block_height']
