@@ -97,18 +97,23 @@ def sign_coinvault_tx(tx, priv):
 # Inspects a transaction
 def inspect(tx):
     d = deserialize(tx)
-    s = 0
+    isum = 0
+    ins = {}
     for _in in d['ins']:
         h = _in['outpoint']['hash']
         i = _in['outpoint']['index']
-        s += deserialize(fetchtx(h))['outs'][i]['value']
-    o = []
-    os = 0
+        prevout = deserialize(fetchtx(h))['outs'][i]
+        isum += prevout['value']
+        a = script_to_address(prevout['script'])
+        ins[a] = ins.get(a, 0) + prevout['value']
+    outs = []
+    osum = 0
     for _out in d['outs']:
-        o.append({'address': script_to_address(_out['script']),
-                  'value': _out['value']})
-        os += _out['value']
+        outs.append({'address': script_to_address(_out['script']),
+                     'value': _out['value']})
+        osum += _out['value']
     return {
-        'fee': s - os,
-        'outs': o
+        'fee': isum - osum,
+        'outs': outs,
+        'ins': ins
     }
