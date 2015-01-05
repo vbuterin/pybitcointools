@@ -296,11 +296,10 @@ def decode_privkey(priv,formt=None):
     elif formt == 'bin_compressed': return decode(priv[:32], 256)
     elif formt == 'hex': return decode(priv, 16)
     elif formt == 'hex_compressed': return decode(priv[:64], 16)
-    else:
-        bin_p = b58check_to_bin(priv)
-        if len(bin_p) == 32: return decode(bin_p, 256)
-        elif len(bin_p) == 33: return decode(bin_p[:32], 256)
-        else: raise Exception("WIF does not represent privkey")
+    elif formt == 'wif': return decode(b58check_to_bin(priv),256)
+    elif formt == 'wif_compressed':
+        return decode(b58check_to_bin(priv)[:32],256)
+    else: raise Exception("WIF does not represent privkey")
 
 def add_pubkeys(p1, p2):
     f1, f2 = get_pubkey_format(p1), get_pubkey_format(p2)

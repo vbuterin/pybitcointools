@@ -5,13 +5,12 @@ from bitcoin.deterministic import *
 
 
 # Takes privkey, address, value (satoshis), fee (satoshis)
-def send(frm, to, value, fee=1000):
-    tovalues = to + ":" + value
-    return sendmultitx(frm, tovalue, fee)
+def send(frm, to, value, fee=10000):
+    return sendmultitx(frm, to + ":" + str(value), fee)
 
 
 # Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
-def sendmultitx(frm, tovalues, fee=1000):
+def sendmultitx(frm, tovalues, fee=10000):
     outs = []
     outvalue = 0
     tv = tovalues.split(",")
@@ -42,12 +41,13 @@ def preparemultitx(frm, *args):
         outs.append(a)
         outvalue += int(a.split(":")[1])
 
-    u = blockr_unspent(frm)
+    u = unspent(frm)
     u2 = select(u, int(outvalue)+int(fee))
     argz = u2 + outs + [frm, fee]
     return mksend(*argz)
 
 
+# BIP32 hierarchical deterministic multisig script
 def bip32_hdm_script(*args):
     if len(args) == 3:
         keys, req, path = args
@@ -62,10 +62,12 @@ def bip32_hdm_script(*args):
     return mk_multisig_script(pubs, req)
 
 
+# BIP32 hierarchical deterministic multisig address
 def bip32_hdm_addr(*args):
     return scriptaddr(bip32_hdm_script(*args))
 
 
+# Setup a coinvault transaction
 def setup_coinvault_tx(tx, script):
     txobj = deserialize(tx)
     N = deserialize_script(script)[-2]
@@ -74,6 +76,7 @@ def setup_coinvault_tx(tx, script):
     return serialize(txobj)
 
 
+# Sign a coinvault transaction
 def sign_coinvault_tx(tx, priv):
     pub = privtopub(priv)
     txobj = deserialize(tx)
@@ -89,3 +92,23 @@ def sign_coinvault_tx(tx, priv):
             scr = [None] + filter(lambda x: x, scr[1:-1])[:k] + [scr[-1]]
         txobj['ins'][j]['script'] = serialize_script(scr)
     return serialize(txobj)
+
+
+# Inspects a transaction
+def inspect(tx):
+    d = deserialize(tx)
+    s = 0
+    for _in in d['ins']:
+        h = _in['outpoint']['hash']
+        i = _in['outpoint']['index']
+        s += deserialize(fetchtx(h))['outs'][i]['value']
+    o = []
+    os = 0
+    for _out in d['outs']:
+        o.append({'address': script_to_address(_out['script']),
+                  'value': _out['value']})
+        os += _out['value']
+    return {
+        'fee': s - os,
+        'outs': o
+    }
