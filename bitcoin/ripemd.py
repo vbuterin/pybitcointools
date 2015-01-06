@@ -53,27 +53,27 @@ class RIPEMD160:
     """Return a new RIPEMD160 object. An optional string argument
     may be provided; if present, this string will be automatically
     hashed."""
-    
+
     def __init__(self, arg=None):
         self.ctx = RMDContext()
         if arg:
             self.update(arg)
         self.dig = None
-        
+
     def update(self, arg):
-        """update(arg)"""        
+        """update(arg)"""
         RMD160Update(self.ctx, arg, len(arg))
         self.dig = None
-        
+
     def digest(self):
-        """digest()"""        
+        """digest()"""
         if self.dig:
             return self.dig
         ctx = self.ctx.copy()
         self.dig = RMD160Final(self.ctx)
         self.ctx = ctx
         return self.dig
-    
+
     def hexdigest(self):
         """hexdigest()"""
         dig = self.digest()
@@ -81,9 +81,9 @@ class RIPEMD160:
         for d in dig:
             hex_digest += '%02x' % ord(d)
         return hex_digest
-    
+
     def copy(self):
-        """copy()"""        
+        """copy()"""
         import copy
         return copy.deepcopy(self)
 
@@ -92,7 +92,7 @@ class RIPEMD160:
 def new(arg=None):
     """Return a new RIPEMD160 object. An optional string argument
     may be provided; if present, this string will be automatically
-    hashed."""    
+    hashed."""
     return RIPEMD160(arg)
 
 
@@ -262,7 +262,7 @@ def RMD160Transform(state, block): #uint32 state[5], uchar block[64]
     b = state[1]
     c = state[2]
     d = state[3]
-    e = state[4]    
+    e = state[4]
 
     #/* Parallel round 1 */
     a, c = R(a, b, c, d, e, F4, KK0,  8,  5, x)
@@ -361,9 +361,9 @@ def RMD160Transform(state, block): #uint32 state[5], uchar block[64]
 
 
 def RMD160Update(ctx, inp, inplen):
-    if type(inp) == str:
+    if isinstance(inp, str):
         inp = [ord(i)&0xff for i in inp]
-    
+
     have = int((ctx.count / 8) % 64)
     inplen = int(inplen)
     need = 64 - have
