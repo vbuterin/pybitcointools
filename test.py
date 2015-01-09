@@ -435,5 +435,22 @@ class TestConversions(unittest.TestCase):
         )
 
 
+class TestDerEncoding(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting der encoding tests')
+
+    def test_all(self):
+        data = [
+            [0x01, '3006020101020101'],
+            [0xF0, '3008020200f0020200f0'],
+            [2**255 - 1, '304402207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff02207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'],
+            [2**255, '304602210080000000000000000000000000000000000000000000000000000000000000000221008000000000000000000000000000000000000000000000000000000000000000']
+        ]
+        for n, sig in data:
+            self.assertEqual(der_encode_sig(0, n, n), sig)
+
+
 if __name__ == '__main__':
     unittest.main()

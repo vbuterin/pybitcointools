@@ -140,12 +140,17 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
 # Making the actual signatures
 
 
+def encode_num(n):
+    h = binascii.hexlify(encode(n,256))
+    b = binascii.unhexlify(h)
+    if ord(b[0]) < 0x80:
+        return h
+    else:
+        return '00' + h
+
+
 def der_encode_sig(v, r, s):
-    b1, b2 = binascii.hexlify(encode(r, 256)), binascii.hexlify(encode(s, 256))
-    if r >= 2**255:
-        b1 = '00' + b1
-    if s >= 2**255:
-        b2 = '00' + b2
+    b1, b2 = encode_num(r), encode_num(s)
     left = '02'+encode(len(b1)/2, 16, 2)+b1
     right = '02'+encode(len(b2)/2, 16, 2)+b2
     return '30'+encode(len(left+right)/2, 16, 2)+left+right
