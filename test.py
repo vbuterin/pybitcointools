@@ -61,10 +61,10 @@ class TestBases(unittest.TestCase):
             [10, '65535', 16, 'ffff'],
             [16, 'deadbeef', 10, '3735928559'],
             [10, '0', 16, ''],
-            [256, '34567', 10, '219919234615'],
+            [256, b'34567', 10, '219919234615'],
             [10, '444', 16, '1bc'],
-            [256, '\x03\x04\x05\x06\x07', 10, '12952339975'],
-            [16, '3132333435', 256, '12345']
+            [256, b'\x03\x04\x05\x06\x07', 10, '12952339975'],
+            [16, '3132333435', 256, b'12345']
         ]
         for prebase, preval, postbase, postval in data:
             self.assertEqual(changebase(preval, prebase, postbase), postval)
@@ -108,7 +108,7 @@ class TestElectrumSignVerify(unittest.TestCase):
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
         print("Starting wallet tests with: " + cls.wallet)
-        os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
+        os.popen('echo -e "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
         cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
         cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
 
@@ -192,6 +192,7 @@ class TestSerialize(unittest.TestCase):
 
     def test_serialize_script(self):
         script = '47304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053ae'
+        print("TEST", deserialize_script(script))
         self.assertEqual(
             serialize_script(deserialize_script(script)),
             script,
@@ -286,7 +287,7 @@ class TestBIP0032(unittest.TestCase):
             [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
         ]
 
-        mk = bip32_master_key('000102030405060708090a0b0c0d0e0f'.decode('hex'))
+        mk = bip32_master_key(bytes.fromhex('000102030405060708090a0b0c0d0e0f'))
 
         for tv in test_vectors:
             left, right = self._full_derive(mk, tv[0]), tv[1]
@@ -345,10 +346,11 @@ class TestRipeMD160PythonBackup(unittest.TestCase):
         for i, s in enumerate(strvec):
             digest = ripemd.RIPEMD160(s).digest()
             hash160digest = ripemd.RIPEMD160(bin_sha256(s)).digest()
-            self.assertEqual(digest.encode('hex'), target[i])
-            self.assertEqual(hash160digest.encode('hex'), hash160target[i])
-            self.assertEqual(bin_hash160(s).encode('hex'), hash160target[i])
-            self.assertEqual(hash160(s), hash160target[i])
+            self.assertEqual(bytes_to_hex_string(digest), target[i])
+            self.assertEqual(bytes_to_hex_string(hash160digest), hash160target[i])
+            self.assertEqual(bytes_to_hex_string(bin_hash160(bytes(s, 'utf-8'))), hash160target[i])
+            print("HASH160", hash160(bytes(s, 'utf-8')))
+            self.assertEqual(hash160(bytes(s, 'utf-8')), hash160target[i])
 
 
 class TestScriptVsAddressOutputs(unittest.TestCase):
@@ -391,14 +393,14 @@ class TestConversions(unittest.TestCase):
             "e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262"
         )
         cls.privkey_bin = (
-            "\xe9\x87=y\xc6\xd8}\xc0\xfbjWxc3\x89\xf4E2\x130=\xa6\x1f \xbdg\xfc#:\xa32b"
+            b"\xe9\x87=y\xc6\xd8}\xc0\xfbjWxc3\x89\xf4E2\x130=\xa6\x1f \xbdg\xfc#:\xa32b"
         )
 
         cls.pubkey_hex = (
             "04588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9f88ff2a00d7e752d44cbe16e1ebcf0890b76ec7c78886109dee76ccfc8445424"
         )
         cls.pubkey_bin = (
-            "\x04X\x8d *\xfc\xc1\xeeJ\xb5%LxG\xec%\xb9\xa15\xbb\xda\x0f+\xc6\x9e\xe1\xa7\x14t\x9f\xd7}\xc9\xf8\x8f\xf2\xa0\r~u-D\xcb\xe1n\x1e\xbc\xf0\x89\x0bv\xec|x\x88a\t\xde\xe7l\xcf\xc8DT$"
+            b"\x04X\x8d *\xfc\xc1\xeeJ\xb5%LxG\xec%\xb9\xa15\xbb\xda\x0f+\xc6\x9e\xe1\xa7\x14t\x9f\xd7}\xc9\xf8\x8f\xf2\xa0\r~u-D\xcb\xe1n\x1e\xbc\xf0\x89\x0bv\xec|x\x88a\t\xde\xe7l\xcf\xc8DT$"
         )
 
     def test_privkey_to_pubkey(self):

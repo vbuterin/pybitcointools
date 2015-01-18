@@ -6,13 +6,15 @@ from bitcoin.main import *
 
 
 def json_is_base(obj, base):
+    if isinstance(obj, bytes):
+        return False
     alpha = get_code_string(base)
-    if isinstance(obj, (str, unicode)):
+    if isinstance(obj, str):
         for i in range(len(obj)):
             if alpha.find(obj[i]) == -1:
                 return False
         return True
-    elif isinstance(obj, (int, float, long)) or obj is None:
+    elif isinstance(obj, (int, float)) or obj is None:
         return True
     elif isinstance(obj, list):
         for i in range(len(obj)):
@@ -27,9 +29,9 @@ def json_is_base(obj, base):
 
 
 def json_changebase(obj, changer):
-    if isinstance(obj, (str, unicode)):
+    if isinstance(obj, (str, bytes)):
         return changer(obj)
-    elif isinstance(obj, (int, float, long)) or obj is None:
+    elif isinstance(obj, (int, float)) or obj is None:
         return obj
     elif isinstance(obj, list):
         return [json_changebase(x, changer) for x in obj]
@@ -39,9 +41,10 @@ def json_changebase(obj, changer):
 
 
 def deserialize(tx):
-    if re.match('^[0-9a-fA-F]*$', tx):
-        return json_changebase(deserialize(binascii.unhexlify(tx)),
-                               lambda x: binascii.hexlify(x))
+    if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
+        tx = bytes(bytearray.fromhex(tx))
+        #return json_changebase(deserialize(binascii.unhexlify(tx)),
+         #                      lambda x: binascii.hexlify(x))
     # http://stackoverflow.com/questions/4851463/python-closure-write-to-variable-in-parent-scope
     # Python's scoping rules are demented, requiring me to make pos an object
     # so that it is call-by-reference
@@ -53,9 +56,9 @@ def deserialize(tx):
 
     def read_var_int():
         pos[0] += 1
-        if ord(tx[pos[0]-1]) < 253:
-            return ord(tx[pos[0]-1])
-        return read_as_int(pow(2, ord(tx[pos[0]-1]) - 252))
+        if tx[pos[0]-1] < 253:
+            return tx[pos[0]-1]
+        return read_as_int(pow(2, tx[pos[0]-1] - 252))
 
     def read_bytes(bytez):
         pos[0] += bytez
@@ -86,24 +89,27 @@ def deserialize(tx):
     obj["locktime"] = read_as_int(4)
     return obj
 
-
 def serialize(txobj):
+    if isinstance(txobj, bytes):
+        txobj = bytes_to_hex_string(txobj)
     o = []
     if json_is_base(txobj, 16):
-        return binascii.hexlify(serialize(json_changebase(txobj,
-                                lambda x: binascii.unhexlify(x))))
-    o.append(encode(txobj["version"], 256, 4)[::-1])
-    o.append(num_to_var_int(len(txobj["ins"])))
+        json_changedbase = json_changebase(txobj, lambda x: binascii.unhexlify(x))
+        hexlified = binascii.hexlify(serialize(json_changedbase))
+        return bytes_to_hex_string(hexlified)
+    o.append(bytes_to_hex_string(encode(txobj["version"], 256, 4)[::-1]))
+    o.append(bytes_to_hex_string(num_to_var_int(len(txobj["ins"]))))
     for inp in txobj["ins"]:
         o.append(inp["outpoint"]["hash"][::-1])
-        o.append(encode(inp["outpoint"]["index"], 256, 4)[::-1])
-        o.append(num_to_var_int(len(inp["script"]))+inp["script"])
-        o.append(encode(inp["sequence"], 256, 4)[::-1])
-    o.append(num_to_var_int(len(txobj["outs"])))
+        o.append(bytes_to_hex_string(encode(inp["outpoint"]["index"], 256, 4)[::-1]))
+        o.append(bytes_to_hex_string(num_to_var_int(len(inp["script"])))+bytes_to_hex_string(inp["script"]))
+        o.append(bytes_to_hex_string(encode(inp["sequence"], 256, 4)[::-1]))
+    o.append(bytes_to_hex_string(num_to_var_int(len(txobj["outs"]))))
     for out in txobj["outs"]:
-        o.append(encode(out["value"], 256, 8)[::-1])
-        o.append(num_to_var_int(len(out["script"]))+out["script"])
-    o.append(encode(txobj["locktime"], 256, 4)[::-1])
+        o.append(bytes_to_hex_string(encode(out["value"], 256, 8)[::-1]))
+        o.append(bytes_to_hex_string(num_to_var_int(len(out["script"])))+bytes_to_hex_string(out["script"]))
+    o.append(bytes_to_hex_string(encode(txobj["locktime"], 256, 4)[::-1]))
+
     return ''.join(o)
 
 # Hashing transactions for signing
@@ -118,7 +124,7 @@ SIGHASH_ANYONECANPAY = 0x81
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
-    if isinstance(tx, (str, unicode)):
+    if isinstance(tx, (bytes, str)):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
@@ -141,14 +147,14 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
 
 
 def der_encode_sig(v, r, s):
-    b1, b2 = binascii.hexlify(encode(r, 256)), binascii.hexlify(encode(s, 256))
+    b1, b2 = str(binascii.hexlify(encode(r, 256)), 'utf-8'), str(binascii.hexlify(encode(s, 256)), 'utf-8')
     if r >= 2**255:
         b1 = '00' + b1
     if s >= 2**255:
         b2 = '00' + b2
-    left = '02'+encode(len(b1)/2, 16, 2)+b1
-    right = '02'+encode(len(b2)/2, 16, 2)+b2
-    return '30'+encode(len(left+right)/2, 16, 2)+left+right
+    left = '02'+encode(len(b1)//2, 16, 2)+b1
+    right = '02'+encode(len(b2)//2, 16, 2)+b2
+    return '30'+encode(len(left+right)//2, 16, 2)+left+right
 
 
 def der_decode_sig(sig):
@@ -163,6 +169,8 @@ def txhash(tx, hashcode=None):
     if re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
     if hashcode:
+        if isinstance(tx, str):
+            tx = bytes(tx, 'utf-8')
         return dbl_sha256(tx + encode(int(hashcode), 256, 4)[::-1])
     else:
         return binascii.hexlify(bin_dbl_sha256(tx)[::-1])
@@ -234,12 +242,12 @@ scriptaddr = p2sh_scriptaddr
 
 
 def deserialize_script(script):
-    if re.match('^[0-9a-fA-F]*$', script):
-        return json_changebase(deserialize_script(binascii.unhexlify(script)),
-                               lambda x: binascii.hexlify(x))
+    if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
+       return json_changebase(deserialize_script(binascii.unhexlify(script)),
+                              lambda x: str(binascii.hexlify(x), 'utf-8'))
     out, pos = [], 0
     while pos < len(script):
-        code = ord(script[pos])
+        code = script[pos]
         if code == 0:
             out.append(None)
             pos += 1
@@ -270,20 +278,24 @@ def serialize_script_unit(unit):
         return '\x00'
     else:
         if len(unit) <= 75:
-            return chr(len(unit))+unit
+            return bytes([len(unit)])+unit
         elif len(unit) < 256:
-            return chr(76)+chr(len(unit))+unit
+            return bytes([76])+bytes([len(unit)])+unit
         elif len(unit) < 65536:
-            return chr(77)+encode(len(unit), 256, 2)[::-1]+unit
+            return bytes([77])+encode(len(unit), 256, 2)[::-1]+unit
         else:
-            return chr(78)+encode(len(unit), 256, 4)[::-1]+unit
+            return bytes([78])+encode(len(unit), 256, 4)[::-1]+unit
 
 
 def serialize_script(script):
     if json_is_base(script, 16):
         return binascii.hexlify(serialize_script(json_changebase(script,
                                 lambda x: binascii.unhexlify(x))))
-    return ''.join(map(serialize_script_unit, script))
+    
+    result = bytes()
+    for b in map(serialize_script_unit, script):
+        result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
+    return result
 
 
 def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
@@ -292,7 +304,7 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
     else:
         pubs = list(filter(lambda x: len(str(x)) >= 32, args))
         k = int(args[len(pubs)])
-    return serialize_script([k]+pubs+[len(pubs), 174])
+    return str(serialize_script([k]+pubs+[len(pubs), 174]), 'utf-8')
 
 # Signing and verifying
 
@@ -339,9 +351,9 @@ def signall(tx, priv):
 
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     if re.match('^[0-9a-fA-F]*$', tx):
-        tx = binascii.unhexlify(tx)
+        tx = bytes(bytearray.fromhex(tx))
     if re.match('^[0-9a-fA-F]*$', script):
-        script = binascii.unhexlify(script)
+        script = bytes(bytearray.fromhex(script))
     modtx = signature_form(tx, i, script, hashcode)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
@@ -351,10 +363,10 @@ def apply_multisignatures(*args):
     tx, i, script = args[0], int(args[1]), args[2]
     sigs = args[3] if isinstance(args[3], list) else list(args[3:])
 
-    if re.match('^[0-9a-fA-F]*$', script):
+    if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
         script = binascii.unhexlify(script)
     sigs = [binascii.unhexlify(x) if x[:2] == '30' else x for x in sigs]
-    if re.match('^[0-9a-fA-F]*$', tx):
+    if isinstance(re, str) and re.match('^[0-9a-fA-F]*$', tx):
         return binascii.hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs))
 
     txobj = deserialize(tx)
@@ -388,7 +400,7 @@ def mktx(*args):
                 "sequence": 4294967295
             })
     for o in outs:
-        if isinstance(o, (str, unicode)):
+        if isinstance(o, (str, bytes)):
             addr = o[:o.find(':')]
             val = int(o[o.find(':')+1:])
             o = {}
@@ -443,7 +455,7 @@ def mksend(*args):
     isum = sum([i["value"] for i in ins])
     osum, outputs2 = 0, []
     for o in outs:
-        if isinstance(o, (str, unicode)):
+        if isinstance(o, str):
             o2 = {
                 "address": o[:o.find(':')],
                 "value": int(o[o.find(':')+1:])

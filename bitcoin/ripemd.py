@@ -79,7 +79,7 @@ class RIPEMD160:
         dig = self.digest()
         hex_digest = ''
         for d in dig:
-            hex_digest += '%02x' % ord(d)
+            hex_digest += '%02x' % d
         return hex_digest
     
     def copy(self):
@@ -157,7 +157,7 @@ import struct
 def RMD160Transform(state, block): #uint32 state[5], uchar block[64]
     x = [0]*16
     if sys.byteorder == 'little':
-        x = struct.unpack('<16L', ''.join([chr(x) for x in block[0:64]]))
+        x = struct.unpack('<16L', bytes(block[0:64]))
     else:
         raise "Error!!"
     a = state[0]
@@ -364,7 +364,7 @@ def RMD160Update(ctx, inp, inplen):
     if type(inp) == str:
         inp = [ord(i)&0xff for i in inp]
     
-    have = int((ctx.count / 8) % 64)
+    have = int((ctx.count // 8) % 64)
     inplen = int(inplen)
     need = 64 - have
     ctx.count += 8 * inplen
@@ -386,7 +386,7 @@ def RMD160Update(ctx, inp, inplen):
 
 def RMD160Final(ctx):
     size = struct.pack("<Q", ctx.count)
-    padlen = 64 - ((ctx.count / 8) % 64)
+    padlen = 64 - ((ctx.count // 8) % 64)
     if padlen < 1+8:
         padlen += 64
     RMD160Update(ctx, PADDING, padlen-8)
