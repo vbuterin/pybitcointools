@@ -455,6 +455,7 @@ def dbl_sha256(string):
 
 
 def bin_slowsha(string):
+    string = bytes(string, 'utf-8') if isinstance(string, str) else string 
     orig_input = string
     for i in range(100000):
         string = hashlib.sha256(string + orig_input).digest()
