@@ -103,7 +103,7 @@ def serialize(txobj):
     for inp in txobj["ins"]:
         o.append(inp["outpoint"]["hash"][::-1])
         o.append(encode(inp["outpoint"]["index"], 256, 4)[::-1])
-        o.append(num_to_var_int(len(inp["script"]))+inp["script"])
+        o.append(num_to_var_int(len(inp["script"]))+(inp["script"] if inp["script"] else bytes()))
         o.append(encode(inp["sequence"], 256, 4)[::-1])
     o.append(num_to_var_int(len(txobj["outs"])))
     for out in txobj["outs"]:
@@ -167,7 +167,7 @@ def der_decode_sig(sig):
 
 
 def txhash(tx, hashcode=None):
-    if re.match('^[0-9a-fA-F]*$', tx):
+    if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
     if hashcode:
         if isinstance(tx, str):
@@ -272,11 +272,11 @@ def deserialize_script(script):
 def serialize_script_unit(unit):
     if isinstance(unit, int):
         if unit < 16:
-            return chr(unit + 80)
+            return bytes([unit + 80])
         else:
-            return chr(unit)
+            return bytes([unit])
     elif unit is None:
-        return '\x00'
+        return b'\x00'
     else:
         if len(unit) <= 75:
             return bytes([len(unit)])+unit
@@ -305,7 +305,7 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
     else:
         pubs = list(filter(lambda x: len(str(x)) >= 32, args))
         k = int(args[len(pubs)])
-    return str(serialize_script([k]+pubs+[len(pubs), 174]), 'utf-8')
+    return serialize_script([k]+pubs+[len(pubs), 174])
 
 # Signing and verifying
 
@@ -367,7 +367,7 @@ def apply_multisignatures(*args):
     if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
         script = binascii.unhexlify(script)
     sigs = [binascii.unhexlify(x) if x[:2] == '30' else x for x in sigs]
-    if isinstance(re, str) and re.match('^[0-9a-fA-F]*$', tx):
+    if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         return str(binascii.hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs)), 'utf-8')
 
     txobj = deserialize(tx)
