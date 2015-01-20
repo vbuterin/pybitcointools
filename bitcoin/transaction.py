@@ -223,7 +223,7 @@ def address_to_script(addr):
 def script_to_address(script, vbyte=0):
     if re.match('^[0-9a-fA-F]*$', script):
         script = binascii.unhexlify(script)
-    if script[:3] == '\x76\xa9\x14' and script[-2:] == '\x88\xac' and len(script) == 25:
+    if script[:3] == b'\x76\xa9\x14' and script[-2:] == b'\x88\xac' and len(script) == 25:
         return bin_to_b58check(script[3:-2], vbyte)  # pubkey hash addresses
     else:
         if vbyte == 111:
