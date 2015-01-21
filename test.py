@@ -108,7 +108,7 @@ class TestElectrumSignVerify(unittest.TestCase):
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
         print("Starting wallet tests with: " + cls.wallet)
-        os.popen('echo -e "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
+        os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
         cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
         cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
 

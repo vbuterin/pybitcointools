@@ -24,7 +24,7 @@ def electrum_privkey(seed, n, for_change=0):
     if len(seed) == 32:
         seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+binascii.unhexlify(mpk))
+    offset = dbl_sha256(bytes(str(n), 'utf-8')+b':'+bytes(str(for_change), 'utf-8')+b':'+binascii.unhexlify(mpk))
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
@@ -39,7 +39,7 @@ def electrum_pubkey(masterkey, n, for_change=0):
     else:
         mpk = masterkey
     bin_mpk = encode_pubkey(mpk, 'bin_electrum')
-    offset = bin_dbl_sha256(str(n)+':'+str(for_change)+':'+bin_mpk)
+    offset = bin_dbl_sha256(bytes(str(n), 'utf-8')+b':'+bytes(str(for_change), 'utf-8')+b':'+bin_mpk)
     return add_pubkeys('04'+mpk, privtopub(offset))
 
 # seed/stretched seed/pubkey -> address (convenience method)
@@ -138,7 +138,7 @@ def bip32_bin_extract_key(data):
 
 
 def bip32_extract_key(data):
-    return binascii.hexlify(bip32_deserialize(data)[-1])
+    return str(binascii.hexlify(bip32_deserialize(data)[-1]), 'utf-8')
 
 # Exploits the same vulnerability as above in Electrum wallets
 # Takes a BIP32 pubkey and one of the child privkeys of its corresponding

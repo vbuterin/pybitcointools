@@ -8,7 +8,7 @@ import base64
 import time
 import random
 import hmac
-import bitcoin.ripemd
+from bitcoin.ripemd import *
 import six
 
 # Elliptic curve parameters (secp256k1)
@@ -411,7 +411,7 @@ def bin_hash160(string):
     try:
         digest = hashlib.new('ripemd160', intermed).digest()
     except:
-        digest = ripemd.RIPEMD160(intermed).digest()
+        digest = RIPEMD160(intermed).digest()
     return digest
 
 
@@ -437,12 +437,12 @@ def bin_ripemd160(string):
     try:
         digest = hashlib.new('ripemd160', string).digest()
     except:
-        digest = ripemd.RIPEMD160(string).digest()
+        digest = RIPEMD160(string).digest()
     return digest
 
 
 def ripemd160(string):
-    return binascii.hexlify(bin_ripemd160(string))
+    return str(binascii.hexlify(bin_ripemd160(string)), 'utf-8')
 
 
 def bin_dbl_sha256(s):
@@ -451,7 +451,7 @@ def bin_dbl_sha256(s):
 
 
 def dbl_sha256(string):
-    return binascii.hexlify(bin_dbl_sha256(string))
+    return str(binascii.hexlify(bin_dbl_sha256(string)), 'utf-8')
 
 
 def bin_slowsha(string):
@@ -463,7 +463,7 @@ def bin_slowsha(string):
 
 
 def slowsha(string):
-    return binascii.hexlify(bin_slowsha(string))
+    return str(binascii.hexlify(bin_slowsha(string)), 'utf-8')
 
 
 def hash_to_int(x):
@@ -483,7 +483,7 @@ def num_to_var_int(x):
 
 # WTF, Electrum?
 def electrum_sig_hash(message):
-    padded = "\x18Bitcoin Signed Message:\n" + num_to_var_int(len(message)) + message
+    padded = b"\x18Bitcoin Signed Message:\n" + num_to_var_int(len(message)) + bytes(message, 'utf-8')
     return bin_dbl_sha256(padded)
 
 
@@ -552,13 +552,13 @@ pubtoaddr = pubkey_to_address
 
 
 def encode_sig(v, r, s):
-    vb, rb, sb = chr(v), encode(r, 256), encode(s, 256)
+    vb, rb, sb = bytes([v]), encode(r, 256), encode(s, 256)
     return base64.b64encode(vb+b'\x00'*(32-len(rb))+rb+b'\x00'*(32-len(sb))+sb)
 
 
 def decode_sig(sig):
     bytez = base64.b64decode(sig)
-    return ord(bytez[0]), decode(bytez[1:33], 256), decode(bytez[33:], 256)
+    return bytez[0], decode(bytez[1:33], 256), decode(bytez[33:], 256)
 
 # https://tools.ietf.org/html/rfc6979#section-3.2
 
