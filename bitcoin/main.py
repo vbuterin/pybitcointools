@@ -553,7 +553,7 @@ pubtoaddr = pubkey_to_address
 
 def encode_sig(v, r, s):
     vb, rb, sb = bytes([v]), encode(r, 256), encode(s, 256)
-    return base64.b64encode(vb+b'\x00'*(32-len(rb))+rb+b'\x00'*(32-len(sb))+sb)
+    return str(base64.b64encode(vb+b'\x00'*(32-len(rb))+rb+b'\x00'*(32-len(sb))+sb), 'utf-8')
 
 
 def decode_sig(sig):

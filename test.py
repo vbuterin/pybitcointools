@@ -107,7 +107,6 @@ class TestElectrumSignVerify(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
-        print("Starting wallet tests with: " + cls.wallet)
         os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
         cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
         cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
@@ -147,6 +146,7 @@ class TestElectrumSignVerify(unittest.TestCase):
                 )
             )
 
+            
             mysig = ecdsa_sign(msg, priv)
             self.assertEqual(
                 os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, mysig, msg)).read().strip(),
@@ -192,7 +192,6 @@ class TestSerialize(unittest.TestCase):
 
     def test_serialize_script(self):
         script = '47304402200c40fa58d3f6d5537a343cf9c8d13bc7470baf1d13867e0de3e535cd6b4354c802200f2b48f67494835b060d0b2ff85657d2ba2d9ea4e697888c8cb580e8658183a801483045022056f488c59849a4259e7cef70fe5d6d53a4bd1c59a195b0577bd81cb76044beca022100a735b319fa66af7b178fc719b93f905961ef4d4446deca8757a90de2106dd98a014cc95241046c7d87fd72caeab48e937f2feca9e9a4bd77f0eff4ebb2dbbb9855c023e334e188d32aaec4632ea4cbc575c037d8101aec73d029236e7b1c2380f3e4ad7edced41046fd41cddf3bbda33a240b417a825cc46555949917c7ccf64c59f42fd8dfe95f34fae3b09ed279c8c5b3530510e8cca6230791102eef9961d895e8db54af0563c410488d618b988efd2511fc1f9c03f11c210808852b07fe46128c1a6b1155aa22cdf4b6802460ba593db2d11c7e6cbe19cedef76b7bcabd05d26fd97f4c5a59b225053ae'
-        print("TEST", deserialize_script(script))
         self.assertEqual(
             serialize_script(deserialize_script(script)),
             script,
@@ -349,7 +348,6 @@ class TestRipeMD160PythonBackup(unittest.TestCase):
             self.assertEqual(bytes_to_hex_string(digest), target[i])
             self.assertEqual(bytes_to_hex_string(hash160digest), hash160target[i])
             self.assertEqual(bytes_to_hex_string(bin_hash160(bytes(s, 'utf-8'))), hash160target[i])
-            print("HASH160", hash160(bytes(s, 'utf-8')))
             self.assertEqual(hash160(bytes(s, 'utf-8')), hash160target[i])
 
 
