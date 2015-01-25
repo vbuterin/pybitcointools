@@ -45,7 +45,6 @@ class TestECCArithmetic(unittest.TestCase):
             if i % 2 == 1:
                 p = changebase(p, 16, 256)
             self.assertEqual(p, decompress(compress(p)))
-
             self.assertEqual(G[0], multiply(divide(G, x), x)[0])
 
 

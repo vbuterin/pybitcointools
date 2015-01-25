@@ -28,7 +28,7 @@ if is_python2:
         return b.encode('hex')
     
     def safe_from_hex(s):
-        return s.encode('hex')
+        return s.decode('hex')
     
     def from_int_representation_to_bytes(a):
         return str(a)
@@ -347,8 +347,8 @@ def fast_add(a, b):
 
 def get_pubkey_format(pub):
     if is_python2:
-        two = '0x02'
-        three = '0x03'
+        two = '\x02'
+        three = '\x03'
         four = '\x04'
     else:
         two = 2
@@ -387,7 +387,7 @@ def decode_pubkey(pub, formt=None):
     elif formt == 'bin_compressed':
         x = decode(pub[1:33], 256)
         beta = pow(int(x*x*x+A*x+B), int((P+1)//4), int(P))
-        y = (P-beta) if ((beta + pub[0]) % 2) else beta
+        y = (P-beta) if ((beta + from_byte_to_int(pub[0])) % 2) else beta
         return (x, y)
     elif formt == 'hex': return (decode(pub[2:66], 16), decode(pub[66:130], 16))
     elif formt == 'hex_compressed':

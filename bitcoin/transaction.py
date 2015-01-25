@@ -298,8 +298,8 @@ if is_python2:
 else:
     def serialize_script(script):
         if json_is_base(script, 16):
-            return str(binascii.hexlify(serialize_script(json_changebase(script,
-                                    lambda x: binascii.unhexlify(x)))), 'utf-8')
+            return safe_hexlify(serialize_script(json_changebase(script,
+                                    lambda x: binascii.unhexlify(x))))
         
         result = bytes()
         for b in map(serialize_script_unit, script):
@@ -376,7 +376,7 @@ def apply_multisignatures(*args):
         script = binascii.unhexlify(script)
     sigs = [binascii.unhexlify(x) if x[:2] == '30' else x for x in sigs]
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
-        return str(binascii.hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs)), 'utf-8')
+        return safe_hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs))
 
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
