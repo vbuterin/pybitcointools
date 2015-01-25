@@ -36,7 +36,6 @@ class TestECCArithmetic(unittest.TestCase):
                 add_pubkeys(multiply(G, hx), multiply(G, hy))[0],
                 multiply(G, add_privkeys(hx, hy))[0]
             )
-
             self.assertEqual(
                 b58check_to_hex(pubtoaddr(privtopub(x))),
                 b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
@@ -107,6 +106,7 @@ class TestElectrumSignVerify(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.wallet = "/tmp/tempwallet_" + str(random.randrange(2**40))
+        print("Starting wallet tests with: " + cls.wallet)
         os.popen('echo "\n\n\n\n\n\n" | electrum -w %s create' % cls.wallet).read()
         cls.seed = str(json.loads(os.popen("electrum -w %s getseed" % cls.wallet).read())['seed'])
         cls.addies = json.loads(os.popen("electrum -w %s listaddresses" % cls.wallet).read())
@@ -146,7 +146,6 @@ class TestElectrumSignVerify(unittest.TestCase):
                 )
             )
 
-            
             mysig = ecdsa_sign(msg, priv)
             self.assertEqual(
                 os.popen('electrum -w %s verifymessage %s %s %s' % (self.wallet, addy, mysig, msg)).read().strip(),
@@ -286,7 +285,7 @@ class TestBIP0032(unittest.TestCase):
             [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
         ]
 
-        mk = bip32_master_key(bytes.fromhex('000102030405060708090a0b0c0d0e0f'))
+        mk = bip32_master_key(safe_from_hex('000102030405060708090a0b0c0d0e0f'))
 
         for tv in test_vectors:
             left, right = self._full_derive(mk, tv[0]), tv[1]
@@ -347,8 +346,8 @@ class TestRipeMD160PythonBackup(unittest.TestCase):
             hash160digest = ripemd.RIPEMD160(bin_sha256(s)).digest()
             self.assertEqual(bytes_to_hex_string(digest), target[i])
             self.assertEqual(bytes_to_hex_string(hash160digest), hash160target[i])
-            self.assertEqual(bytes_to_hex_string(bin_hash160(bytes(s, 'utf-8'))), hash160target[i])
-            self.assertEqual(hash160(bytes(s, 'utf-8')), hash160target[i])
+            self.assertEqual(bytes_to_hex_string(bin_hash160(from_string_to_bytes(s))), hash160target[i])
+            self.assertEqual(hash160(from_string_to_bytes(s)), hash160target[i])
 
 
 class TestScriptVsAddressOutputs(unittest.TestCase):

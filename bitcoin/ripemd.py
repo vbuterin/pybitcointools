@@ -44,7 +44,9 @@ except ImportError:
     pass
 
 from six.moves import range
+import sys
 
+is_python2 = sys.version_info.major == 2
 #block_size = 1
 digest_size = 20
 digestsize = 20
@@ -79,7 +81,10 @@ class RIPEMD160:
         dig = self.digest()
         hex_digest = ''
         for d in dig:
-            hex_digest += '%02x' % d
+            if (is_python2):
+                hex_digest += '%02x' % ord(d)
+            else:
+                hex_digest += '%02x' % d
         return hex_digest
     
     def copy(self):
@@ -157,7 +162,10 @@ import struct
 def RMD160Transform(state, block): #uint32 state[5], uchar block[64]
     x = [0]*16
     if sys.byteorder == 'little':
-        x = struct.unpack('<16L', bytes(block[0:64]))
+        if is_python2:
+            x = struct.unpack('<16L', ''.join([chr(x) for x in block[0:64]]))
+        else:
+            x = struct.unpack('<16L', bytes(block[0:64]))
     else:
         raise "Error!!"
     a = state[0]

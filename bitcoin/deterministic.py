@@ -24,7 +24,7 @@ def electrum_privkey(seed, n, for_change=0):
     if len(seed) == 32:
         seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = dbl_sha256(bytes(str(n), 'utf-8')+b':'+bytes(str(for_change), 'utf-8')+b':'+binascii.unhexlify(mpk))
+    offset = dbl_sha256(from_int_representation_to_bytes(n)+b':'+from_int_representation_to_bytes(for_change)+b':'+binascii.unhexlify(mpk))
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
@@ -39,7 +39,7 @@ def electrum_pubkey(masterkey, n, for_change=0):
     else:
         mpk = masterkey
     bin_mpk = encode_pubkey(mpk, 'bin_electrum')
-    offset = bin_dbl_sha256(bytes(str(n), 'utf-8')+b':'+bytes(str(for_change), 'utf-8')+b':'+bin_mpk)
+    offset = bin_dbl_sha256(from_int_representation_to_bytes(n)+b':'+from_int_representation_to_bytes(for_change)+b':'+bin_mpk)
     return add_pubkeys('04'+mpk, privtopub(offset))
 
 # seed/stretched seed/pubkey -> address (convenience method)
@@ -94,11 +94,10 @@ def raw_bip32_ckd(rawtuple, i):
 
 def bip32_serialize(rawtuple):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
-    depth = depth % 256
     i = encode(i, 256, 4)
     chaincode = encode(hash_to_int(chaincode), 256, 32)
     keydata = b'\x00'+key[:-1] if vbytes == PRIVATE else key
-    bindata = vbytes + bytes([depth]) + fingerprint + i + chaincode + keydata
+    bindata = vbytes + from_int_to_byte(depth % 256) + fingerprint + i + chaincode + keydata
     return changebase(bindata+bin_dbl_sha256(bindata)[:4], 256, 58)
 
 
@@ -107,7 +106,7 @@ def bip32_deserialize(data):
     if bin_dbl_sha256(dbin[:-4])[:4] != dbin[-4:]:
         raise Exception("Invalid checksum")
     vbytes = dbin[0:4]
-    depth = dbin[4]
+    depth = from_byte_to_int(dbin[4])
     fingerprint = dbin[5:9]
     i = decode(dbin[9:13], 256)
     chaincode = dbin[13:45]
@@ -129,7 +128,7 @@ def bip32_ckd(data, i):
 
 
 def bip32_master_key(seed):
-    I = hmac.new(bytes("Bitcoin seed", "utf-8"), seed, hashlib.sha512).digest()
+    I = hmac.new(from_string_to_bytes("Bitcoin seed"), seed, hashlib.sha512).digest()
     return bip32_serialize((PRIVATE, 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))
 
 
@@ -138,7 +137,7 @@ def bip32_bin_extract_key(data):
 
 
 def bip32_extract_key(data):
-    return str(binascii.hexlify(bip32_deserialize(data)[-1]), 'utf-8')
+    return safe_hexlify(bip32_deserialize(data)[-1])
 
 # Exploits the same vulnerability as above in Electrum wallets
 # Takes a BIP32 pubkey and one of the child privkeys of its corresponding
