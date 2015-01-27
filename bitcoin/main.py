@@ -8,8 +8,153 @@ import base64
 import time
 import random
 import hmac
-import ripemd
+from bitcoin.ripemd import *
 import six
+import sys
+
+# Python 2 / 3 Compatibility stuff
+is_python2 = sys.version_info.major == 2
+if is_python2:
+    string_types = (str, unicode)
+    string_or_bytes_types = string_types
+    int_types = (int, float, long)
+    def bin_to_b58check(inp, magicbyte=0):
+        inp_fmtd = chr(int(magicbyte)) + inp
+        leadingzbytes = len(re.match('^\x00*', inp_fmtd).group(0))
+        checksum = bin_dbl_sha256(inp_fmtd)[:4]
+        return '1' * leadingzbytes + changebase(inp_fmtd+checksum, 256, 58)
+
+    def bytes_to_hex_string(b):
+        return b.encode('hex')
+    
+    def safe_from_hex(s):
+        return s.decode('hex')
+    
+    def from_int_representation_to_bytes(a):
+        return str(a)
+    
+    def from_int_to_byte(a):
+        return chr(a)
+    
+    def from_byte_to_int(a):
+        return ord(a)
+    
+    def from_byes_to_string(s):
+        return s
+    
+    def from_string_to_bytes(a):
+        return a
+    
+    def safe_hexlify(a):
+        return binascii.hexlify(a)
+    
+    def encode(val, base, minlen=0):
+        base, minlen = int(base), int(minlen)
+        code_string = get_code_string(base)
+        result = ""
+        while val > 0:
+            result = code_string[val % base] + result
+            val //= base
+        return lpad(result, code_string[0], minlen)
+
+
+    def decode(string, base):
+        base = int(base)
+        code_string = get_code_string(base)
+        result = 0
+        if base == 16:
+            string = string.lower()
+        while len(string) > 0:
+            result *= base
+            result += code_string.find(string[0])
+            string = string[1:]
+        return result
+    
+    def random_string(x):
+        return os.urandom(x)
+else:
+    string_types = (str)
+    string_or_bytes_types = (str, bytes)
+    int_types = (int, float)
+    def bin_to_b58check(inp, magicbyte=0):
+        inp_fmtd = from_int_to_byte(magicbyte)+inp
+        
+        leadingzbytes = 0
+        for x in inp_fmtd:
+            if x != 0: break;
+            leadingzbytes += 1
+        
+        checksum = bin_dbl_sha256(inp_fmtd)[:4]
+        return '1' * leadingzbytes + changebase(inp_fmtd+checksum, 256, 58)
+
+    def bytes_to_hex_string(b):
+        if isinstance(b, str):
+            return b
+
+        return ''.join('{:02x}'.format(y) for y in b)
+
+    def safe_from_hex(s):
+        return bytes.fromhex(s)
+    
+    def from_int_representation_to_bytes(a):
+        return bytes(str(a), 'utf-8')
+    
+    def from_int_to_byte(a):
+        return bytes([a])
+    
+    def from_byte_to_int(a):
+        return a
+    
+    def from_string_to_bytes(a):
+        return a if isinstance(a, bytes) else bytes(a, 'utf-8') 
+    
+    def safe_hexlify(a):
+        return str(binascii.hexlify(a), 'utf-8')
+    
+    def encode(val, base, minlen=0):
+        base, minlen = int(base), int(minlen)
+        code_string = get_code_string(base)
+        result_bytes = bytes()
+        while val > 0:
+            curcode = code_string[val % base]
+            result_bytes = bytes([ord(curcode)]) + result_bytes
+            val //= base
+        
+        pad_size = minlen - len(result_bytes)
+        
+        padding_element = b'\x00' if base==256 else b'0'
+        if (pad_size > 0):
+            result_bytes = padding_element*pad_size + result_bytes
+    
+        result_string = ''.join([chr(y) for y in result_bytes])
+        result = result_bytes if base == 256 else result_string
+        
+        return result
+
+
+    def decode(string, base):
+        if base == 256 and isinstance(string, str):
+            string = bytes(bytearray.fromhex(string))
+        base = int(base)
+        code_string = get_code_string(base)
+        result = 0
+        if base == 256:
+            def extract(d, cs):
+                return d
+        else:
+            def extract(d, cs):
+                return cs.find(d if isinstance(d, str) else chr(d))
+    
+        if base == 16:
+            string = string.lower()
+        while len(string) > 0:
+            result *= base
+            result += extract(string[0], code_string)
+            string = string[1:]
+        return result
+    
+    def random_string(x):
+        return str(os.urandom(x))
 
 # Elliptic curve parameters (secp256k1)
 
@@ -38,7 +183,7 @@ def inv(a, n):
     lm, hm = 1, 0
     low, high = a % n, n
     while low > 1:
-        r = high/low
+        r = high//low
         nm, new = hm-lm*r, high-low*r
         lm, low, hm, high = nm, new, lm, low
     return lm % n
@@ -67,27 +212,6 @@ def lpad(msg, symbol, length):
     return symbol * (length - len(msg)) + msg
 
 
-def encode(val, base, minlen=0):
-    base, minlen = int(base), int(minlen)
-    code_string = get_code_string(base)
-    result = ""
-    while val > 0:
-        result = code_string[val % base] + result
-        val //= base
-    return lpad(result, code_string[0], minlen)
-
-
-def decode(string, base):
-    base = int(base)
-    code_string = get_code_string(base)
-    result = 0
-    if base == 16:
-        string = string.lower()
-    while len(string) > 0:
-        result *= base
-        result += code_string.find(string[0])
-        string = string[1:]
-    return result
 
 
 def changebase(string, frm, to, minlen=0):
@@ -197,9 +321,9 @@ def jordan_multiply(a, n):
     if n < 0 or n >= N:
         return jordan_multiply(a, n % N)
     if (n % 2) == 0:
-        return jordan_double(jordan_multiply(a, n/2))
+        return jordan_double(jordan_multiply(a, n//2))
     if (n % 2) == 1:
-        return jordan_add(jordan_double(jordan_multiply(a, n/2)), a)
+        return jordan_add(jordan_double(jordan_multiply(a, n//2)), a)
 
 
 def to_jordan(p):
@@ -222,10 +346,19 @@ def fast_add(a, b):
 
 
 def get_pubkey_format(pub):
+    if is_python2:
+        two = '\x02'
+        three = '\x03'
+        four = '\x04'
+    else:
+        two = 2
+        three = 3
+        four = 4
+    
     if isinstance(pub, (tuple, list)): return 'decimal'
-    elif len(pub) == 65 and pub[0] == '\x04': return 'bin'
+    elif len(pub) == 65 and pub[0] == four: return 'bin'
     elif len(pub) == 130 and pub[0:2] == '04': return 'hex'
-    elif len(pub) == 33 and pub[0] in ['\x02', '\x03']: return 'bin_compressed'
+    elif len(pub) == 33 and pub[0] in [two, three]: return 'bin_compressed'
     elif len(pub) == 66 and pub[0:2] in ['02', '03']: return 'hex_compressed'
     elif len(pub) == 64: return 'bin_electrum'
     elif len(pub) == 128: return 'hex_electrum'
@@ -236,10 +369,12 @@ def encode_pubkey(pub, formt):
     if not isinstance(pub, (tuple, list)):
         pub = decode_pubkey(pub)
     if formt == 'decimal': return pub
-    elif formt == 'bin': return '\x04' + encode(pub[0], 256, 32) + encode(pub[1], 256, 32)
-    elif formt == 'bin_compressed': return chr(2+(pub[1] % 2)) + encode(pub[0], 256, 32)
+    elif formt == 'bin': return b'\x04' + encode(pub[0], 256, 32) + encode(pub[1], 256, 32)
+    elif formt == 'bin_compressed': 
+        return from_int_to_byte(2+(pub[1] % 2)) + encode(pub[0], 256, 32)
     elif formt == 'hex': return '04' + encode(pub[0], 16, 64) + encode(pub[1], 16, 64)
-    elif formt == 'hex_compressed': return '0'+str(2+(pub[1] % 2)) + encode(pub[0], 16, 64)
+    elif formt == 'hex_compressed': 
+        return '0'+str(2+(pub[1] % 2)) + encode(pub[0], 16, 64)
     elif formt == 'bin_electrum': return encode(pub[0], 256, 32) + encode(pub[1], 256, 32)
     elif formt == 'hex_electrum': return encode(pub[0], 16, 64) + encode(pub[1], 16, 64)
     else: raise Exception("Invalid format!")
@@ -251,12 +386,12 @@ def decode_pubkey(pub, formt=None):
     elif formt == 'bin': return (decode(pub[1:33], 256), decode(pub[33:65], 256))
     elif formt == 'bin_compressed':
         x = decode(pub[1:33], 256)
-        beta = pow(x*x*x+A*x+B, (P+1)/4, P)
-        y = (P-beta) if ((beta + ord(pub[0])) % 2) else beta
+        beta = pow(int(x*x*x+A*x+B), int((P+1)//4), int(P))
+        y = (P-beta) if ((beta + from_byte_to_int(pub[0])) % 2) else beta
         return (x, y)
     elif formt == 'hex': return (decode(pub[2:66], 16), decode(pub[66:130], 16))
     elif formt == 'hex_compressed':
-        return decode_pubkey(pub.decode('hex'), 'bin_compressed')
+        return decode_pubkey(safe_from_hex(pub), 'bin_compressed')
     elif formt == 'bin_electrum':
         return (decode(pub[:32], 256), decode(pub[32:64], 256))
     elif formt == 'hex_electrum':
@@ -280,13 +415,13 @@ def encode_privkey(priv, formt, vbyte=0):
         return encode_privkey(decode_privkey(priv), formt, vbyte)
     if formt == 'decimal': return priv
     elif formt == 'bin': return encode(priv, 256, 32)
-    elif formt == 'bin_compressed': return encode(priv, 256, 32)+'\x01'
+    elif formt == 'bin_compressed': return encode(priv, 256, 32)+b'\x01'
     elif formt == 'hex': return encode(priv, 16, 64)
     elif formt == 'hex_compressed': return encode(priv, 16, 64)+'01'
     elif formt == 'wif':
         return bin_to_b58check(encode(priv, 256, 32), 128+int(vbyte))
     elif formt == 'wif_compressed':
-        return bin_to_b58check(encode(priv, 256, 32)+'\x01', 128+int(vbyte))
+        return bin_to_b58check(encode(priv, 256, 32)+b'\x01', 128+int(vbyte))
     else: raise Exception("Invalid format!")
 
 def decode_privkey(priv,formt=None):
@@ -389,43 +524,45 @@ def bin_hash160(string):
     try:
         digest = hashlib.new('ripemd160', intermed).digest()
     except:
-        digest = ripemd.RIPEMD160(intermed).digest()
+        digest = RIPEMD160(intermed).digest()
     return digest
 
 
 def hash160(string):
-    return binascii.hexlify(bin_hash160(string))
+    return safe_hexlify(bin_hash160(string))
 
 
 def bin_sha256(string):
-    return hashlib.sha256(string).digest()
-
+    binary_data = string if isinstance(string, bytes) else bytes(string, 'utf-8')
+    return hashlib.sha256(binary_data).digest()
 
 def sha256(string):
-    return binascii.hexlify(bin_sha256(string))
+    return bytes_to_hex_string(bin_sha256(string))
 
 
 def bin_ripemd160(string):
     try:
         digest = hashlib.new('ripemd160', string).digest()
     except:
-        digest = ripemd.RIPEMD160(string).digest()
+        digest = RIPEMD160(string).digest()
     return digest
 
 
 def ripemd160(string):
-    return binascii.hexlify(bin_ripemd160(string))
+    return safe_hexlify(bin_ripemd160(string))
 
 
-def bin_dbl_sha256(string):
-    return hashlib.sha256(hashlib.sha256(string).digest()).digest()
+def bin_dbl_sha256(s):
+    bytes_to_hash = from_string_to_bytes(s)
+    return hashlib.sha256(hashlib.sha256(bytes_to_hash).digest()).digest()
 
 
 def dbl_sha256(string):
-    return binascii.hexlify(bin_dbl_sha256(string))
+    return safe_hexlify(bin_dbl_sha256(string))
 
 
 def bin_slowsha(string):
+    string = from_string_to_bytes(string)
     orig_input = string
     for i in range(100000):
         string = hashlib.sha256(string + orig_input).digest()
@@ -433,7 +570,7 @@ def bin_slowsha(string):
 
 
 def slowsha(string):
-    return binascii.hexlify(bin_slowsha(string))
+    return safe_hexlify(bin_slowsha(string))
 
 
 def hash_to_int(x):
@@ -444,21 +581,21 @@ def hash_to_int(x):
 
 def num_to_var_int(x):
     x = int(x)
-    if x < 253: return chr(x)
-    elif x < 65536: return chr(253) + encode(x, 256, 2)[::-1]
-    elif x < 4294967296: return chr(254) + encode(x, 256, 4)[::-1]
-    else: return chr(255) + encode(x, 256, 8)[::-1]
+    if x < 253: return from_int_to_byte(x)
+    elif x < 65536: return from_int_to_byte(253)+encode(x, 256, 2)[::-1]
+    elif x < 4294967296: return from_int_to_byte(254) + encode(x, 256, 4)[::-1]
+    else: return from_int_to_byte(255) + encode(x, 256, 8)[::-1]
 
 
 # WTF, Electrum?
 def electrum_sig_hash(message):
-    padded = "\x18Bitcoin Signed Message:\n" + num_to_var_int(len(message)) + message
+    padded = b"\x18Bitcoin Signed Message:\n" + num_to_var_int(len(message)) + from_string_to_bytes(message)
     return bin_dbl_sha256(padded)
 
 
 def random_key():
     # Gotta be secure after that java.SecureRandom fiasco...
-    entropy = os.urandom(32) \
+    entropy = random_string(32) \
         + str(random.randrange(2**256)) \
         + str(int(time.time() * 1000000))
     return sha256(entropy)
@@ -472,24 +609,16 @@ def random_electrum_seed():
 
 # Encodings
 
-
-def bin_to_b58check(inp, magicbyte=0):
-    inp_fmtd = chr(int(magicbyte)) + inp
-    leadingzbytes = len(re.match('^\x00*', inp_fmtd).group(0))
-    checksum = bin_dbl_sha256(inp_fmtd)[:4]
-    return '1' * leadingzbytes + changebase(inp_fmtd+checksum, 256, 58)
-
-
 def b58check_to_bin(inp):
     leadingzbytes = len(re.match('^1*', inp).group(0))
-    data = '\x00' * leadingzbytes + changebase(inp, 58, 256)
+    data = b'\x00' * leadingzbytes + changebase(inp, 58, 256)
     assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
     return data[1:-4]
 
 
 def get_version_byte(inp):
     leadingzbytes = len(re.match('^1*', inp).group(0))
-    data = '\x00' * leadingzbytes + changebase(inp, 58, 256)
+    data = b'\x00' * leadingzbytes + changebase(inp, 58, 256)
     assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
     return ord(data[0])
 
@@ -499,7 +628,7 @@ def hex_to_b58check(inp, magicbyte=0):
 
 
 def b58check_to_hex(inp):
-    return binascii.hexlify(b58check_to_bin(inp))
+    return safe_hexlify(b58check_to_bin(inp))
 
 
 def pubkey_to_address(pubkey, magicbyte=0):
@@ -516,25 +645,27 @@ pubtoaddr = pubkey_to_address
 
 
 def encode_sig(v, r, s):
-    vb, rb, sb = chr(v), encode(r, 256), encode(s, 256)
-    return base64.b64encode(vb+'\x00'*(32-len(rb))+rb+'\x00'*(32-len(sb))+sb)
+    vb, rb, sb = from_int_to_byte(v), encode(r, 256), encode(s, 256)
+    
+    result = base64.b64encode(vb+b'\x00'*(32-len(rb))+rb+b'\x00'*(32-len(sb))+sb)
+    return result if is_python2 else str(result, 'utf-8')
 
 
 def decode_sig(sig):
     bytez = base64.b64decode(sig)
-    return ord(bytez[0]), decode(bytez[1:33], 256), decode(bytez[33:], 256)
+    return from_byte_to_int(bytez[0]), decode(bytez[1:33], 256), decode(bytez[33:], 256)
 
 # https://tools.ietf.org/html/rfc6979#section-3.2
 
 
 def deterministic_generate_k(msghash, priv):
-    v = '\x01' * 32
-    k = '\x00' * 32
+    v = b'\x01' * 32
+    k = b'\x00' * 32
     priv = encode_privkey(priv, 'bin')
     msghash = encode(hash_to_int(msghash), 256, 32)
-    k = hmac.new(k, v+'\x00'+priv+msghash, hashlib.sha256).digest()
+    k = hmac.new(k, v+b'\x00'+priv+msghash, hashlib.sha256).digest()
     v = hmac.new(k, v, hashlib.sha256).digest()
-    k = hmac.new(k, v+'\x01'+priv+msghash, hashlib.sha256).digest()
+    k = hmac.new(k, v+b'\x01'+priv+msghash, hashlib.sha256).digest()
     v = hmac.new(k, v, hashlib.sha256).digest()
     return decode(hmac.new(k, v, hashlib.sha256).digest(), 256)
 
@@ -574,7 +705,7 @@ def ecdsa_raw_recover(msghash, vrs):
     v, r, s = vrs
 
     x = r
-    beta = pow(x*x*x+A*x+B, (P+1)/4, P)
+    beta = pow(x*x*x+A*x+B, (P+1)//4, P)
     y = beta if v % 2 ^ beta % 2 else (P - beta)
     z = hash_to_int(msghash)
     Gz = jordan_multiply(((Gx, 1), (Gy, 1)), (N - z) % N)

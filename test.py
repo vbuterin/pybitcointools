@@ -36,7 +36,6 @@ class TestECCArithmetic(unittest.TestCase):
                 add_pubkeys(multiply(G, hx), multiply(G, hy))[0],
                 multiply(G, add_privkeys(hx, hy))[0]
             )
-
             self.assertEqual(
                 b58check_to_hex(pubtoaddr(privtopub(x))),
                 b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
@@ -46,7 +45,6 @@ class TestECCArithmetic(unittest.TestCase):
             if i % 2 == 1:
                 p = changebase(p, 16, 256)
             self.assertEqual(p, decompress(compress(p)))
-
             self.assertEqual(G[0], multiply(divide(G, x), x)[0])
 
 
@@ -61,10 +59,10 @@ class TestBases(unittest.TestCase):
             [10, '65535', 16, 'ffff'],
             [16, 'deadbeef', 10, '3735928559'],
             [10, '0', 16, ''],
-            [256, '34567', 10, '219919234615'],
+            [256, b'34567', 10, '219919234615'],
             [10, '444', 16, '1bc'],
-            [256, '\x03\x04\x05\x06\x07', 10, '12952339975'],
-            [16, '3132333435', 256, '12345']
+            [256, b'\x03\x04\x05\x06\x07', 10, '12952339975'],
+            [16, '3132333435', 256, b'12345']
         ]
         for prebase, preval, postbase, postval in data:
             self.assertEqual(changebase(preval, prebase, postbase), postval)
@@ -286,7 +284,7 @@ class TestBIP0032(unittest.TestCase):
             [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
         ]
 
-        mk = bip32_master_key('000102030405060708090a0b0c0d0e0f'.decode('hex'))
+        mk = bip32_master_key(safe_from_hex('000102030405060708090a0b0c0d0e0f'))
 
         for tv in test_vectors:
             left, right = self._full_derive(mk, tv[0]), tv[1]
@@ -345,10 +343,10 @@ class TestRipeMD160PythonBackup(unittest.TestCase):
         for i, s in enumerate(strvec):
             digest = ripemd.RIPEMD160(s).digest()
             hash160digest = ripemd.RIPEMD160(bin_sha256(s)).digest()
-            self.assertEqual(digest.encode('hex'), target[i])
-            self.assertEqual(hash160digest.encode('hex'), hash160target[i])
-            self.assertEqual(bin_hash160(s).encode('hex'), hash160target[i])
-            self.assertEqual(hash160(s), hash160target[i])
+            self.assertEqual(bytes_to_hex_string(digest), target[i])
+            self.assertEqual(bytes_to_hex_string(hash160digest), hash160target[i])
+            self.assertEqual(bytes_to_hex_string(bin_hash160(from_string_to_bytes(s))), hash160target[i])
+            self.assertEqual(hash160(from_string_to_bytes(s)), hash160target[i])
 
 
 class TestScriptVsAddressOutputs(unittest.TestCase):
@@ -391,14 +389,14 @@ class TestConversions(unittest.TestCase):
             "e9873d79c6d87dc0fb6a5778633389f4453213303da61f20bd67fc233aa33262"
         )
         cls.privkey_bin = (
-            "\xe9\x87=y\xc6\xd8}\xc0\xfbjWxc3\x89\xf4E2\x130=\xa6\x1f \xbdg\xfc#:\xa32b"
+            b"\xe9\x87=y\xc6\xd8}\xc0\xfbjWxc3\x89\xf4E2\x130=\xa6\x1f \xbdg\xfc#:\xa32b"
         )
 
         cls.pubkey_hex = (
             "04588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9f88ff2a00d7e752d44cbe16e1ebcf0890b76ec7c78886109dee76ccfc8445424"
         )
         cls.pubkey_bin = (
-            "\x04X\x8d *\xfc\xc1\xeeJ\xb5%LxG\xec%\xb9\xa15\xbb\xda\x0f+\xc6\x9e\xe1\xa7\x14t\x9f\xd7}\xc9\xf8\x8f\xf2\xa0\r~u-D\xcb\xe1n\x1e\xbc\xf0\x89\x0bv\xec|x\x88a\t\xde\xe7l\xcf\xc8DT$"
+            b"\x04X\x8d *\xfc\xc1\xeeJ\xb5%LxG\xec%\xb9\xa15\xbb\xda\x0f+\xc6\x9e\xe1\xa7\x14t\x9f\xd7}\xc9\xf8\x8f\xf2\xa0\r~u-D\xcb\xe1n\x1e\xbc\xf0\x89\x0bv\xec|x\x88a\t\xde\xe7l\xcf\xc8DT$"
         )
 
     def test_privkey_to_pubkey(self):
