@@ -1,14 +1,16 @@
 #!/usr/bin/python
-import json
-import re
+import json, re
 import random
 import sys
-from six.moves import urllib
+try:
+    from urllib.request import build_opener
+except:
+    from urllib2 import build_opener
 
 
 # Makes a request to a given URL (first arg) and optional params (second arg)
 def make_request(*args):
-    opener = urllib.request.build_opener()
+    opener = build_opener()
     opener.addheaders = [('User-agent',
                           'Mozilla/5.0'+str(random.randrange(1000000)))]
     try:

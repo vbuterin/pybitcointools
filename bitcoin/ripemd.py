@@ -43,13 +43,17 @@ try:
 except ImportError:
     pass
 
-from six.moves import range
 import sys
 
 is_python2 = sys.version_info.major == 2
 #block_size = 1
 digest_size = 20
 digestsize = 20
+
+try:
+    range = xrange
+except:
+    pass
 
 class RIPEMD160:
     """Return a new RIPEMD160 object. An optional string argument
