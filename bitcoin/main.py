@@ -505,6 +505,11 @@ def ecdsa_raw_sign(msghash, priv):
     r, y = fast_multiply(G, k)
     s = inv(k, N) * (z + r*decode_privkey(priv)) % N
 
+    # bitcoin enforces low S values, by negating the value (modulo the order)
+    # if larger than order/2
+    if s > N / 2: 
+        s = N - s
+
     return 27+(y % 2), r, s
 
 
