@@ -33,8 +33,8 @@ def mk_merkle_proof(header, hashes, index):
         newnodes = []
         for i in range(0, len(nodes) - 1, 2):
             newnodes.append(bin_sha256(bin_sha256(nodes[i] + nodes[i+1])))
-        if len(nodes) % 2:
-            newnodes.append(bin_sha256(bin_sha256(nodes[-1] + nodes[-1])))
+        if len(newnodes) % 2 and len(newnodes) > 2:
+            newnodes.append(newnodes[-1])
         nodes = newnodes
         layers.append(nodes)
     # Sanity check, make sure merkle root is valid
