@@ -28,6 +28,8 @@ def deserialize_header(inp):
 
 def mk_merkle_proof(header, hashes, index):
     nodes = [h.decode('hex')[::-1] for h in hashes]
+    if len(nodes) % 2 and len(nodes) > 2:
+        nodes.append(nodes[-1])
     layers = [nodes]
     while len(nodes) > 1:
         newnodes = []
