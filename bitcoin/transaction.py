@@ -313,7 +313,7 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
     else:
         pubs = list(filter(lambda x: len(str(x)) >= 32, args))
         k = int(args[len(pubs)])
-    return serialize_script([k]+pubs+[len(pubs), 174])
+    return serialize_script([k]+pubs+[len(pubs)]) + 'ae'
 
 # Signing and verifying
 
