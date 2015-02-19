@@ -61,8 +61,8 @@ def crack_electrum_wallet(mpk, pk, n, for_change=0):
 # Below code ASSUMES binary inputs and compressed pubkeys
 MAINNET_PRIVATE = b'\x04\x88\xAD\xE4'
 MAINNET_PUBLIC = b'\x04\x88\xB2\x1E'
-TESTNET_PRIVATE = b'\x04\x35\x87\xCF'
-TESTNET_PUBLIC = b'\x04\x35\x83\x94'
+TESTNET_PRIVATE = b'\x04\x35\x83\x94'
+TESTNET_PUBLIC = b'\x04\x35\x87\xCF'
 PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE]
 PUBLIC = [MAINNET_PUBLIC, TESTNET_PUBLIC]
 
