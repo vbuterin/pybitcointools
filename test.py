@@ -222,6 +222,20 @@ class TestTransaction(unittest.TestCase):
         tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
         print("Outputting transaction: ", tx2)
 
+    # https://github.com/vbuterin/pybitcointools/issues/71
+    def test_multisig(self):
+        script = mk_multisig_script(["0254236f7d1124fc07600ad3eec5ac47393bf963fbf0608bcce255e685580d16d9",
+                                     "03560cad89031c412ad8619398bd43b3d673cb5bdcdac1afc46449382c6a8e0b2b"],
+                                     2)
+
+        self.assertEqual(p2sh_scriptaddr(script), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+
+        self.assertEqual(p2sh_scriptaddr(script, 0x05), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+        self.assertEqual(p2sh_scriptaddr(script, 5), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+
+        self.assertEqual(p2sh_scriptaddr(script, 0xc4), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
+        self.assertEqual(p2sh_scriptaddr(script, 196), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
+
 
 class TestDeterministicGenerate(unittest.TestCase):
     @classmethod
