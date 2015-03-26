@@ -11,7 +11,7 @@ def send(frm, to, value, fee=10000):
 
 
 # Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
-def sendmultitx(frm, tovalues, fee=10000):
+def sendmultitx(frm, tovalues, fee=10000, **kwargs):
     outs = []
     outvalue = 0
     tv = tovalues.split(",")
@@ -19,22 +19,22 @@ def sendmultitx(frm, tovalues, fee=10000):
         outs.append(a)
         outvalue += int(a.split(":")[1])
 
-    u = unspent(privtoaddr(frm))
+    u = unspent(privtoaddr(frm), **kwargs)
     u2 = select(u, int(outvalue)+int(fee))
     argz = u2 + outs + [frm, fee]
     tx = mksend(*argz)
     tx2 = signall(tx, frm)
-    return pushtx(tx2)
+    return pushtx(tx2, **kwargs)
 
 
 # Takes address, address, value (satoshis), fee(satoshis)
-def preparetx(frm, to, value, fee=10000):
+def preparetx(frm, to, value, fee=10000, **kwargs):
     tovalues = to + ":" + str(value)
-    return preparemultitx(frm, tovalues, fee)
+    return preparemultitx(frm, tovalues, fee, **kwargs)
 
 
 # Takes address, address:value, address:value ... (satoshis), fee(satoshis)
-def preparemultitx(frm, *args):
+def preparemultitx(frm, *args, **kwargs):
     tv, fee = args[:-1], int(args[-1])
     outs = []
     outvalue = 0
@@ -42,7 +42,7 @@ def preparemultitx(frm, *args):
         outs.append(a)
         outvalue += int(a.split(":")[1])
 
-    u = unspent(frm)
+    u = unspent(frm, **kwargs)
     u2 = select(u, int(outvalue)+int(fee))
     argz = u2 + outs + [frm, fee]
     return mksend(*argz)
@@ -96,14 +96,14 @@ def sign_coinvault_tx(tx, priv):
 
 
 # Inspects a transaction
-def inspect(tx):
+def inspect(tx, **kwargs):
     d = deserialize(tx)
     isum = 0
     ins = {}
     for _in in d['ins']:
         h = _in['outpoint']['hash']
         i = _in['outpoint']['index']
-        prevout = deserialize(fetchtx(h))['outs'][i]
+        prevout = deserialize(fetchtx(h, **kwargs))['outs'][i]
         isum += prevout['value']
         a = script_to_address(prevout['script'])
         ins[a] = ins.get(a, 0) + prevout['value']
