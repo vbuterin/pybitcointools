@@ -1,9 +1,26 @@
 from bitcoin.main import *
 import hmac
 import hashlib
+import pbkdf2
+import unicodedata
 
 # Electrum wallets
 
+def electrumv2_extract_seed(words, password=''):
+    """Takes Electrum v2.0 13 word mnemonic string and returns seed. Only works on English for now"""
+    # clean-up unicode characters
+    mnemonic = words[:]
+    try:
+        mnemonic = unicodedata.normalize('NFC', unicode(
+            ' '.join(words.lower().strip().split()))).encode('utf-8') # a string of 13 words
+    except Exception as e:
+        raise Exception(str(e))
+    rootseed = pbkdf2.PBKDF2(str(mnemonic), str('electrum' + password), 2048,  macmodule=hmac, digestmodule=hashlib.sha512).read(64)
+    assert len(safe_hexlify(rootseed)) == 128
+    return rootseed
+
+def electrumv2_mnemonic_to_mprivkey(words, password=''):
+    return bip32_master_key(electrumv2_extract_seed(words, password=''))
 
 def electrum_stretch(seed):
     return slowsha(seed)
