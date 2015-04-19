@@ -13,6 +13,7 @@ import hmac
 import struct
 from bitcoin.ripemd import *
 
+
 # Elliptic curve parameters (secp256k1)
 
 P = 2**256 - 2**32 - 977
