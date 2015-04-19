@@ -1,32 +1,34 @@
 from bitcoin.main import *
 import hmac
 import hashlib
-import pbkdf2
-import unicodedata
-
+from binascii import hexlify
 # Electrum wallets
 
-def electrumv2_extract_seed(words, password=''):
+
+def bin_electrum_extract_seed(phrase, password=''):
     """Takes Electrum v2.0 13 word mnemonic string and returns seed. Only works on English for now"""
-    # clean-up unicode characters
-    mnemonic = words[:]
-    try:
-        mnemonic = unicodedata.normalize('NFC', unicode(
-            ' '.join(words.lower().strip().split()))).encode('utf-8') # a string of 13 words
-    except Exception as e:
-        raise Exception(str(e))
-    rootseed = pbkdf2.PBKDF2(str(mnemonic), str('electrum' + password), 2048,  macmodule=hmac, digestmodule=hashlib.sha512).read(64)
-    assert len(safe_hexlify(rootseed)) == 128
+    # clean-up words
+    if isinstance(phrase, list):
+        mnemonic = ' '.split(phrase)
+    elif isinstance(phrase, string_types):
+        try:
+            mnemonic = ' '.join(phrase.lower().strip).split()
+        except Exception as e:
+                raise Exception(str(e))
+    else:
+        raise TypeError
+    mnemonic, password = [x for x if isinstance(x, bytes) else from_string_to_bytes(x, 'utf-8') in (phrase, password)]
+    rootseed = pbkdf_two(mnemonic, b'electrum' + password, 2048, 64, digestmod=hashlib.sha512)
+    assert len(rootseed) == 64
     return rootseed
 
-def electrumv2_mnemonic_to_mprivkey(words, password=''):
-    return bip32_master_key(electrumv2_extract_seed(words, password=''))
+def electrum_extract_mprivkey(words, password=''):
+    return bip32_master_key(bin_electrum_extract_seed(words, password=''))
 
 def electrum_stretch(seed):
     return slowsha(seed)
 
 # Accepts seed or stretched seed, returns master public key
-
 
 def electrum_mpk(seed):
     if len(seed) == 32:
@@ -41,7 +43,7 @@ def electrum_privkey(seed, n, for_change=0):
     if len(seed) == 32:
         seed = electrum_stretch(seed)
     mpk = electrum_mpk(seed)
-    offset = dbl_sha256(str(n)+':'+str(for_change)+':'+binascii.unhexlify(mpk))
+    offset = dbl_sha256(from_int_representation_to_bytes(n)+b':'+from_int_representation_to_bytes(for_change)+b':'+binascii.unhexlify(mpk))
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
@@ -56,7 +58,7 @@ def electrum_pubkey(masterkey, n, for_change=0):
     else:
         mpk = masterkey
     bin_mpk = encode_pubkey(mpk, 'bin_electrum')
-    offset = bin_dbl_sha256(str(n)+':'+str(for_change)+':'+bin_mpk)
+    offset = bin_dbl_sha256(from_int_representation_to_bytes(n)+b':'+from_int_representation_to_bytes(for_change)+b':'+bin_mpk)
     return add_pubkeys('04'+mpk, privtopub(offset))
 
 # seed/stretched seed/pubkey -> address (convenience method)
@@ -68,41 +70,42 @@ def electrum_address(masterkey, n, for_change=0, version=0):
 # Given a master public key, a private key from that wallet and its index,
 # cracks the secret exponent which can be used to generate all other private
 # keys in the wallet
-
-
 def crack_electrum_wallet(mpk, pk, n, for_change=0):
     bin_mpk = encode_pubkey(mpk, 'bin_electrum')
     offset = dbl_sha256(str(n)+':'+str(for_change)+':'+bin_mpk)
     return subtract_privkeys(pk, offset)
 
 # Below code ASSUMES binary inputs and compressed pubkeys
-PRIVATE = '\x04\x88\xAD\xE4'
-PUBLIC = '\x04\x88\xB2\x1E'
+MAINNET_PRIVATE = b'\x04\x88\xAD\xE4'
+MAINNET_PUBLIC = b'\x04\x88\xB2\x1E'
+TESTNET_PRIVATE = b'\x04\x35\x83\x94'
+TESTNET_PUBLIC = b'\x04\x35\x87\xCF'
+PRIVATE = [MAINNET_PRIVATE, TESTNET_PRIVATE]
+PUBLIC = [MAINNET_PUBLIC, TESTNET_PUBLIC]
 
 # BIP32 child key derivation
-
 
 def raw_bip32_ckd(rawtuple, i):
     vbytes, depth, fingerprint, oldi, chaincode, key = rawtuple
     i = int(i)
 
-    if vbytes == PRIVATE:
+    if vbytes in PRIVATE:
         priv = key
         pub = privtopub(key)
     else:
         pub = key
 
     if i >= 2**31:
-        if vbytes == PUBLIC:
+        if vbytes in PUBLIC:
             raise Exception("Can't do private derivation on public key!")
-        I = hmac.new(chaincode, '\x00'+priv[:32]+encode(i, 256, 4), hashlib.sha512).digest()
+        I = hmac.new(chaincode, b'\x00'+priv[:32]+encode(i, 256, 4), hashlib.sha512).digest()
     else:
         I = hmac.new(chaincode, pub+encode(i, 256, 4), hashlib.sha512).digest()
 
-    if vbytes == PRIVATE:
-        newkey = add_privkeys(I[:32]+'\x01', priv)
+    if vbytes in PRIVATE:
+        newkey = add_privkeys(I[:32]+B'\x01', priv)
         fingerprint = bin_hash160(privtopub(key))[:4]
-    if vbytes == PUBLIC:
+    if vbytes in PUBLIC:
         newkey = add_pubkeys(compress(privtopub(I[:32])), key)
         fingerprint = bin_hash160(key)[:4]
 
@@ -111,11 +114,10 @@ def raw_bip32_ckd(rawtuple, i):
 
 def bip32_serialize(rawtuple):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
-    depth = chr(depth % 256)
     i = encode(i, 256, 4)
     chaincode = encode(hash_to_int(chaincode), 256, 32)
-    keydata = '\x00'+key[:-1] if vbytes == PRIVATE else key
-    bindata = vbytes + depth + fingerprint + i + chaincode + keydata
+    keydata = b'\x00'+key[:-1] if vbytes in PRIVATE else key
+    bindata = vbytes + from_int_to_byte(depth % 256) + fingerprint + i + chaincode + keydata
     return changebase(bindata+bin_dbl_sha256(bindata)[:4], 256, 58)
 
 
@@ -124,17 +126,18 @@ def bip32_deserialize(data):
     if bin_dbl_sha256(dbin[:-4])[:4] != dbin[-4:]:
         raise Exception("Invalid checksum")
     vbytes = dbin[0:4]
-    depth = ord(dbin[4])
+    depth = from_byte_to_int(dbin[4])
     fingerprint = dbin[5:9]
     i = decode(dbin[9:13], 256)
     chaincode = dbin[13:45]
-    key = dbin[46:78]+'\x01' if vbytes == PRIVATE else dbin[45:78]
+    key = dbin[46:78]+b'\x01' if vbytes in PRIVATE else dbin[45:78]
     return (vbytes, depth, fingerprint, i, chaincode, key)
 
 
 def raw_bip32_privtopub(rawtuple):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
-    return (PUBLIC, depth, fingerprint, i, chaincode, privtopub(key))
+    newvbytes = MAINNET_PUBLIC if vbytes == MAINNET_PRIVATE else TESTNET_PUBLIC
+    return (newvbytes, depth, fingerprint, i, chaincode, privtopub(key))
 
 
 def bip32_privtopub(data):
@@ -145,9 +148,9 @@ def bip32_ckd(data, i):
     return bip32_serialize(raw_bip32_ckd(bip32_deserialize(data), i))
 
 
-def bip32_master_key(seed):
-    I = hmac.new("Bitcoin seed", seed, hashlib.sha512).digest()
-    return bip32_serialize((PRIVATE, 0, '\x00'*4, 0, I[32:], I[:32]+'\x01'))
+def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
+    I = hmac.new(from_string_to_bytes("Bitcoin seed"), seed, hashlib.sha512).digest()
+    return bip32_serialize((vbytes, 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))
 
 
 def bip32_bin_extract_key(data):
@@ -155,13 +158,11 @@ def bip32_bin_extract_key(data):
 
 
 def bip32_extract_key(data):
-    return binascii.hexlify(bip32_deserialize(data)[-1])
+    return safe_hexlify(bip32_deserialize(data)[-1])
 
 # Exploits the same vulnerability as above in Electrum wallets
 # Takes a BIP32 pubkey and one of the child privkeys of its corresponding
 # privkey and returns the BIP32 privkey associated with that pubkey
-
-
 def raw_crack_bip32_privkey(parent_pub, priv):
     vbytes, depth, fingerprint, i, chaincode, key = priv
     pvbytes, pdepth, pfingerprint, pi, pchaincode, pkey = parent_pub
@@ -172,9 +173,10 @@ def raw_crack_bip32_privkey(parent_pub, priv):
 
     I = hmac.new(pchaincode, pkey+encode(i, 256, 4), hashlib.sha512).digest()
 
-    pprivkey = subtract_privkeys(key, I[:32]+'\x01')
+    pprivkey = subtract_privkeys(key, I[:32]+b'\x01')
 
-    return (PRIVATE, pdepth, pfingerprint, pi, pchaincode, pprivkey)
+    newvbytes = MAINNET_PRIVATE if vbytes == MAINNET_PUBLIC else TESTNET_PRIVATE
+    return (newvbytes, pdepth, pfingerprint, pi, pchaincode, pprivkey)
 
 
 def crack_bip32_privkey(parent_pub, priv):
@@ -189,7 +191,7 @@ def coinvault_pub_to_bip32(*args):
     vals = map(int, args[34:])
     I1 = ''.join(map(chr, vals[:33]))
     I2 = ''.join(map(chr, vals[35:67]))
-    return bip32_serialize((PUBLIC, 0, '\x00'*4, 0, I2, I1))
+    return bip32_serialize((MAINNET_PUBLIC, 0, b'\x00'*4, 0, I2, I1))
 
 
 def coinvault_priv_to_bip32(*args):
@@ -198,7 +200,7 @@ def coinvault_priv_to_bip32(*args):
     vals = map(int, args[34:])
     I2 = ''.join(map(chr, vals[35:67]))
     I3 = ''.join(map(chr, vals[72:104]))
-    return bip32_serialize((PRIVATE, 0, '\x00'*4, 0, I2, I3+'\x01'))
+    return bip32_serialize((MAINNET_PRIVATE, 0, b'\x00'*4, 0, I2, I3+b'\x01'))
 
 
 def bip32_descend(*args):
