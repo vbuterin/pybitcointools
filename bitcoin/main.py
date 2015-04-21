@@ -10,6 +10,7 @@ import base64
 import time
 import random
 import hmac
+import struct
 from bitcoin.ripemd import *
 
 # Elliptic curve parameters (secp256k1)
@@ -548,3 +549,32 @@ def ecdsa_raw_recover(msghash, vrs):
 
 def ecdsa_recover(msg, sig):
     return encode_pubkey(ecdsa_raw_recover(electrum_sig_hash(msg), decode_sig(sig)), 'hex')
+
+# Pbkdf2 (for BIP39/Electrum)
+
+# A simple implementation of Pbkdf2 using stock python modules.
+# Modifications based on https://matt.ucc.asn.au/src/pbkdf2.py
+def pbkdf_two(passwd, salt, iters=2048, keylen=64, digestmod=hashlib.sha512):
+    dgsz = digestmod().digest_size if callable(digestmod) else digestmod.digest_size
+    pwd, salt = [x if isinstance(x, bytes) else bytes(x, 'utf-8') for x in (passwd, salt)]
+    if keylen is None: keylen = dgsz
+    # Helper function which copies each iteration for h, where h is an hmac seeded with password
+    def pbhelper(h, salt, itercount, blocksize):
+        def prf(h, data):
+            hm = h.copy()
+            hm.update(data)
+            return hm.digest()
+        U = prf(h, salt + struct.pack('>i', blocksize))
+        T = U
+        for j in range(2, itercount+1):
+            U = prf(h, U)
+            T = "".join([chr( ord(x) ^ ord(y) ) for (x, y) in zip( T, U )]) \
+                  if is_python2 else bytes([x ^ y for (x, y) in zip(T, U)])    # XORing
+        return T
+    L = int(keylen/dgsz) if (keylen%dgsz) else int(keylen/dgsz)+1    # L - number of output blocks to produce
+    #if keylen % dgsz != 0: L += 1
+    h = hmac.new(key=passwd, msg=None, digestmod=digestmod )
+    T = b""
+    for i in range(1, L+1):
+        T += pbhelper(h, salt, iters, i)
+    return T[:keylen]
