@@ -556,7 +556,7 @@ def ecdsa_recover(msg, sig):
 # Modifications based on https://matt.ucc.asn.au/src/pbkdf2.py
 def pbkdf_two(passwd, salt, iters=2048, keylen=64, digestmod=hashlib.sha512):
     dgsz = digestmod().digest_size if callable(digestmod) else digestmod.digest_size
-    pwd, salt = [x for x if isinstance(x, bytes) else bytes(x, 'utf-8') in (passwd, salt)]
+    pwd, salt = [x if isinstance(x, bytes) else bytes(x, 'utf-8') for x in (passwd, salt)]
     if keylen is None: keylen = dgsz
     # Helper function which copies each iteration for h, where h is an hmac seeded with password
     def pbhelper(h, salt, itercount, blocksize):
