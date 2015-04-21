@@ -12,18 +12,18 @@ def bin_electrum_extract_seed(phrase, password=''):
         mnemonic = ' '.split(phrase)
     elif isinstance(phrase, string_types):
         try:
-            mnemonic = ' '.join(phrase.lower().strip).split()
+            mnemonic = ' '.join(phrase.lower().strip().split())
         except Exception as e:
                 raise Exception(str(e))
     else:
         raise TypeError
-    mnemonic, password = [x for x if isinstance(x, bytes) else from_string_to_bytes(x, 'utf-8') in (phrase, password)]
-    rootseed = pbkdf_two(mnemonic, b'electrum' + password, 2048, 64, digestmod=hashlib.sha512)
+    mnemonic, password = [x if isinstance(x, bytes) else from_string_to_bytes(x, 'utf-8') for x in (phrase, password)]
+    rootseed = pbkdf_two(mnemonic, (b'electrum' + password), 2048, 64, digestmod=hashlib.sha512)
     assert len(rootseed) == 64
     return rootseed
 
-def electrum_extract_mprivkey(words, password=''):
-    return bip32_master_key(bin_electrum_extract_seed(words, password=''))
+def electrum_extract_mprivkey(mnemonic, password=''):
+    return bip32_master_key(bin_electrum_extract_seed(mnemonic, password=''))
 
 def electrum_stretch(seed):
     return slowsha(seed)
