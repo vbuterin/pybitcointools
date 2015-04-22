@@ -352,6 +352,19 @@ def get_block_header_data(inp):
         'nonce': j['nonce'],
     }
 
+def blockr_get_block_header_data(height):
+    k = json.loads(make_request("https://btc.blockr.io/api/v1/block/raw/" +
+                       str(height)))
+    j = k['data']
+    return {
+        'version': j['version'],
+        'hash': j['hash'],
+        'prevhash': j['previousblockhash'],
+        'timestamp': j['time'],
+        'merkle_root': j['merkleroot'],
+        'bits': j['bits'],
+        'nonce': j['nonce'],
+    }
 
 def get_txs_in_block(inp):
     j = _get_block(inp)
