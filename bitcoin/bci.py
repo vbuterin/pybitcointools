@@ -352,9 +352,16 @@ def get_block_header_data(inp):
         'nonce': j['nonce'],
     }
 
-def blockr_get_block_header_data(height):
-    k = json.loads(make_request("https://btc.blockr.io/api/v1/block/raw/" +
-                       str(height)))
+def blockr_get_block_header_data(height, network='btc'):
+    if network == 'testnet':
+        blockr_url = "https://tbtc.blockr.io/api/v1/block/raw/"
+    elif network == 'btc':
+        blockr_url = "https://btc.blockr.io/api/v1/block/raw/"
+    else:
+        raise Exception(
+            'Unsupported network {0} for blockr_get_block_header_data'.format(network))
+
+    k = json.loads(make_request(blockr_url + str(height)))
     j = k['data']
     return {
         'version': j['version'],
