@@ -369,7 +369,7 @@ def blockr_get_block_header_data(height, network='btc'):
         'prevhash': j['previousblockhash'],
         'timestamp': j['time'],
         'merkle_root': j['merkleroot'],
-        'bits': j['bits'],
+        'bits': int(j['bits'], 16),
         'nonce': j['nonce'],
     }
 
