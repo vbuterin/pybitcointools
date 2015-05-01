@@ -222,6 +222,20 @@ class TestTransaction(unittest.TestCase):
         tx2 = apply_multisignatures(tx1, 0, mscript, [sig1, sig3])
         print("Outputting transaction: ", tx2)
 
+    # https://github.com/vbuterin/pybitcointools/issues/71
+    def test_multisig(self):
+        script = mk_multisig_script(["0254236f7d1124fc07600ad3eec5ac47393bf963fbf0608bcce255e685580d16d9",
+                                     "03560cad89031c412ad8619398bd43b3d673cb5bdcdac1afc46449382c6a8e0b2b"],
+                                     2)
+
+        self.assertEqual(p2sh_scriptaddr(script), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+
+        self.assertEqual(p2sh_scriptaddr(script, 0x05), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+        self.assertEqual(p2sh_scriptaddr(script, 5), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+
+        self.assertEqual(p2sh_scriptaddr(script, 0xc4), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
+        self.assertEqual(p2sh_scriptaddr(script, 196), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
+
 
 class TestDeterministicGenerate(unittest.TestCase):
     @classmethod
@@ -372,8 +386,27 @@ class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
         for i in range(5):
             a = privtoaddr(random_key())
             self.assertEqual(a, script_to_address(address_to_script(a)))
+            self.assertEqual(a, script_to_address(address_to_script(a), 0))
+            self.assertEqual(a, script_to_address(address_to_script(a), 0x00))
+
             b = privtoaddr(random_key(), 5)
             self.assertEqual(b, script_to_address(address_to_script(b)))
+            self.assertEqual(b, script_to_address(address_to_script(b), 0))
+            self.assertEqual(b, script_to_address(address_to_script(b), 0x00))
+            self.assertEqual(b, script_to_address(address_to_script(b), 5))
+            self.assertEqual(b, script_to_address(address_to_script(b), 0x05))
+
+
+        for i in range(5):
+            a = privtoaddr(random_key(), 0x6f)
+            self.assertEqual(a, script_to_address(address_to_script(a), 111))
+            self.assertEqual(a, script_to_address(address_to_script(a), 0x6f))
+
+            b = privtoaddr(random_key(), 0xc4)
+            self.assertEqual(b, script_to_address(address_to_script(b), 111))
+            self.assertEqual(b, script_to_address(address_to_script(b), 0x6f))
+            self.assertEqual(b, script_to_address(address_to_script(b), 196))
+            self.assertEqual(b, script_to_address(address_to_script(b), 0xc4))
 
 
 class TestRipeMD160PythonBackup(unittest.TestCase):
