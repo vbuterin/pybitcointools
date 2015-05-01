@@ -93,10 +93,11 @@ def to_jacobian(p):
 def jacobian_double(p):
     if not p[1]:
         return (0, 0, 0)
-    S = (4 * p[0] * p[1] ** 2) % P
+    ysq = (p[1] ** 2) % P
+    S = (4 * p[0] * ysq) % P
     M = (3 * p[0] ** 2 + A * p[2] ** 4) % P
     nx = (M**2 - 2 * S) % P
-    ny = (M * (S - nx) - 8 * p[1] ** 4) % P
+    ny = (M * (S - nx) - 8 * ysq ** 2) % P
     nz = (2 * p[1] * p[2]) % P
     return (nx, ny, nz)
 
@@ -118,8 +119,9 @@ def jacobian_add(p, q):
     R = S2 - S1
     H2 = (H * H) % P
     H3 = (H * H2) % P
-    nx = (R ** 2 - H3 - 2 * U1 * H2) % P
-    ny = (R * (U1 * H2 - nx) - S1 * H3) % P
+    U1H2 = (U1 * H2) % P
+    nx = (R ** 2 - H3 - 2 * U1H2) % P
+    ny = (R * (U1H2 - nx) - S1 * H3) % P
     nz = H * p[2] * q[2]
     return (nx, ny, nz)
 
