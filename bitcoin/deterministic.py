@@ -190,7 +190,7 @@ def coinvault_priv_to_bip32(*args):
 
 
 def bip32_descend(*args):
-    if len(args) == 2:
+    if len(args) == 2 and isinstance(args[1], list):
         key, path = args
     else:
         key, path = args[0], map(int, args[1:])
