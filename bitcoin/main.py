@@ -116,8 +116,10 @@ def jacobian_add(p, q):
         return jacobian_double(p)
     H = U2 - U1
     R = S2 - S1
-    nx = (R ** 2 - H ** 3 - 2 * U1 * H**2) % P
-    ny = (R * (U1 * H**2 - nx) - S1 * H**3) % P
+    H2 = (H * H) % P
+    H3 = (H * H2) % P
+    nx = (R ** 2 - H3 - 2 * U1 * H2) % P
+    ny = (R * (U1 * H2 - nx) - S1 * H3) % P
     nz = H * p[2] * q[2]
     return (nx, ny, nz)
 
