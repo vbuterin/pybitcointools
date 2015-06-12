@@ -237,7 +237,12 @@ def pushtx(*args, **kwargs):
     return f(*args)
 
 
-def last_block_height():
+def last_block_height(network='btc'):
+    if network == 'testnet':
+        data = make_request('https://tbtc.blockr.io/api/v1/block/info/last')
+        jsonobj = json.loads(data)
+        return jsonobj["data"]["nb"]
+
     data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data)
     return jsonobj["height"]
