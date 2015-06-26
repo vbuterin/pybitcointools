@@ -238,6 +238,16 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(p2sh_scriptaddr(script, 0xc4), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
         self.assertEqual(p2sh_scriptaddr(script, 196), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
 
+    def test_preparetx(self):
+        hextx = preparetx('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX', '1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1', 13)
+        tx = deserialize(hextx)
+        self.assertTrue(tx['locktime'] == 0, "Locktime incorrect")
+        self.assertTrue(tx['outs'][0]['value'] == 13, "Value incorrect")
+
+        hextx = preparetx('12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX', '1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1', 13, locktime=2222222222)
+        tx = deserialize(hextx)
+        self.assertTrue(tx['locktime'] == 2222222222, "Locktime incorrect")
+        self.assertTrue(tx['outs'][0]['value'] == 13, "Value incorrect")
 
 class TestDeterministicGenerate(unittest.TestCase):
     @classmethod

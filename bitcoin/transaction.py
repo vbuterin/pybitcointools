@@ -451,7 +451,7 @@ def select(unspent, value):
 # Only takes inputs of the form { "output": blah, "value": foo }
 
 
-def mksend(*args):
+def mksend(*args, **kwargs):
     argz, change, fee = args[:-2], args[-2], int(args[-1])
     ins, outs = [], []
     for arg in argz:
@@ -479,4 +479,4 @@ def mksend(*args):
     elif isum > osum+fee+5430:
         outputs2 += [{"address": change, "value": isum-osum-fee}]
 
-    return mktx(ins, outputs2)
+    return mktx(ins, outputs2, **kwargs)
