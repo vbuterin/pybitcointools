@@ -210,8 +210,10 @@ class TestTransaction(unittest.TestCase):
         addresses = [pubtoaddr(pub) for pub in pubs]
         mscript = mk_multisig_script(pubs[1:], 2, 3)
         msigaddr = p2sh_scriptaddr(mscript)
-        tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
+        tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'], locktime=2222222222)
         tx1 = sign(tx, 1, privs[0])
+
+        self.assertTrue(deserialize(tx)['locktime'] == 2222222222, "Locktime incorrect")
 
         sig1 = multisign(tx, 0, mscript, privs[1])
         self.assertTrue(verify_tx_input(tx1, 0, mscript, sig1, pubs[1]), "Verification Error")
