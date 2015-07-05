@@ -122,7 +122,7 @@ def jacobian_add(p, q):
     U1H2 = (U1 * H2) % P
     nx = (R ** 2 - H3 - 2 * U1H2) % P
     ny = (R * (U1H2 - nx) - S1 * H3) % P
-    nz = H * p[2] * q[2]
+    nz = (H * p[2] * q[2]) % P
     return (nx, ny, nz)
 
 
@@ -179,10 +179,10 @@ def encode_pubkey(pub, formt):
         pub = decode_pubkey(pub)
     if formt == 'decimal': return pub
     elif formt == 'bin': return b'\x04' + encode(pub[0], 256, 32) + encode(pub[1], 256, 32)
-    elif formt == 'bin_compressed': 
+    elif formt == 'bin_compressed':
         return from_int_to_byte(2+(pub[1] % 2)) + encode(pub[0], 256, 32)
     elif formt == 'hex': return '04' + encode(pub[0], 16, 64) + encode(pub[1], 16, 64)
-    elif formt == 'hex_compressed': 
+    elif formt == 'hex_compressed':
         return '0'+str(2+(pub[1] % 2)) + encode(pub[0], 16, 64)
     elif formt == 'bin_electrum': return encode(pub[0], 256, 32) + encode(pub[1], 256, 32)
     elif formt == 'hex_electrum': return encode(pub[0], 16, 64) + encode(pub[1], 16, 64)
@@ -512,10 +512,14 @@ def ecdsa_verify(msg, sig, pub):
 
 def ecdsa_raw_recover(msghash, vrs):
     v, r, s = vrs
-
     x = r
-    beta = pow(x*x*x+A*x+B, (P+1)//4, P)
+    xcubedaxb = (x*x*x+A*x+B) % P
+    beta = pow(xcubedaxb, (P+1)//4, P)
     y = beta if v % 2 ^ beta % 2 else (P - beta)
+    # If xcubedaxb is not a quadratic residue, then r cannot be the x coord
+    # for a point on the curve, and so the sig is invalid
+    if (xcubedaxb - y*y) % P != 0:
+        return False
     z = hash_to_int(msghash)
     Gz = jacobian_multiply((Gx, Gy, 1), (N - z) % N)
     XY = jacobian_multiply((x, y, 1), s)
