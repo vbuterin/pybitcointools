@@ -151,15 +151,17 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
 
 
 def der_encode_sig(v, r, s):
-    b1, b2 = safe_hexlify(encode(r, 256)), safe_hexlify(encode(s, 256))
-    if r >= 2**255:
-        b1 = '00' + b1
-    if s >= 2**255:
-        b2 = '00' + b2
-    left = '02'+encode(len(b1)//2, 16, 2)+b1
-    right = '02'+encode(len(b2)//2, 16, 2)+b2
-    return '30'+encode(len(left+right)//2, 16, 2)+left+right
-
+    s = N-s if s>N//2 else s	# BIP62 low s
+    b1, b2 = encode(r, 256), encode(s, 256)
+    if bytearray(b1)[0] & 0x80:		# add null bytes if leading byte interpreted as negative
+        b1 = b'\0' + b1
+    if bytearray(b2)[0] & 0x80:
+        b2 = b'\0' + b2
+    left = b'\x02' + encode(len(b1), 256, 1) + b1
+    right = b'\x02' + encode(len(b2), 256, 1) + b2
+    sighex = changebase((b'\x30' + encode(len(left+right), 256, 1) + left + right), 256, 16)
+    assert is_bip66(sighex), "DER signature is not BIP66-compliant"
+    return sighex
 
 def der_decode_sig(sig):
     leftlen = decode(sig[6:8], 16)*2
@@ -168,6 +170,34 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None, decode(left, 16), decode(right, 16))
 
+def is_bip66(sig):
+    """Checks hex DER sig for BIP66 consistency"""
+    #https://raw.githubusercontent.com/bitcoin/bips/master/bip-0066.mediawiki
+    #0x30  [total-len]  0x02  [R-len]  [R]  0x02  [S-len]  [S]  [sighash]
+    if re.match('^[0-9a-fA-F]*$', sig):
+        sig = bytearray.fromhex(sig)
+        if sig[0]==b'\x30' and sig[1]==len(sig)-2:  # check sighash is missing
+            sig.extend(b"\1")	                  	# add SIGHASH_ALL for testing
+        else:
+            assert (sig[-1] & 124 == 0) and (not not sig[-1]) # check SIGHASH valid
+    
+    if len(sig) < 9 or len(sig) > 73: return False
+    if (sig[0] != 0x30): return False
+    if (sig[1] != len(sig)-3): return False
+    rlen = sig[3]
+    if (5+rlen >= len(sig)): return False
+    slen = sig[5+rlen]
+    if (rlen + slen + 7 != len(sig)): return False
+    if (sig[2] != 0x02): return False
+    if (rlen == 0): return False
+    if (sig[4] & 0x80): return False
+    if (rlen > 1 and (sig[4] == 0x00) and not (sig[5] & 0x80)): return False
+    if (sig[4+rlen] != 0x02): return False
+    if (slen == 0): return False
+    if (sig[rlen+6] & 0x80): return False
+    if (slen > 1 and (sig[6+rlen] == 0x00) and not (sig[7+rlen] & 0x80)): return False
+    
+    return True
 
 def txhash(tx, hashcode=None):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
