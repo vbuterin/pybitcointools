@@ -177,11 +177,12 @@ def history(*args):
                 }
     for tx in txs:
         for i, inp in enumerate(tx["inputs"]):
-            if inp["prev_out"]["addr"] in addrs:
-                key = str(inp["prev_out"]["tx_index"]) + \
-                    ':'+str(inp["prev_out"]["n"])
-                if outs.get(key):
-                    outs[key]["spend"] = tx["hash"]+':'+str(i)
+            if "prev_out" in inp:
+                if inp["prev_out"]["addr"] in addrs:
+                    key = str(inp["prev_out"]["tx_index"]) + \
+                        ':'+str(inp["prev_out"]["n"])
+                    if outs.get(key):
+                        outs[key]["spend"] = tx["hash"]+':'+str(i)
     return [outs[k] for k in outs]
 
 
