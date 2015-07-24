@@ -152,9 +152,19 @@ def history(*args):
     for addr in addrs:
         offset = 0
         while 1:
-            data = make_request(
-                'https://blockchain.info/address/%s?format=json&offset=%s' %
-                (addr, offset))
+            gathered = False
+            while not gathered:
+                try:
+                    data = make_request(
+                        'https://blockchain.info/address/%s?format=json&offset=%s' %
+                        (addr, offset))
+                    gathered = True
+                except Exception as e:
+                    try:
+                        sys.stderr.write(e.read().strip())
+                    except:
+                        sys.stderr.write(str(e))
+                    gathered = False
             try:
                 jsonobj = json.loads(data)
             except:
