@@ -74,9 +74,9 @@ def blockr_unspent(*args):
     network, addr_args = parse_addr_args(*args)
 
     if network == 'testnet':
-        blockr_url = 'https://tbtc.blockr.io/api/v1/address/unspent/'
+        blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
     elif network == 'btc':
-        blockr_url = 'https://btc.blockr.io/api/v1/address/unspent/'
+        blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
     else:
         raise Exception(
             'Unsupported network {0} for blockr_unspent'.format(network))
@@ -218,9 +218,9 @@ def eligius_pushtx(tx):
 
 def blockr_pushtx(tx, network='btc'):
     if network == 'testnet':
-        blockr_url = 'https://tbtc.blockr.io/api/v1/tx/push'
+        blockr_url = 'http://tbtc.blockr.io/api/v1/tx/push'
     elif network == 'btc':
-        blockr_url = 'https://btc.blockr.io/api/v1/tx/push'
+        blockr_url = 'http://btc.blockr.io/api/v1/tx/push'
     else:
         raise Exception(
             'Unsupported network {0} for blockr_pushtx'.format(network))
@@ -250,7 +250,7 @@ def pushtx(*args, **kwargs):
 
 def last_block_height(network='btc'):
     if network == 'testnet':
-        data = make_request('https://tbtc.blockr.io/api/v1/block/info/last')
+        data = make_request('http://tbtc.blockr.io/api/v1/block/info/last')
         jsonobj = json.loads(data)
         return jsonobj["data"]["nb"]
 
@@ -380,9 +380,9 @@ def bci_get_block_header_data(inp):
 
 def blockr_get_block_header_data(height, network='btc'):
     if network == 'testnet':
-        blockr_url = "https://tbtc.blockr.io/api/v1/block/raw/"
+        blockr_url = "http://tbtc.blockr.io/api/v1/block/raw/"
     elif network == 'btc':
-        blockr_url = "https://btc.blockr.io/api/v1/block/raw/"
+        blockr_url = "http://btc.blockr.io/api/v1/block/raw/"
     else:
         raise Exception(
             'Unsupported network {0} for blockr_get_block_header_data'.format(network))
@@ -402,9 +402,9 @@ def blockr_get_block_header_data(height, network='btc'):
 
 def get_block_timestamp(height, network='btc'):
     if network == 'testnet':
-        blockr_url = "https://tbtc.blockr.io/api/v1/block/info/"
+        blockr_url = "http://tbtc.blockr.io/api/v1/block/info/"
     elif network == 'btc':
-        blockr_url = "https://btc.blockr.io/api/v1/block/info/"
+        blockr_url = "http://btc.blockr.io/api/v1/block/info/"
     else:
         raise Exception(
             'Unsupported network {0} for get_block_timestamp'.format(network))
