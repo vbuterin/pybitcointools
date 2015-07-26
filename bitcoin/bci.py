@@ -271,9 +271,9 @@ def bci_fetchtx(txhash):
 
 def blockr_fetchtx(txhash, network='btc'):
     if network == 'testnet':
-        blockr_url = 'https://tbtc.blockr.io/api/v1/tx/raw/'
+        blockr_url = 'http://tbtc.blockr.io/api/v1/tx/raw/'
     elif network == 'btc':
-        blockr_url = 'https://btc.blockr.io/api/v1/tx/raw/'
+        blockr_url = 'http://btc.blockr.io/api/v1/tx/raw/'
     else:
         raise Exception(
             'Unsupported network {0} for blockr_fetchtx'.format(network))
