@@ -151,11 +151,10 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
 
 
 def der_encode_sig(v, r, s):
-    s = N-s if s>N//2 else s	# BIP62 low s
     b1, b2 = encode(r, 256), encode(s, 256)
-    if bytearray(b1)[0] & 0x80:		# add null bytes if leading byte interpreted as negative
+    if ord(b1[0]) & 0x80:		# add null bytes if leading byte interpreted as negative
         b1 = b'\0' + b1
-    if bytearray(b2)[0] & 0x80:
+    if ord(b2[0]) & 0x80:
         b2 = b'\0' + b2
     left  = b'\x02' + encode(len(b1), 256, 1) + b1
     right = b'\x02' + encode(len(b2), 256, 1) + b2
@@ -174,11 +173,10 @@ def is_bip66(sig):
     """Checks hex DER sig for BIP66 consistency"""
     #https://raw.githubusercontent.com/bitcoin/bips/master/bip-0066.mediawiki
     #0x30  [total-len]  0x02  [R-len]  [R]  0x02  [S-len]  [S]  [sighash]
-    if re.match('^[0-9a-fA-F]*$', sig):
-        sig = bytearray.fromhex(sig)
-        if (sig[0] == 0x30) and (sig[1] == len(sig)-2):  # check sighash is missing
-            sig.extend(b"\1")		                   	 # add SIGHASH_ALL for testing
-        assert (sig[-1] & 124 == 0) and (not not sig[-1]), "Bad SIGHASH value"
+    sig = bytearray.fromhex(sig) if re.match('^[0-9a-fA-F]*$', sig) else bytearray(sig)
+    if (sig[0] == 0x30) and (sig[1] == len(sig)-2):     # check if sighash is missing
+            sig.extend(b"\1")		                   	# add SIGHASH_ALL for testing
+    #assert (sig[-1] & 124 == 0) and (not not sig[-1]), "Bad SIGHASH value"
     
     if len(sig) < 9 or len(sig) > 73: return False
     if (sig[0] != 0x30): return False
@@ -304,7 +302,7 @@ def serialize_script_unit(unit):
         if unit < 16:
             return from_int_to_byte(unit + 80)
         else:
-            return bytes([unit])
+            return from_int_to_byte(unit)
     elif unit is None:
         return b'\x00'
     else:
