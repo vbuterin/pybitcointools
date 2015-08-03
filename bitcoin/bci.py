@@ -53,7 +53,7 @@ def bci_unspent(*args):
             else:
                 raise Exception(e)
         try:
-            jsonobj = json.loads(data)
+            jsonobj = json.loads(data.decode("utf-8"))
             for o in jsonobj["unspent_outputs"]:
                 h = o['tx_hash'].decode('hex')[::-1].encode('hex')
                 u.append({
@@ -88,7 +88,7 @@ def blockr_unspent(*args):
     else:
         addrs = addr_args
     res = make_request(blockr_url+','.join(addrs))
-    data = json.loads(res)['data']
+    data = json.loads(res.decode("utf-8"))['data']
     o = []
     if 'unspent' in data:
         data = [data]
@@ -111,7 +111,7 @@ def helloblock_unspent(*args):
     for addr in addrs:
         for offset in xrange(0, 10**9, 500):
             res = make_request(url % (addr, offset))
-            data = json.loads(res)["data"]
+            data = json.loads(res.decode("utf-8"))["data"]
             if not len(data["unspents"]):
                 break
             elif offset:
@@ -166,7 +166,7 @@ def history(*args):
                         sys.stderr.write(str(e))
                     gathered = False
             try:
-                jsonobj = json.loads(data)
+                jsonobj = json.loads(data.decode("utf-8"))
             except:
                 raise Exception("Failed to decode data: "+data)
             txs.extend(jsonobj["txs"])
@@ -251,11 +251,11 @@ def pushtx(*args, **kwargs):
 def last_block_height(network='btc'):
     if network == 'testnet':
         data = make_request('http://tbtc.blockr.io/api/v1/block/info/last')
-        jsonobj = json.loads(data)
+        jsonobj = json.loads(data.decode("utf-8"))
         return jsonobj["data"]["nb"]
 
     data = make_request('https://blockchain.info/latestblock')
-    jsonobj = json.loads(data)
+    jsonobj = json.loads(data.decode("utf-8"))
     return jsonobj["height"]
 
 
@@ -280,12 +280,12 @@ def blockr_fetchtx(txhash, network='btc'):
     if isinstance(txhash, list):
         txhash = ','.join([x.encode('hex') if not re.match('^[0-9a-fA-F]*$', x)
                            else x for x in txhash])
-        jsondata = json.loads(make_request(blockr_url+txhash))
+        jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
         return [d['tx']['hex'] for d in jsondata['data']]
     else:
         if not re.match('^[0-9a-fA-F]*$', txhash):
             txhash = txhash.encode('hex')
-        jsondata = json.loads(make_request(blockr_url+txhash))
+        jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
         return jsondata['data']['tx']['hex']
 
 
@@ -301,7 +301,7 @@ def helloblock_fetchtx(txhash, network='btc'):
     else:
         raise Exception(
             'Unsupported network {0} for helloblock_fetchtx'.format(network))
-    data = json.loads(make_request(url + txhash))["data"]["transaction"]
+    data = json.loads(make_request(url + txhash).decode("utf-8"))["data"]["transaction"]
     o = {
         "locktime": data["locktime"],
         "version": data["version"],
@@ -351,7 +351,7 @@ def firstbits(address):
 
 def get_block_at_height(height):
     j = json.loads(make_request("https://blockchain.info/block-height/" +
-                   str(height)+"?format=json"))
+                   str(height)+"?format=json").decode("utf-8"))
     for b in j['blocks']:
         if b['main_chain'] is True:
             return b
@@ -363,7 +363,7 @@ def _get_block(inp):
         return get_block_at_height(inp)
     else:
         return json.loads(make_request(
-                          'https://blockchain.info/rawblock/'+inp))
+                          'https://blockchain.info/rawblock/'+inp).decode("utf-8"))
 
 
 def bci_get_block_header_data(inp):
@@ -387,7 +387,7 @@ def blockr_get_block_header_data(height, network='btc'):
         raise Exception(
             'Unsupported network {0} for blockr_get_block_header_data'.format(network))
 
-    k = json.loads(make_request(blockr_url + str(height)))
+    k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
     j = k['data']
     return {
         'version': j['version'],
@@ -411,12 +411,12 @@ def get_block_timestamp(height, network='btc'):
 
     import time, calendar
     if isinstance(height, list):
-        k = json.loads(make_request(blockr_url + ','.join([str(x) for x in height])))
+        k = json.loads(make_request(blockr_url + ','.join([str(x) for x in height])).decode("utf-8"))
         o = {x['nb']: calendar.timegm(time.strptime(x['time_utc'],
              "%Y-%m-%dT%H:%M:%SZ")) for x in k['data']}
         return [o[x] for x in height]
     else:
-        k = json.loads(make_request(blockr_url + str(height)))
+        k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
         j = k['data']['time_utc']
         return calendar.timegm(time.strptime(j, "%Y-%m-%dT%H:%M:%SZ"))
 
@@ -440,5 +440,5 @@ def get_txs_in_block(inp):
 
 
 def get_block_height(txhash):
-    j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash))
+    j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
     return j['block_height']
