@@ -152,9 +152,9 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
 
 def der_encode_sig(v, r, s):
     b1, b2 = safe_hexlify(encode(r, 256)), safe_hexlify(encode(s, 256))
-    if r >= 2**255:
+    if ord(b1.decode('hex')[0]) & 0x80 == 0x80:
         b1 = '00' + b1
-    if s >= 2**255:
+    if ord(b2.decode('hex')[0]) & 0x80 == 0x80:
         b2 = '00' + b2
     left = '02'+encode(len(b1)//2, 16, 2)+b1
     right = '02'+encode(len(b2)//2, 16, 2)+b2
