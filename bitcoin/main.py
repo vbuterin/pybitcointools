@@ -527,9 +527,9 @@ def ecdsa_raw_recover(msghash, vrs):
     Q = jacobian_multiply(Qr, inv(r, N))
     Q = from_jacobian(Q)
 
-    if ecdsa_raw_verify(msghash, vrs, Q):
-        return Q
-    return False
+    # if ecdsa_raw_verify(msghash, vrs, Q):
+    return Q
+    # return False
 
 
 def ecdsa_recover(msg, sig):
