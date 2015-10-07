@@ -177,7 +177,7 @@ def history(*args):
     outs = {}
     for tx in txs:
         for o in tx["out"]:
-            if o['addr'] in addrs:
+            if o.get('addr', None) in addrs:
                 key = str(tx["tx_index"])+':'+str(o["n"])
                 outs[key] = {
                     "address": o["addr"],
@@ -188,7 +188,7 @@ def history(*args):
     for tx in txs:
         for i, inp in enumerate(tx["inputs"]):
             if "prev_out" in inp:
-                if inp["prev_out"]["addr"] in addrs:
+                if inp["prev_out"].get("addr", None) in addrs:
                     key = str(inp["prev_out"]["tx_index"]) + \
                         ':'+str(inp["prev_out"]["n"])
                     if outs.get(key):
