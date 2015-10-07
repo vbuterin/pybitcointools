@@ -403,8 +403,12 @@ def apply_multisignatures(*args):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         return safe_hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs))
 
+    # Not pushing empty elements on the top of the stack if passing no
+    # script (in case of bare multisig inputs there is no script)
+    script_blob = [] if script.__len__() == 0 else [script]
+
     txobj = deserialize(tx)
-    txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
+    txobj["ins"][i]["script"] = serialize_script([None]+sigs+script_blob)
     return serialize(txobj)
 
 
