@@ -256,7 +256,7 @@ def script_to_address(script, vbyte=0):
             # Testnet
             scripthash_byte = 196
         else:
-            scripthash_byte = 5
+            scripthash_byte = vbyte
         # BIP0016 scripthash addresses
         return bin_to_b58check(script[2:-1], scripthash_byte)
 
