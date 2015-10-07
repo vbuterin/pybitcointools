@@ -160,7 +160,6 @@ def der_encode_sig(v, r, s):
     right = '02'+encode(len(b2)//2, 16, 2)+b2
     return '30'+encode(len(left+right)//2, 16, 2)+left+right
 
-
 def der_decode_sig(sig):
     leftlen = decode(sig[6:8], 16)*2
     left = sig[8:8+leftlen]
@@ -168,6 +167,32 @@ def der_decode_sig(sig):
     right = sig[12+leftlen:12+leftlen+rightlen]
     return (None, decode(left, 16), decode(right, 16))
 
+def is_bip66(sig):
+    """Checks hex DER sig for BIP66 consistency"""
+    #https://raw.githubusercontent.com/bitcoin/bips/master/bip-0066.mediawiki
+    #0x30  [total-len]  0x02  [R-len]  [R]  0x02  [S-len]  [S]  [sighash]
+    sig = bytearray.fromhex(sig) if re.match('^[0-9a-fA-F]*$', sig) else bytearray(sig)
+    if (sig[0] == 0x30) and (sig[1] == len(sig)-2):     # check if sighash is missing
+            sig.extend(b"\1")		                   	# add SIGHASH_ALL for testing
+    #assert (sig[-1] & 124 == 0) and (not not sig[-1]), "Bad SIGHASH value"
+    
+    if len(sig) < 9 or len(sig) > 73: return False
+    if (sig[0] != 0x30): return False
+    if (sig[1] != len(sig)-3): return False
+    rlen = sig[3]
+    if (5+rlen >= len(sig)): return False
+    slen = sig[5+rlen]
+    if (rlen + slen + 7 != len(sig)): return False
+    if (sig[2] != 0x02): return False
+    if (rlen == 0): return False
+    if (sig[4] & 0x80): return False
+    if (rlen > 1 and (sig[4] == 0x00) and not (sig[5] & 0x80)): return False
+    if (sig[4+rlen] != 0x02): return False
+    if (slen == 0): return False
+    if (sig[rlen+6] & 0x80): return False
+    if (slen > 1 and (sig[6+rlen] == 0x00) and not (sig[7+rlen] & 0x80)):
+        return False
+    return True
 
 def txhash(tx, hashcode=None):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
@@ -275,7 +300,7 @@ def serialize_script_unit(unit):
         if unit < 16:
             return from_int_to_byte(unit + 80)
         else:
-            return bytes([unit])
+            return from_int_to_byte(unit)
     elif unit is None:
         return b'\x00'
     else:
