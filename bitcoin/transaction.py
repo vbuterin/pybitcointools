@@ -138,7 +138,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
         newtx["outs"] = []
     elif hashcode == SIGHASH_SINGLE:
         newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
-        for out in newtx["outs'][:len(newtx["ins"]) - 1)]:
+        for out in newtx["outs"][:len(newtx["ins"]) - 1]:
             out['value'] = 2**64 - 1
             out['script'] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
