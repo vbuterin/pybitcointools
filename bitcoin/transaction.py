@@ -197,7 +197,7 @@ def is_bip66(sig):
 def txhash(tx, hashcode=None):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
-    if hashcode:
+    if hashcode is not None:
         return dbl_sha256(from_string_to_bytes(tx) + encode(int(hashcode), 256, 4)[::-1])
     else:
         return safe_hexlify(bin_dbl_sha256(tx)[::-1])
