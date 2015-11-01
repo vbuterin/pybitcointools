@@ -255,6 +255,9 @@ def script_to_address(script, vbyte=0):
         if vbyte in [111, 196]:
             # Testnet
             scripthash_byte = 196
+        elif vbyte == 0:
+            # Mainnet
+            scripthash_byte = 5
         else:
             scripthash_byte = vbyte
         # BIP0016 scripthash addresses
