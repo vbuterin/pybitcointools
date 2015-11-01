@@ -138,9 +138,9 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
         newtx["outs"] = []
     elif hashcode == SIGHASH_SINGLE:
         newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
-        for out in range(len(newtx["ins"]) - 1):
-            out.value = 2**64 - 1
-            out.script = ""
+        for out in newtx["outs"][:len(newtx["ins"]) - 1]:
+            out['value'] = 2**64 - 1
+            out['script'] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
         newtx["ins"] = [newtx["ins"][i]]
     else:
@@ -406,8 +406,12 @@ def apply_multisignatures(*args):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         return safe_hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs))
 
+    # Not pushing empty elements on the top of the stack if passing no
+    # script (in case of bare multisig inputs there is no script)
+    script_blob = [] if script.__len__() == 0 else [script]
+
     txobj = deserialize(tx)
-    txobj["ins"][i]["script"] = serialize_script([None]+sigs+[script])
+    txobj["ins"][i]["script"] = serialize_script([None]+sigs+script_blob)
     return serialize(txobj)
 
 
