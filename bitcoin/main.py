@@ -503,7 +503,7 @@ def ecdsa_raw_verify(msghash, vrs, pub):
     u1, u2 = z*w % N, r*w % N
     x, y = fast_add(fast_multiply(G, u1), fast_multiply(decode_pubkey(pub), u2))
 
-    return r == x
+    return r == x and r % N and s % N
 
 
 def ecdsa_verify(msg, sig, pub):
@@ -518,7 +518,7 @@ def ecdsa_raw_recover(msghash, vrs):
     y = beta if v % 2 ^ beta % 2 else (P - beta)
     # If xcubedaxb is not a quadratic residue, then r cannot be the x coord
     # for a point on the curve, and so the sig is invalid
-    if (xcubedaxb - y*y) % P != 0:
+    if (xcubedaxb - y*y) % P != 0 or not (r % N) or not (s % N):
         return False
     z = hash_to_int(msghash)
     Gz = jacobian_multiply((Gx, Gy, 1), (N - z) % N)
