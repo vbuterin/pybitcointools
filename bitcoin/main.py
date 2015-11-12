@@ -512,10 +512,11 @@ def ecdsa_verify(msg, sig, pub):
     return ecdsa_raw_verify(electrum_sig_hash(msg), decode_sig(sig), pub)
 
 
-def ecdsa_verify_addr(msg, sig, addr):
+def ecdsa_addr_verify(msg, sig, addr):
+    assert is_address(addr)
     Q = ecdsa_recover(msg, sig)
     magic = get_version_byte(addr)
-    return addr == pubtoaddr(Q, int(magic))
+    return (addr == pubtoaddr(Q, int(magic))) or (addr == pubtoaddr(compress(Q), int(magic)))
 
 
 def ecdsa_raw_recover(msghash, vrs):
