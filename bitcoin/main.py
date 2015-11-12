@@ -503,11 +503,19 @@ def ecdsa_raw_verify(msghash, vrs, pub):
     u1, u2 = z*w % N, r*w % N
     x, y = fast_add(fast_multiply(G, u1), fast_multiply(decode_pubkey(pub), u2))
 
-    return r == x and r % N and s % N
+    if not (r % N) or not (s % N):
+        return False
+    return r == x
 
 
 def ecdsa_verify(msg, sig, pub):
     return ecdsa_raw_verify(electrum_sig_hash(msg), decode_sig(sig), pub)
+
+
+def ecdsa_verify_addr(msg, sig, addr):
+    Q = ecdsa_recover(msg, sig)
+    magic = get_version_byte(addr)
+    return addr == pubtoaddr(Q, int(magic))
 
 
 def ecdsa_raw_recover(msghash, vrs):
