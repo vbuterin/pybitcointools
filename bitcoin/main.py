@@ -534,7 +534,7 @@ def ecdsa_raw_verify(msghash, vrs, pub):
     return bool(r == x and (r % N) and (s % N))
 
 
-# For BitcoinCore
+# For BitcoinCore, (msg = addr or msg = "") be default
 def ecdsa_verify_addr(msg, sig, addr):
     assert is_address(addr)
     Q = ecdsa_recover(msg, sig)
