@@ -253,6 +253,9 @@ def add_privkeys(p1, p2):
     f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
     return encode_privkey((decode_privkey(p1, f1) + decode_privkey(p2, f2)) % N, f1)
 
+def mul_privkeys(p1, p2):
+    f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
+    return encode_privkey((decode_privkey(p1, f1) * decode_privkey(p2, f2)) % N, f1)
 
 def multiply(pubkey, privkey):
     f1, f2 = get_pubkey_format(pubkey), get_privkey_format(privkey)
