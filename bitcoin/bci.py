@@ -2,11 +2,15 @@
 import json, re
 import random
 import sys
+import binascii
 try:
     from urllib.request import build_opener
 except:
     from urllib2 import build_opener
 
+is_python2 = bytes == str
+st = lambda u: str(u) if is_python2 else str(u, 'utf-8')
+by = lambda v: bytes(v) if is_python2 else bytes(v, 'utf-8')
 
 # Makes a request to a given URL (first arg) and optional params (second arg)
 def make_request(*args):
@@ -14,10 +18,10 @@ def make_request(*args):
     opener.addheaders = [('User-agent',
                           'Mozilla/5.0'+str(random.randrange(1000000)))]
     try:
-        return opener.open(*args).read().strip()
+        return st(opener.open(*args).read().strip())   
     except Exception as e:
         try:
-            p = e.read().strip()
+            p = st(e.read().strip())
         except:
             p = e
         raise Exception(p)
@@ -442,3 +446,11 @@ def get_txs_in_block(inp):
 def get_block_height(txhash):
     j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
     return j['block_height']
+
+def get_block_coinbase(inp):
+    j = _get_block(inp=inp)
+    cb = binascii.unhexlify( str(j['tx'][0]['inputs'][0]['script']))
+    alpha = ''.join(map(chr, list(range(32, 126))))  # make a list of printable chars
+    cbtxt = ''.join(map(chr, filter(
+            lambda x: chr(x) in alpha, bytearray(cb))))  # trim/remove non-printable chars
+    return cbtxt if len(cbtxt) > 6 else ''
