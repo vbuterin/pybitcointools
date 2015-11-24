@@ -40,103 +40,89 @@ def parse_addr_args(*args):
     return network, addr_args
 
 
-class BlockchainInterface(object):
-	pass
-	
-class BlockchainInfo(BlockchainInterface):
-	@classmethod
-	def unspent(cls,*args):
-		network, addrs = parse_addr_args(*args)
-		u = []
-		for a in addrs:
-			try:
-				data = make_request('https://blockchain.info/unspent?active='+a)
-			except Exception as e:
-				if str(e) == 'No free outputs to spend':
-					continue
-				else:
-					raise Exception(e)
-				try:
-					jsonobj = json.loads(data.decode("utf-8"))
-					for o in jsonobj["unspent_outputs"]:
-						h = o['tx_hash'].decode('hex')[::-1].encode('hex')
-						u.append({
-							"output": h+':'+str(o['tx_output_n']),
-							"value": o['value']
-						})
-				except:
-					raise Exception("Failed to decode data: "+data)
-		return u
-
+# Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
-	return BlockchainInfo.unspent(*args)
-		
-class Blockr(BlockchainInterface):
-	@classmethod
-	def unspent(cls,*args):
-	    # Valid input formats: blockr_unspent([addr1, addr2,addr3])
-	    #                      blockr_unspent(addr1, addr2, addr3)
-	    #                      blockr_unspent([addr1, addr2, addr3], network)
-	    #                      blockr_unspent(addr1, addr2, addr3, network)
-	    # Where network is 'btc' or 'testnet'
-	    network, addr_args = parse_addr_args(*args)
+    network, addrs = parse_addr_args(*args)
+    u = []
+    for a in addrs:
+        try:
+            data = make_request('https://blockchain.info/unspent?active='+a)
+        except Exception as e:
+            if str(e) == 'No free outputs to spend':
+                continue
+            else:
+                raise Exception(e)
+        try:
+            jsonobj = json.loads(data.decode("utf-8"))
+            for o in jsonobj["unspent_outputs"]:
+                h = o['tx_hash'].decode('hex')[::-1].encode('hex')
+                u.append({
+                    "output": h+':'+str(o['tx_output_n']),
+                    "value": o['value']
+                })
+        except:
+            raise Exception("Failed to decode data: "+data)
+    return u
 
-	    if network == 'testnet':
-		blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
-	    elif network == 'btc':
-		blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
-	    else:
-		raise Exception(
-		    'Unsupported network {0} for blockr_unspent'.format(network))
 
-	    if len(addr_args) == 0:
-		return []
-	    elif isinstance(addr_args[0], list):
-		addrs = addr_args[0]
-	    else:
-		addrs = addr_args
-	    res = make_request(blockr_url+','.join(addrs))
-	    data = json.loads(res.decode("utf-8"))['data']
-	    o = []
-	    if 'unspent' in data:
-		data = [data]
-	    for dat in data:
-		for u in dat['unspent']:
-		    o.append({
-			"output": u['tx']+':'+str(u['n']),
-			"value": int(u['amount'].replace('.', ''))
-		    })
-	    return o
-	    
 def blockr_unspent(*args):
-	return Blockr.unspent(*args)
-	    
-class HelloBlock(BlockchainInterface):
-	@classmethod
-	def unspent(*args):
-	    network, addrs = parse_addr_args(*args)
-	    if network == 'testnet':
-		url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
-	    elif network == 'btc':
-		url = 'https://mainnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
-	    o = []
-	    for addr in addrs:
-		for offset in xrange(0, 10**9, 500):
-		    res = make_request(url % (addr, offset))
-		    data = json.loads(res.decode("utf-8"))["data"]
-		    if not len(data["unspents"]):
-			break
-		    elif offset:
-			sys.stderr.write("Getting more unspents: %d\n" % offset)
-		    for dat in data["unspents"]:
-			o.append({
-			    "output": dat["txHash"]+':'+str(dat["index"]),
-			    "value": dat["value"],
-			})
-	    return o
+    # Valid input formats: blockr_unspent([addr1, addr2,addr3])
+    #                      blockr_unspent(addr1, addr2, addr3)
+    #                      blockr_unspent([addr1, addr2, addr3], network)
+    #                      blockr_unspent(addr1, addr2, addr3, network)
+    # Where network is 'btc' or 'testnet'
+    network, addr_args = parse_addr_args(*args)
+
+    if network == 'testnet':
+        blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
+    elif network == 'btc':
+        blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
+    else:
+        raise Exception(
+            'Unsupported network {0} for blockr_unspent'.format(network))
+
+    if len(addr_args) == 0:
+        return []
+    elif isinstance(addr_args[0], list):
+        addrs = addr_args[0]
+    else:
+        addrs = addr_args
+    res = make_request(blockr_url+','.join(addrs))
+    data = json.loads(res.decode("utf-8"))['data']
+    o = []
+    if 'unspent' in data:
+        data = [data]
+    for dat in data:
+        for u in dat['unspent']:
+            o.append({
+                "output": u['tx']+':'+str(u['n']),
+                "value": int(u['amount'].replace('.', ''))
+            })
+    return o
+
 
 def helloblock_unspent(*args):
-	return HelloBlock.unspent(*args)
+    network, addrs = parse_addr_args(*args)
+    if network == 'testnet':
+        url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
+    elif network == 'btc':
+        url = 'https://mainnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
+    o = []
+    for addr in addrs:
+        for offset in xrange(0, 10**9, 500):
+            res = make_request(url % (addr, offset))
+            data = json.loads(res.decode("utf-8"))["data"]
+            if not len(data["unspents"]):
+                break
+            elif offset:
+                sys.stderr.write("Getting more unspents: %d\n" % offset)
+            for dat in data["unspents"]:
+                o.append({
+                    "output": dat["txHash"]+':'+str(dat["index"]),
+                    "value": dat["value"],
+                })
+    return o
+
 
 unspent_getters = {
     'bci': bci_unspent,
