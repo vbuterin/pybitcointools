@@ -197,3 +197,6 @@ def bip32_descend(*args):
     for p in path:
         key = bip32_ckd(key, p)
     return bip32_extract_key(key)
+
+def bip32_harden(x):
+    return 2**31+x
