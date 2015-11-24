@@ -6,9 +6,6 @@ from bisect import bisect_left
 
 wordlist_english=list(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r'))
 
-
-
-
 def eint_to_bytes(entint,entbits):
 	a=hex(entint)[2:].rstrip('L').zfill(32)
 	print(a)
@@ -77,18 +74,29 @@ def words_verify(words,wordlist=wordlist_english):
 	ebytes=_eint_to_bytes(eint,entropy_bits)
 	return csint == entropy_cs(ebytes)
 
-def mnemonic_to_seed(mnemonic_phrase,passphrase=""):
+def mnemonic_to_seed(mnemonic_phrase,passphrase=u''):
 	try:
 		from hashlib import pbkdf2_hmac
 		def pbkdf2_hmac_sha256(password,salt,iters=2048):
-			return pbkdf2_hmac(name='sha512',password=password,salt=salt,iters=iters)
+			return pbkdf2_hmac(hash_name='sha512',password=password,salt=salt,iterations=iters)
 	except:
-		from Crypto.Protocol.KDF import PBKDF2
-		from Crypto.Hash import SHA512,HMAC
+		try:
+			from Crypto.Protocol.KDF import PBKDF2
+			from Crypto.Hash import SHA512,HMAC
 		
-		def pbkdf2_hmac_sha256(password,salt,iters=2048):
-			return PBKDF2(password=password,salt=salt,dkLen=64,count=iters,prf=lambda p,s: HMAC.new(p,s,SHA512).digest())
-	return pbkdf2_hmac_sha256(password=mnemonic_phrase,salt="mnemonic"+passphrase)
+			def pbkdf2_hmac_sha256(password,salt,iters=2048):
+				return PBKDF2(password=password,salt=salt,dkLen=64,count=iters,prf=lambda p,s: HMAC.new(p,s,SHA512).digest())
+		except:
+			try:
+			
+				from pbkdf2 import PBKDF2
+				import hmac
+				def pbkdf2_hmac_sha256(password,salt,iters=2048):
+					return PBKDF2(password,salt, iterations=iters, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
+			except:
+				raise RuntimeError("No implementation of pbkdf2 was found!")
+
+	return pbkdf2_hmac_sha256(password=mnemonic_phrase,salt='mnemonic'+passphrase)
 
 def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits=random.getrandbits):
 	prefix_bits=len(prefix)*11
@@ -107,13 +115,13 @@ def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits
 if __name__=="__main__":
 	import json
 	testvectors=json.load(open('vectors.json','r'))
+	passed=True
 	for v in testvectors['english']:
 		ebytes=binascii.unhexlify(v[0])
 		w=' '.join(entropy_to_words(ebytes))
-		seed=mnemonic_to_seed(w)
-		print(w==v[1])
-				
-		print(v[2])
-		print(binascii.hexlify(seed))
+		seed=mnemonic_to_seed(w,passphrase='TREZOR')
+		passed = passed and w==v[1]
+		passed = passed and binascii.hexlify(seed)==v[2]
+	print("Tests %s." % ("Passed" if passed else "Failed"))
 		
 
