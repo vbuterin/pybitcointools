@@ -95,90 +95,223 @@ def parse_addr_args(*args):
     network = set_network(addr_args)
     return addr_args, network   # note params are "reversed" now
 
+class BlockchainInterface(object):
+    pass
+        
+class BlockchainInfo(BlockchainInterface):
+    @classmethod
+    def unspent(cls,*args):
+        addrs, network = parse_addr_args(*args)
+        u = []
+        for a in addrs:
+            try:
+                data = make_request('https://blockchain.info/unspent?active='+a)
+            except Exception as e:
+                if str(e) == 'No free outputs to spend':
+                    continue
+                else:
+                    raise Exception(e)
+            try:
+                jsonobj = json.loads(data.decode("utf-8"))
+                for o in jsonobj["unspent_outputs"]:
+                    h = o['tx_hash'].decode('hex')[::-1].encode('hex')
+                    u.append({
+                        "output": h+':'+str(o['tx_output_n']),
+                        "value": o['value']
+                    })
+            except:
+                raise Exception("Failed to decode data: "+data)
+        return u
+    
+    # Pushes a transaction to the network using https://blockchain.info/pushtx
+    @classmethod
+    def pushtx(cls,tx,network='btc'):
+        if(network != 'btc'):
+            raise Exception('Unsupported network {0} for BlockchainInfo'.format(network))
+            
+        if not re.match('^[0-9a-fA-F]*$', tx):
+            tx = tx.encode('hex')
+        return make_request('https://blockchain.info/pushtx', 'tx='+tx)
+        
+    @classmethod
+    def fetchtx(cls,txhash,network='btc'):
+        if(network != 'btc'):
+            raise Exception('Unsupported network {0} for BlockchainInfo'.format(network))
+        if isinstance(txhash, list):
+            return [cls.fetchtx(h,network) for h in txhash]
+        if not re.match('^[0-9a-fA-F]*$', txhash):
+            txhash = txhash.encode('hex')
+        data = make_request('https://blockchain.info/rawtx/'+txhash+'?format=hex')
+        return data
+    
+class Blockr(BlockchainInterface):
+    @classmethod
+    def unspent(cls,*args):
+        network, addr_args = parse_addr_args(*args)
+
+        if network == 'testnet':
+            blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
+        elif network == 'btc':
+            blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
+        else:
+            raise Exception(
+                'Unsupported network {0} for blockr_unspent'.format(network))
+
+        if len(addr_args) == 0:
+            return []
+        elif isinstance(addr_args[0], list):
+            addrs = addr_args[0]
+        else:
+            addrs = addr_args
+        res = make_request(blockr_url+','.join(addrs))
+        data = json.loads(res.decode("utf-8"))['data']
+        o = []
+        if 'unspent' in data:
+            data = [data]
+        for dat in data:
+            for u in dat['unspent']:
+                o.append({
+                    "output": u['tx']+':'+str(u['n']),
+                    "value": int(u['amount'].replace('.', ''))
+                })
+        return o
+        
+    @classmethod
+    def pushtx(tx,network='btc'):
+        if network == 'testnet':
+            blockr_url = 'http://tbtc.blockr.io/api/v1/tx/push'
+        elif network == 'btc':
+            blockr_url = 'http://btc.blockr.io/api/v1/tx/push'
+        else:
+            raise Exception(
+                'Unsupported network {0} for blockr_pushtx'.format(network))
+
+        if not re.match('^[0-9a-fA-F]*$', tx):
+            tx = tx.encode('hex')
+        return make_request(blockr_url, '{"hex":"%s"}' % tx)
+        
+    @classmethod
+    def blockr_fetchtx(cls,txhash, network='btc'):
+        if network == 'testnet':
+            blockr_url = 'http://tbtc.blockr.io/api/v1/tx/raw/'
+        elif network == 'btc':
+            blockr_url = 'http://btc.blockr.io/api/v1/tx/raw/'
+        else:
+            raise Exception(
+                'Unsupported network {0} for blockr_fetchtx'.format(network))
+        if isinstance(txhash, list):
+            txhash = ','.join([x.encode('hex') if not re.match('^[0-9a-fA-F]*$', x)
+                               else x for x in txhash])
+            jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
+            return [d['tx']['hex'] for d in jsondata['data']]
+        else:
+            if not re.match('^[0-9a-fA-F]*$', txhash):
+                txhash = txhash.encode('hex')
+            jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
+            return jsondata['data']['tx']['hex']
+
+class HelloBlock(BlockchainInterface):
+    @classmethod
+    def unspent(cls,*args):
+        addrs, network = parse_addr_args(*args)
+        if network == 'testnet':
+            url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
+        elif network == 'btc':
+            url = 'https://mainnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
+        o = []
+        for addr in addrs:
+            for offset in xrange(0, 10**9, 500):
+                res = make_request(url % (addr, offset))
+                data = json.loads(res.decode("utf-8"))["data"]
+                if not len(data["unspents"]):
+                    break
+                elif offset:
+                    sys.stderr.write("Getting more unspents: %d\n" % offset)
+                for dat in data["unspents"]:
+                    o.append({
+                        "output": dat["txHash"]+':'+str(dat["index"]),
+                        "value": dat["value"],
+                    })
+        return o
+        
+    @classmethod
+    def pushtx(cls,tx,network='btc'):
+        if(network == 'testnet'):
+            url='https://testnet.helloblock.io/v1/transactions'
+        else:
+            url='https://mainnet.helloblock.io/v1/transactions'
+            
+        if not re.match('^[0-9a-fA-F]*$', tx):
+            tx = tx.encode('hex')
+        return make_request(url,'rawTxHex='+tx)
+        
+    @classmethod
+    def fetchtx(cls,txhash,network='btc'):    
+        if isinstance(txhash, list):
+            return [helloblock_fetchtx(h) for h in txhash]
+        if not re.match('^[0-9a-fA-F]*$', txhash):
+            txhash = txhash.encode('hex')
+        if network == 'testnet':
+            url = 'https://testnet.helloblock.io/v1/transactions/'
+        elif network == 'btc':
+            url = 'https://mainnet.helloblock.io/v1/transactions/'
+        else:
+            raise Exception(
+                'Unsupported network {0} for helloblock_fetchtx'.format(network))
+        data = json.loads(make_request(url + txhash).decode("utf-8"))["data"]["transaction"]
+        o = {
+            "locktime": data["locktime"],
+            "version": data["version"],
+            "ins": [],
+            "outs": []
+        }
+        for inp in data["inputs"]:
+            o["ins"].append({
+                "script": inp["scriptSig"],
+                "outpoint": {
+                    "index": inp["prevTxoutIndex"],
+                    "hash": inp["prevTxHash"],
+                },
+                "sequence": 4294967295
+            })
+        for outp in data["outputs"]:
+            o["outs"].append({
+                "value": outp["value"],
+                "script": outp["scriptPubKey"]
+            })
+        from bitcoin.transaction import serialize
+        from bitcoin.transaction import txhash as TXHASH
+        tx = serialize(o)
+        assert TXHASH(tx) == txhash
+        return tx
+        
+class Eligius(BlockchainInterface):
+    @classmethod
+    def pushtx(cls,tx,network='btc'):
+        if(network != 'btc'):
+            raise Exception(
+            'Unsupported network {0} for Eligius.'.format(network))
+            
+        if not re.match('^[0-9a-fA-F]*$', tx):
+            tx = tx.encode('hex')
+        s = make_request(
+            'http://eligius.st/~wizkid057/newstats/pushtxn.php',
+            'transaction='+tx+'&send=Push')
+        strings = re.findall('string[^"]*"[^"]*"', s)
+        for string in strings:
+            quote = re.findall('"[^"]*"', string)[0]
+            if len(quote) >= 5:
+                return quote[1:-1]
 
 # Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
-    addrs, network = parse_addr_args(*args)
-    u = []
-    for a in addrs:
-        try:
-            data = make_request('https://blockchain.info/unspent?active='+a)
-        except Exception as e:
-            if str(e) == 'No free outputs to spend':
-                continue
-            else:
-                raise Exception(e)
-        try:
-            jsonobj = json.loads(data.decode("utf-8"))
-            for o in jsonobj["unspent_outputs"]:
-                h = o['tx_hash'].decode('hex')[::-1].encode('hex')
-                u.append({
-                    "output": h+':'+str(o['tx_output_n']),
-                    "value": o['value']
-                })
-        except:
-            raise Exception("Failed to decode data: "+data)
-    return u
-
-
+    return BlockchainInfo.unspent(*args)
+    
 def blockr_unspent(*args):
-    # Valid input formats: blockr_unspent([addr1, addr2,addr3])
-    #                      blockr_unspent(addr1, addr2, addr3)
-    #                      blockr_unspent([addr1, addr2, addr3], network)
-    #                      blockr_unspent(addr1, addr2, addr3, network)
-    # Where network is 'btc' or 'testnet'
-    network, addr_args = parse_addr_args(*args)
-
-    if network == 'testnet':
-        blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
-    elif network == 'btc':
-        blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
-    else:
-        raise Exception(
-            'Unsupported network {0} for blockr_unspent'.format(network))
-
-    if len(addr_args) == 0:
-        return []
-    elif isinstance(addr_args[0], list):
-        addrs = addr_args[0]
-    else:
-        addrs = addr_args
-    res = make_request(blockr_url+','.join(addrs))
-    data = json.loads(res.decode("utf-8"))['data']
-    o = []
-    if 'unspent' in data:
-        data = [data]
-    for dat in data:
-        for u in dat['unspent']:
-            o.append({
-                "output": u['tx']+':'+str(u['n']),
-                "value": int(u['amount'].replace('.', ''))
-            })
-    return o
-
-
+    return Blockr.unspent(args)
+    
 def helloblock_unspent(*args):
-    addrs, network = parse_addr_args(*args)
-    if network == 'testnet':
-        url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
-    elif network == 'btc':
-        url = 'https://mainnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
-    o = []
-    for addr in addrs:
-        for offset in xrange(0, 10**9, 500):
-            res = make_request(url % (addr, offset))
-            data = json.loads(res.decode("utf-8"))["data"]
-            if not len(data["unspents"]):
-                break
-            elif offset:
-                sys.stderr.write("Getting more unspents: %d\n" % offset)
-            for dat in data["unspents"]:
-                o.append({
-                    "output": dat["txHash"]+':'+str(dat["index"]),
-                    "value": dat["value"],
-                })
-    return o
-
+    return HelloBlock.unspent(*args)
 
 unspent_getters = {
     'bci': bci_unspent,
@@ -186,11 +319,53 @@ unspent_getters = {
     'helloblock': helloblock_unspent
 }
 
-
 def unspent(*args, **kwargs):
     f = unspent_getters.get(kwargs.get('source', ''), bci_unspent)
     return f(*args)
+    
+    # Pushes a transaction to the network using https://blockchain.info/pushtx
+def bci_pushtx(tx,network='btc'):
+    return BlockchainInfo.pushtx(tx,network)
 
+def blockr_pushtx(tx, network='btc'):
+    return Blockr.pushtx(tx,network)
+
+def helloblock_pushtx(tx,network='btc'):
+    return HelloBlock.pushtx(tx,network)
+    
+def eligius_pushtx(tx,network='btc'):
+    return Eligius.pushtx(tx,network)
+
+pushtx_getters = {
+    'bci': bci_pushtx,
+    'blockr': blockr_pushtx,
+    'helloblock': helloblock_pushtx
+}
+
+def pushtx(*args, **kwargs):
+    f = pushtx_getters.get(kwargs.get('source', ''), bci_pushtx)
+    return f(*args)
+
+# Gets a specific transaction
+def bci_fetchtx(txhash,network='btc'):
+    return BlockchainInfo.fetchtx(txhash,network)
+
+def blockr_fetchtx(txhash, network='btc'):
+    return Blockr.fetchtx(txhash,network)
+
+def helloblock_fetchtx(txhash, network='btc'):
+    return HelloBlock.fetchtx(txhash,network)
+
+
+fetchtx_getters = {
+    'bci': bci_fetchtx,
+    'blockr': blockr_fetchtx,
+    'helloblock': helloblock_fetchtx
+}
+
+def fetchtx(*args, **kwargs):
+    f = fetchtx_getters.get(kwargs.get('source', ''), bci_fetchtx)
+    return f(*args)
 
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent
@@ -250,60 +425,7 @@ def history(*args):
                     if outs.get(key):
                         outs[key]["spend"] = tx["hash"]+':'+str(i)
     return [outs[k] for k in outs]
-
-
-# Pushes a transaction to the network using https://blockchain.info/pushtx
-def bci_pushtx(tx):
-    if not re.match('^[0-9a-fA-F]*$', tx):
-        tx = tx.encode('hex')
-    return make_request('https://blockchain.info/pushtx', 'tx='+tx)
-
-
-def eligius_pushtx(tx):
-    if not re.match('^[0-9a-fA-F]*$', tx):
-        tx = tx.encode('hex')
-    s = make_request(
-        'http://eligius.st/~wizkid057/newstats/pushtxn.php',
-        'transaction='+tx+'&send=Push')
-    strings = re.findall('string[^"]*"[^"]*"', s)
-    for string in strings:
-        quote = re.findall('"[^"]*"', string)[0]
-        if len(quote) >= 5:
-            return quote[1:-1]
-
-
-def blockr_pushtx(tx, network='btc'):
-    if network == 'testnet':
-        blockr_url = 'http://tbtc.blockr.io/api/v1/tx/push'
-    elif network == 'btc':
-        blockr_url = 'http://btc.blockr.io/api/v1/tx/push'
-    else:
-        raise Exception(
-            'Unsupported network {0} for blockr_pushtx'.format(network))
-
-    if not re.match('^[0-9a-fA-F]*$', tx):
-        tx = tx.encode('hex')
-    return make_request(blockr_url, '{"hex":"%s"}' % tx)
-
-
-def helloblock_pushtx(tx):
-    if not re.match('^[0-9a-fA-F]*$', tx):
-        tx = tx.encode('hex')
-    return make_request('https://mainnet.helloblock.io/v1/transactions',
-                        'rawTxHex='+tx)
-
-pushtx_getters = {
-    'bci': bci_pushtx,
-    'blockr': blockr_pushtx,
-    'helloblock': helloblock_pushtx
-}
-
-
-def pushtx(*args, **kwargs):
-    f = pushtx_getters.get(kwargs.get('source', ''), bci_pushtx)
-    return f(*args)
-
-
+    
 def last_block_height(network='btc'):
     if network == 'testnet':
         data = make_request('http://tbtc.blockr.io/api/v1/block/info/last')
@@ -313,89 +435,6 @@ def last_block_height(network='btc'):
     data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data.decode("utf-8"))
     return jsonobj["height"]
-
-
-# Gets a specific transaction
-def bci_fetchtx(txhash):
-    if isinstance(txhash, list):
-        return [bci_fetchtx(h) for h in txhash]
-    if not re.match('^[0-9a-fA-F]*$', txhash):
-        txhash = txhash.encode('hex')
-    data = make_request('https://blockchain.info/rawtx/'+txhash+'?format=hex')
-    return data
-
-
-def blockr_fetchtx(txhash, network='btc'):
-    if network == 'testnet':
-        blockr_url = 'http://tbtc.blockr.io/api/v1/tx/raw/'
-    elif network == 'btc':
-        blockr_url = 'http://btc.blockr.io/api/v1/tx/raw/'
-    else:
-        raise Exception(
-            'Unsupported network {0} for blockr_fetchtx'.format(network))
-    if isinstance(txhash, list):
-        txhash = ','.join([x.encode('hex') if not re.match('^[0-9a-fA-F]*$', x)
-                           else x for x in txhash])
-        jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
-        return [d['tx']['hex'] for d in jsondata['data']]
-    else:
-        if not re.match('^[0-9a-fA-F]*$', txhash):
-            txhash = txhash.encode('hex')
-        jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
-        return jsondata['data']['tx']['hex']
-
-
-def helloblock_fetchtx(txhash, network='btc'):
-    if isinstance(txhash, list):
-        return [helloblock_fetchtx(h) for h in txhash]
-    if not re.match('^[0-9a-fA-F]*$', txhash):
-        txhash = txhash.encode('hex')
-    if network == 'testnet':
-        url = 'https://testnet.helloblock.io/v1/transactions/'
-    elif network == 'btc':
-        url = 'https://mainnet.helloblock.io/v1/transactions/'
-    else:
-        raise Exception(
-            'Unsupported network {0} for helloblock_fetchtx'.format(network))
-    data = json.loads(make_request(url + txhash).decode("utf-8"))["data"]["transaction"]
-    o = {
-        "locktime": data["locktime"],
-        "version": data["version"],
-        "ins": [],
-        "outs": []
-    }
-    for inp in data["inputs"]:
-        o["ins"].append({
-            "script": inp["scriptSig"],
-            "outpoint": {
-                "index": inp["prevTxoutIndex"],
-                "hash": inp["prevTxHash"],
-            },
-            "sequence": 4294967295
-        })
-    for outp in data["outputs"]:
-        o["outs"].append({
-            "value": outp["value"],
-            "script": outp["scriptPubKey"]
-        })
-    from bitcoin.transaction import serialize
-    from bitcoin.transaction import txhash as TXHASH
-    tx = serialize(o)
-    assert TXHASH(tx) == txhash
-    return tx
-
-
-fetchtx_getters = {
-    'bci': bci_fetchtx,
-    'blockr': blockr_fetchtx,
-    'helloblock': helloblock_fetchtx
-}
-
-
-def fetchtx(*args, **kwargs):
-    f = fetchtx_getters.get(kwargs.get('source', ''), bci_fetchtx)
-    return f(*args)
-
 
 def firstbits(address):
     if len(address) >= 25:
