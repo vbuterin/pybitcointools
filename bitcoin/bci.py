@@ -505,8 +505,8 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     inputs = [inputs] if not isinstance(inputs, list) else inputs
     outputs = [outputs] if not isinstance(outputs, list) else outputs
     network = set_network(change_address or inputs) if not network else network.lower()
-    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(\
-        network=('test3' if network=='testnet' else 'main'))
+    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
+                  network=('test3' if network=='testnet' else 'main'))
     is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
     if any([is_address(x) for x in inputs]):
         inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
