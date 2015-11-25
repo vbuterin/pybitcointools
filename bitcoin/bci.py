@@ -498,3 +498,31 @@ def get_txs_in_block(inp):
 def get_block_height(txhash):
     j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
     return j['block_height']
+
+# fromAddr, toAddr, 12345, changeAddress
+def get_tx_composite(inputs, outputs, output_value, change_address=None, network=None):
+    """mktx using blockcypher API"""
+    inputs = [inputs] if not isinstance(inputs, list) else inputs
+    outputs = [outputs] if not isinstance(outputs, list) else outputs
+    network = set_network(change_address or inputs) if not network else network.lower()
+    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
+                  network=('test3' if network=='testnet' else 'main'))
+    is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
+    if any([is_address(x) for x in inputs]):
+        inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
+    if any([is_address(x) for x in outputs]):
+        outputs_type = 'addresses'       # TODO: add UTXO support
+    data = {
+            'inputs':  [{inputs_type:  inputs}], 
+            'confirmations': 0, 
+            'preference': 'high', 
+            'outputs': [{outputs_type: outputs, "value": output_value}]
+            }
+    if change_address:
+        data["change_address"] = change_address    # 
+    jdata = json.loads(make_request(url, data))
+    hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
+    assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
+    return txh.encode("utf-8")
+
+blockcypher_mktx = get_tx_composite
