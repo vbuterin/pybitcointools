@@ -23,26 +23,82 @@ def make_request(*args):
         raise Exception(p)
 
 
+def is_testnet(inp):
+    '''Checks if inp is a testnet address or if UTXO is a known testnet TxID''' 
+    if isinstance(inp, (list, tuple)) and len(inp) >= 1:
+        return any([is_testnet(x) for x in inp])
+    elif not isinstance(inp, basestring):    # sanity check
+        raise TypeError("Input must be str/unicode, not type %s" % str(type(inp)))
+
+    if not inp or (inp.lower() in ("btc", "testnet")): 
+        pass
+
+    ## ADDRESSES
+    if inp[0] in "123mn":
+        if re.match("^[2mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+            return True
+        elif re.match("^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+            return False
+        else:
+            #sys.stderr.write("Bad address format %s")
+            return None
+
+    ## TXID
+    elif re.match('^[0-9a-fA-F]{64}$', inp):
+        base_url = "http://api.blockcypher.com/v1/btc/{network}/txs/{txid}?includesHex=false"
+        try:
+            # try testnet fetchtx
+            make_request(base_url.format(network="test3", txid=inp.lower()))
+            return True
+        except:
+            # try mainnet fetchtx
+            make_request(base_url.format(network="main", txid=inp.lower()))
+            return False
+        sys.stderr.write("TxID %s has no match for testnet or mainnet (Bad TxID)")
+        return None
+    else:
+        raise TypeError("{0} is unknown input".format(inp))
+
+
+def set_network(*args):
+    '''Decides if args for unspent/fetchtx/pushtx are mainnet or testnet'''
+    r = []
+    for arg in args:
+        if not arg: 
+            pass
+        if isinstance(arg, basestring):
+            r.append(is_testnet(arg))
+        elif isinstance(arg, (list, tuple)):
+            return set_network(*arg)
+    if any(r) and not all(r):
+        raise Exception("Mixed Testnet/Mainnet queries")
+    return "testnet" if any(r) else "btc"
+
+
 def parse_addr_args(*args):
-    # Valid input formats: blockr_unspent([addr1, addr2,addr3])
-    #                      blockr_unspent(addr1, addr2, addr3)
-    #                      blockr_unspent([addr1, addr2, addr3], network)
-    #                      blockr_unspent(addr1, addr2, addr3, network)
-    # Where network is 'btc' or 'testnet'
-    network = 'btc'
+    # Valid input formats: unspent([addr1, addr2, addr3])
+    #                      unspent([addr1, addr2, addr3], network)
+    #                      unspent(addr1, addr2, addr3)
+    #                      unspent(addr1, addr2, addr3, network)
     addr_args = args
+    network = "btc"
+    if len(args) == 0:
+        return [], 'btc'
     if len(args) >= 1 and args[-1] in ('testnet', 'btc'):
         network = args[-1]
         addr_args = args[:-1]
     if len(addr_args) == 1 and isinstance(addr_args, list):
+        network = set_network(*addr_args[0])
         addr_args = addr_args[0]
-
-    return network, addr_args
+    if addr_args and isinstance(addr_args, tuple) and isinstance(addr_args[0], list):
+        addr_args = addr_args[0]
+    network = set_network(addr_args)
+    return addr_args, network   # note params are "reversed" now
 
 
 # Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
-    network, addrs = parse_addr_args(*args)
+    addrs, network = parse_addr_args(*args)
     u = []
     for a in addrs:
         try:
@@ -102,7 +158,7 @@ def blockr_unspent(*args):
 
 
 def helloblock_unspent(*args):
-    network, addrs = parse_addr_args(*args)
+    addrs, network = parse_addr_args(*args)
     if network == 'testnet':
         url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
     elif network == 'btc':
