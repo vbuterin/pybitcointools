@@ -201,3 +201,5 @@ def bip32_descend(*args):
 #explicit harden method.
 def bip32_harden(x):
     return (1 << 31) + x
+
+    
