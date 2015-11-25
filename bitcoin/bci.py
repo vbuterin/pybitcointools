@@ -499,6 +499,7 @@ def get_block_height(txhash):
     j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
     return j['block_height']
 
+
 # fromAddr, toAddr, 12345, changeAddress
 def get_tx_composite(inputs, outputs, output_value, change_address=None, network=None):
     """mktx using blockcypher API"""
@@ -520,7 +521,7 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
             }
     if change_address:
         data["change_address"] = change_address    # 
-    jdata = json.loads(make_request(url, data))
+    jdata = json.loads(make_request(url, json.dumps(data)))
     hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
     assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
     return txh.encode("utf-8")
