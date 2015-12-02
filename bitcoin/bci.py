@@ -24,37 +24,45 @@ def make_request(*args):
 
 
 def is_testnet(inp):
-    '''Checks if inp is a testnet address or if UTXO is a known testnet TxID''' 
+    '''Checks if inp is a testnet address or if input is a known testnet TxID or blockhash''' 
     if isinstance(inp, (list, tuple)) and len(inp) >= 1:
         return any([is_testnet(x) for x in inp])
     elif not isinstance(inp, basestring):    # sanity check
         raise TypeError("Input must be str/unicode, not type %s" % str(type(inp)))
 
-    if not inp or (inp.lower() in ("btc", "testnet")): 
+    if inp in (None, "btc", "testnet"): 
         pass
 
     ## ADDRESSES
     if inp[0] in "123mn":
-        if re.match("^[2mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+        if re.match("^[2mn][a-km-zA-HJ-NP-Z0-9]{26,35}$", inp):
             return True
-        elif re.match("^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+        elif re.match("^[13][a-km-zA-HJ-NP-Z0-9]{26,35}$", inp):
             return False
         else:
             #sys.stderr.write("Bad address format %s")
             return None
 
-    ## TXID
+    ## TXID 
     elif re.match('^[0-9a-fA-F]{64}$', inp):
         base_url = "http://api.blockcypher.com/v1/btc/{network}/txs/{txid}?includesHex=false"
-        try:
-            # try testnet fetchtx
+        try:         # try testnet fetchtx
             make_request(base_url.format(network="test3", txid=inp.lower()))
             return True
-        except:
-            # try mainnet fetchtx
+        except:      # try mainnet fetchtx
             make_request(base_url.format(network="main", txid=inp.lower()))
             return False
-        sys.stderr.write("TxID %s has no match for testnet or mainnet (Bad TxID)")
+        #sys.stderr.write("TxID %s has no match for testnet or mainnet (Bad TxID)")
+        return None
+        
+    elif re.match(ur'^(00000)[0-9a-f]{59}$', inp):
+        base_url = "http://api.blockcypher.com/v1/btc/{network}/blocks/{blockhash}"
+        try:
+            make_request(base_url.format(network="test3", blockhash=inp.lower()))
+            return True
+        except:
+            make_request(base_url.format(network="main", blockhash=inp.lower()))
+            return False
         return None
     else:
         raise TypeError("{0} is unknown input".format(inp))
@@ -526,3 +534,65 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     return txh.encode("utf-8")
 
 blockcypher_mktx = get_tx_composite
+
+
+def address_to_pubkey(addr):
+    """Converts an address to public key (if available)"""
+    base_url = "https://blockchain.info/q/pubkeyaddr/{addr}"
+    assert not is_testnet(addr), "Testnet not supported"
+    try:
+        jdata = json.loads(make_request(base_url.format(addr=addr)))
+    except:
+        return None
+    return jdata
+
+
+def address_first_seen(addr):
+    assert not is_testnet(addr)
+    base_url = "https://blockchain.info/q/addressfirstseen/{addr}"
+    data = json.loads(make_request(base_url.format(addr=addr)))
+    timestamp = data if data > 0 else -1
+    return datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def unconfirmed_tx_count():
+    """Query BCI API for number of unconfirmed Txs in the mempool"""
+    data = make_request("https://blockchain.info/q/unconfirmedcount")
+    return int(data) if int(data) > 0 else -1
+    
+# CHAIN.COM
+
+def get_opreturns_by_addr(addr):
+    network = set_network(addr)
+    base_url = 'https://api.chain.com/v1/{network}/addresses/{address}/op-returns?api-key-id=DEMO-4a5e1e4'
+    url = base_url.format(network=('bitcoin' if network=='btc' else 'testnet3'), address=addr)
+    jdata = json.loads(make_request(url))
+    for tx in jdata:
+        del tx['sender_addresses']
+        del tx['receiver_addresses']
+        del tx['hex']
+    return jdata
+    
+
+def get_opreturns_by_blockheight(blockheight, network='btc'):
+    lastbh = int(last_block_height(network))
+    assert 0 <= int(blockheight) <= lastbh, "Invalid blockheight %d for %s network" % (blockheight, network)
+    base_url = 'https://api.chain.com/v1/{network}/blocks/{blockheight}/op-returns?api-key-id=DEMO-4a5e1e4'
+    url = base_url.format(network=('bitcoin' if network=='btc' else 'testnet3'), blockheight=str(blockheight))
+    jdata = json.loads(make_request(url))
+    return jdata
+    
+
+def get_opreturns_by_blockhash(blockhash, network='btc'):
+    base_url = 'https://api.chain.com/v1/{network}/blocks/{blockhash}/op-returns?api-key-id=DEMO-4a5e1e4'
+    url = base_url.format(network=('bitcoin' if network=='btc' else 'testnet3'), blockheight=blockhash)
+    jdata = json.loads(make_request(url))
+    return jdata
+    
+    
+def get_opreturns_by_transaction(txid, network=None):
+    network = set_network(txid)
+    base_url = 'https://api.chain.com/v1/{network}/transactions/{txid}/op-returns?api-key-id=DEMO-4a5e1e4'
+    url = base_url.format(network=('bitcoin' if network=='btc' else 'testnet3'), txid=txid)
+    jdata = json.loads(make_request(url))
+    return jdata    
