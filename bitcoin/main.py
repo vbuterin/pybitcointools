@@ -327,6 +327,10 @@ def subtract_privkeys(p1, p2):
     k2 = decode_privkey(p2, f2)
     return encode_privkey((decode_privkey(p1, f1) - k2) % N, f1)
 
+
+
+
+
 # Hashes
 
 
@@ -418,6 +422,18 @@ def random_electrum_seed():
         + str(random.randrange(2**256)) \
         + str(int(time.time() * 1000000))
     return sha256(entropy)[:32]
+
+def random_mini_key():
+    charset = get_code_string(58)[1:]   # Base58 without the 1
+    while True:
+        randstr = ''.join([random.choice(charset) for i in xrange(29)])
+        key = "S{0}?".format(randstr)
+        if ord(bin_sha256(key)[0]) != 0: 
+            continue
+        if ord(bin_sha256(key)[0]) == 0: 
+            break
+    return key[:-1]
+
 
 # Encodings
 
