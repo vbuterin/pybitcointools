@@ -95,9 +95,29 @@ def parse_addr_args(*args):
     network = set_network(addr_args)
     return addr_args, network   # note params are "reversed" now
 
+    
+class _BlockchainInterfaceSet(object):
+    interfaces=[]
+    
+    def __getattr__(cls,key):
+        sort(cls.interfaces,key=lambda x: return x.priority)
+        for c in cls.interfaces:
+            if(hasattr(c,key) and c.valid):
+                return getattr(c,key)
+                
 class BlockchainInterface(object):
-    pass
-        
+    __metaclass__=_BlockchainInterfaceSet
+    
+
+_prioritycounter=0
+def blockchain_interface_impl(cls):
+    cls.valid=True
+    cls.priority=_prioritycounter
+    _prioritycounter+=1
+    _BlockchainInterfaceSet.append(cls)
+    return cls
+
+@blockchain_interface_impl  
 class BlockchainInfo(BlockchainInterface):
     @classmethod
     def unspent(cls,*args):
@@ -143,7 +163,113 @@ class BlockchainInfo(BlockchainInterface):
             txhash = txhash.encode('hex')
         data = make_request('https://blockchain.info/rawtx/'+txhash+'?format=hex')
         return data
+        
+    @classmethod
+    def history(cls,*args):# Valid input formats: history([addr1, addr2,addr3])
+                            #                      history(addr1, addr2, addr3)
+        if len(args) == 0:
+            return []
+        elif isinstance(args[0], list):
+            addrs = args[0]
+        else:
+            addrs = args
+
+        txs = []
+        for addr in addrs:
+            offset = 0
+            while 1:
+                gathered = False
+                while not gathered:
+                    try:
+                        data = make_request(
+                            'https://blockchain.info/address/%s?format=json&offset=%s' %
+                            (addr, offset))
+                        gathered = True
+                    except Exception as e:
+                        try:
+                            sys.stderr.write(e.read().strip())
+                        except:
+                            sys.stderr.write(str(e))
+                        gathered = False
+                try:
+                    jsonobj = json.loads(data.decode("utf-8"))
+                except:
+                    raise Exception("Failed to decode data: "+data)
+                txs.extend(jsonobj["txs"])
+                if len(jsonobj["txs"]) < 50:
+                    break
+                offset += 50
+                sys.stderr.write("Fetching more transactions... "+str(offset)+'\n')
+        outs = {}
+        for tx in txs:
+            for o in tx["out"]:
+                if o.get('addr', None) in addrs:
+                    key = str(tx["tx_index"])+':'+str(o["n"])
+                    outs[key] = {
+                        "address": o["addr"],
+                        "value": o["value"],
+                        "output": tx["hash"]+':'+str(o["n"]),
+                        "block_height": tx.get("block_height", None)
+                    }
+        for tx in txs:
+            for i, inp in enumerate(tx["inputs"]):
+                if "prev_out" in inp:
+                    if inp["prev_out"].get("addr", None) in addrs:
+                        key = str(inp["prev_out"]["tx_index"]) + \
+                            ':'+str(inp["prev_out"]["n"])
+                        if outs.get(key):
+                            outs[key]["spend"] = tx["hash"]+':'+str(i)
+        return [outs[k] for k in outs]
+        
+    @classmethod
+    def firstbits(cls,address):
+        if len(address) >= 25:
+            return make_request('https://blockchain.info/q/getfirstbits/'+address)
+        else:
+            return make_request(
+                'https://blockchain.info/q/resolvefirstbits/'+address)
     
+    @classmethod
+    def get_block_at_height(cls,height):
+        j = json.loads(make_request("https://blockchain.info/block-height/" +
+                       str(height)+"?format=json").decode("utf-8"))
+        for b in j['blocks']:
+            if b['main_chain'] is True:
+                return b
+        raise Exception("Block at this height not found")
+    @classmethod
+    def _get_block(cls,inp):
+        if len(str(inp)) < 64:
+            return get_block_at_height(inp)
+        else:
+            return json.loads(make_request(
+                              'https://blockchain.info/rawblock/'+inp).decode("utf-8"))
+                
+    @classmethod
+    def get_block_header_data(cls,inp,network='btc'):
+        j = cls._get_block(inp)
+        return {
+            'version': j['ver'],
+            'hash': j['hash'],
+            'prevhash': j['prev_block'],
+            'timestamp': j['time'],
+            'merkle_root': j['mrkl_root'],
+            'bits': j['bits'],
+            'nonce': j['nonce'],
+        }
+    
+    @classmethod
+    def get_txs_in_block(cls,inp):
+        j = cls._get_block(inp)
+        hashes = [t['hash'] for t in j['tx']]
+        return hashes
+        
+    @classmethod
+    def get_block_height(cls,txhash):
+        j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
+        return j['block_height']
+        
+@blockchain_interface_impl        
 class Blockr(BlockchainInterface):
     @classmethod
     def unspent(cls,*args):
@@ -209,7 +335,51 @@ class Blockr(BlockchainInterface):
                 txhash = txhash.encode('hex')
             jsondata = json.loads(make_request(blockr_url+txhash).decode("utf-8"))
             return jsondata['data']['tx']['hex']
+    
+    @classmethod
+    def blockr_get_block_header_data(cls,height, network='btc'):
+        if network == 'testnet':
+            blockr_url = "http://tbtc.blockr.io/api/v1/block/raw/"
+        elif network == 'btc':
+            blockr_url = "http://btc.blockr.io/api/v1/block/raw/"
+        else:
+            raise Exception(
+                'Unsupported network {0} for blockr_get_block_header_data'.format(network))
 
+        k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
+        j = k['data']
+        return {
+            'version': j['version'],
+            'hash': j['hash'],
+            'prevhash': j['previousblockhash'],
+            'timestamp': j['time'],
+            'merkle_root': j['merkleroot'],
+            'bits': int(j['bits'], 16),
+            'nonce': j['nonce'],
+        }
+        
+    @classmethod
+    def get_block_timestamp(cls,height, network='btc'):
+        if network == 'testnet':
+            blockr_url = "http://tbtc.blockr.io/api/v1/block/info/"
+        elif network == 'btc':
+            blockr_url = "http://btc.blockr.io/api/v1/block/info/"
+        else:
+            raise Exception(
+                'Unsupported network {0} for get_block_timestamp'.format(network))
+
+        import time, calendar
+        if isinstance(height, list):
+            k = json.loads(make_request(blockr_url + ','.join([str(x) for x in height])).decode("utf-8"))
+            o = {x['nb']: calendar.timegm(time.strptime(x['time_utc'],
+                 "%Y-%m-%dT%H:%M:%SZ")) for x in k['data']}
+            return [o[x] for x in height]
+        else:
+            k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
+            j = k['data']['time_utc']
+            return calendar.timegm(time.strptime(j, "%Y-%m-%dT%H:%M:%SZ"))
+
+@blockchain_interface_impl
 class HelloBlock(BlockchainInterface):
     @classmethod
     def unspent(cls,*args):
@@ -285,6 +455,7 @@ class HelloBlock(BlockchainInterface):
         assert TXHASH(tx) == txhash
         return tx
         
+@blockchain_interface_impl        
 class Eligius(BlockchainInterface):
     @classmethod
     def pushtx(cls,tx,network='btc'):
@@ -302,7 +473,40 @@ class Eligius(BlockchainInterface):
             quote = re.findall('"[^"]*"', string)[0]
             if len(quote) >= 5:
                 return quote[1:-1]
+                
+@blockchain_interface_impl                
+class BlockCypher(BlockchainInterface):
+    @classmethod
+    def get_tx_composite(cls,inputs, outputs, output_value, change_address=None, network=None):    
+        """mktx using blockcypher API"""
+        inputs = [inputs] if not isinstance(inputs, list) else inputs
+        outputs = [outputs] if not isinstance(outputs, list) else outputs
+        network = set_network(change_address or inputs) if not network else network.lower()
+        url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
+                      network=('test3' if network=='testnet' else 'main'))
+        is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
+        if any([is_address(x) for x in inputs]):
+            inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
+        if any([is_address(x) for x in outputs]):
+            outputs_type = 'addresses'       # TODO: add UTXO support
+        data = {
+                'inputs':  [{inputs_type:  inputs}], 
+                'confirmations': 0, 
+                'preference': 'high', 
+                'outputs': [{outputs_type: outputs, "value": output_value}]
+                }
+        if change_address:
+            data["change_address"] = change_address    # 
+        jdata = json.loads(make_request(url, data))
+        hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
+        assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
+        return txh.encode("utf-8")
+                
 
+###########LEGACY API#################
+###########LEGACY API#################                
+###########LEGACY API#################
+                
 # Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
     return BlockchainInfo.unspent(*args)
@@ -370,62 +574,22 @@ def fetchtx(*args, **kwargs):
 # Gets the transaction output history of a given set of addresses,
 # including whether or not they have been spent
 def history(*args):
-    # Valid input formats: history([addr1, addr2,addr3])
-    #                      history(addr1, addr2, addr3)
-    if len(args) == 0:
-        return []
-    elif isinstance(args[0], list):
-        addrs = args[0]
-    else:
-        addrs = args
-
-    txs = []
-    for addr in addrs:
-        offset = 0
-        while 1:
-            gathered = False
-            while not gathered:
-                try:
-                    data = make_request(
-                        'https://blockchain.info/address/%s?format=json&offset=%s' %
-                        (addr, offset))
-                    gathered = True
-                except Exception as e:
-                    try:
-                        sys.stderr.write(e.read().strip())
-                    except:
-                        sys.stderr.write(str(e))
-                    gathered = False
-            try:
-                jsonobj = json.loads(data.decode("utf-8"))
-            except:
-                raise Exception("Failed to decode data: "+data)
-            txs.extend(jsonobj["txs"])
-            if len(jsonobj["txs"]) < 50:
-                break
-            offset += 50
-            sys.stderr.write("Fetching more transactions... "+str(offset)+'\n')
-    outs = {}
-    for tx in txs:
-        for o in tx["out"]:
-            if o.get('addr', None) in addrs:
-                key = str(tx["tx_index"])+':'+str(o["n"])
-                outs[key] = {
-                    "address": o["addr"],
-                    "value": o["value"],
-                    "output": tx["hash"]+':'+str(o["n"]),
-                    "block_height": tx.get("block_height", None)
-                }
-    for tx in txs:
-        for i, inp in enumerate(tx["inputs"]):
-            if "prev_out" in inp:
-                if inp["prev_out"].get("addr", None) in addrs:
-                    key = str(inp["prev_out"]["tx_index"]) + \
-                        ':'+str(inp["prev_out"]["n"])
-                    if outs.get(key):
-                        outs[key]["spend"] = tx["hash"]+':'+str(i)
-    return [outs[k] for k in outs]
+    return BlockchainInfo.history(*args)
     
+def firstbits(address):
+    return BlockchainInfo.firstbits(address)
+
+
+def get_block_at_height(height):
+    return BlockchainInfo.get_block_at_height(height)
+
+#def _get_block(inp):
+#    if len(str(inp)) < 64:
+#        return get_block_at_height(inp)
+#    else:
+#        return json.loads(make_request(
+#                          'https://blockchain.info/rawblock/'+inp).decode("utf-8"))
+
 def last_block_height(network='btc'):
     if network == 'testnet':
         data = make_request('http://tbtc.blockr.io/api/v1/block/info/last')
@@ -435,133 +599,35 @@ def last_block_height(network='btc'):
     data = make_request('https://blockchain.info/latestblock')
     jsonobj = json.loads(data.decode("utf-8"))
     return jsonobj["height"]
-
-def firstbits(address):
-    if len(address) >= 25:
-        return make_request('https://blockchain.info/q/getfirstbits/'+address)
-    else:
-        return make_request(
-            'https://blockchain.info/q/resolvefirstbits/'+address)
-
-
-def get_block_at_height(height):
-    j = json.loads(make_request("https://blockchain.info/block-height/" +
-                   str(height)+"?format=json").decode("utf-8"))
-    for b in j['blocks']:
-        if b['main_chain'] is True:
-            return b
-    raise Exception("Block at this height not found")
-
-
-def _get_block(inp):
-    if len(str(inp)) < 64:
-        return get_block_at_height(inp)
-    else:
-        return json.loads(make_request(
-                          'https://blockchain.info/rawblock/'+inp).decode("utf-8"))
-
-
-def bci_get_block_header_data(inp):
-    j = _get_block(inp)
-    return {
-        'version': j['ver'],
-        'hash': j['hash'],
-        'prevhash': j['prev_block'],
-        'timestamp': j['time'],
-        'merkle_root': j['mrkl_root'],
-        'bits': j['bits'],
-        'nonce': j['nonce'],
-    }
-
+    
+    
+def bci_get_block_header_data(inp, network='btc'):
+    return BlockchainInfo.get_block_header_data(inp,network)
+    
 def blockr_get_block_header_data(height, network='btc'):
-    if network == 'testnet':
-        blockr_url = "http://tbtc.blockr.io/api/v1/block/raw/"
-    elif network == 'btc':
-        blockr_url = "http://btc.blockr.io/api/v1/block/raw/"
-    else:
-        raise Exception(
-            'Unsupported network {0} for blockr_get_block_header_data'.format(network))
-
-    k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
-    j = k['data']
-    return {
-        'version': j['version'],
-        'hash': j['hash'],
-        'prevhash': j['previousblockhash'],
-        'timestamp': j['time'],
-        'merkle_root': j['merkleroot'],
-        'bits': int(j['bits'], 16),
-        'nonce': j['nonce'],
-    }
-
-
-def get_block_timestamp(height, network='btc'):
-    if network == 'testnet':
-        blockr_url = "http://tbtc.blockr.io/api/v1/block/info/"
-    elif network == 'btc':
-        blockr_url = "http://btc.blockr.io/api/v1/block/info/"
-    else:
-        raise Exception(
-            'Unsupported network {0} for get_block_timestamp'.format(network))
-
-    import time, calendar
-    if isinstance(height, list):
-        k = json.loads(make_request(blockr_url + ','.join([str(x) for x in height])).decode("utf-8"))
-        o = {x['nb']: calendar.timegm(time.strptime(x['time_utc'],
-             "%Y-%m-%dT%H:%M:%SZ")) for x in k['data']}
-        return [o[x] for x in height]
-    else:
-        k = json.loads(make_request(blockr_url + str(height)).decode("utf-8"))
-        j = k['data']['time_utc']
-        return calendar.timegm(time.strptime(j, "%Y-%m-%dT%H:%M:%SZ"))
-
+    return Blockr.get_block_header_data(height,network)
 
 block_header_data_getters = {
     'bci': bci_get_block_header_data,
     'blockr': blockr_get_block_header_data
 }
 
-
 def get_block_header_data(inp, **kwargs):
     f = block_header_data_getters.get(kwargs.get('source', ''),
                                       bci_get_block_header_data)
     return f(inp, **kwargs)
 
-
+def get_block_timestamp(height, network='btc'):
+    return Blockr.get_block_timestamp(height,network)
+    
 def get_txs_in_block(inp):
-    j = _get_block(inp)
-    hashes = [t['hash'] for t in j['tx']]
-    return hashes
-
+    return BlockchainInfo.get_txs_in_block(inp)
 
 def get_block_height(txhash):
-    j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
-    return j['block_height']
+    return BlockchainInfo.get_block_height(txhash)
 
 # fromAddr, toAddr, 12345, changeAddress
 def get_tx_composite(inputs, outputs, output_value, change_address=None, network=None):
-    """mktx using blockcypher API"""
-    inputs = [inputs] if not isinstance(inputs, list) else inputs
-    outputs = [outputs] if not isinstance(outputs, list) else outputs
-    network = set_network(change_address or inputs) if not network else network.lower()
-    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
-                  network=('test3' if network=='testnet' else 'main'))
-    is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
-    if any([is_address(x) for x in inputs]):
-        inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
-    if any([is_address(x) for x in outputs]):
-        outputs_type = 'addresses'       # TODO: add UTXO support
-    data = {
-            'inputs':  [{inputs_type:  inputs}], 
-            'confirmations': 0, 
-            'preference': 'high', 
-            'outputs': [{outputs_type: outputs, "value": output_value}]
-            }
-    if change_address:
-        data["change_address"] = change_address    # 
-    jdata = json.loads(make_request(url, data))
-    hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
-    assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
-    return txh.encode("utf-8")
+    return BlockCypher.get_tx_composite(inputs,outputs,output_value,change_address,network)
 
 blockcypher_mktx = get_tx_composite
