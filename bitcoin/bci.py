@@ -33,18 +33,8 @@ def is_testnet(inp):
     if not inp or (inp.lower() in ("btc", "testnet")): 
         pass
 
-    ## ADDRESSES
-    if inp[0] in "123mn":
-        if re.match("^[2mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
-            return True
-        elif re.match("^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
-            return False
-        else:
-            #sys.stderr.write("Bad address format %s")
-            return None
-
     ## TXID
-    elif re.match('^[0-9a-fA-F]{64}$', inp):
+    if re.match('^[0-9a-fA-F]{64}$', inp):
         base_url = "http://api.blockcypher.com/v1/btc/{network}/txs/{txid}?includesHex=false"
         try:
             # try testnet fetchtx
@@ -56,8 +46,18 @@ def is_testnet(inp):
             return False
         sys.stderr.write("TxID %s has no match for testnet or mainnet (Bad TxID)")
         return None
+        ## ADDRESSES
+    elif inp[0] in "123mn":
+        if re.match("^[2mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+            return True
+        elif re.match("^[13][a-km-zA-HJ-NP-Z0-9]{26,33}$", inp):
+            return False
+        else:
+            #sys.stderr.write("Bad address format %s")
+            return None
     else:
         raise TypeError("{0} is unknown input".format(inp))
+
 
 
 def set_network(*args):
