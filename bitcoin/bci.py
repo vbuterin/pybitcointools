@@ -526,3 +526,48 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     return txh.encode("utf-8")
 
 blockcypher_mktx = get_tx_composite
+
+
+def get_xpub_unspent_addrs(*args):
+    """Takes bip32 xpub (or xprv) and returns addresses with balance"""
+    from bitcoin.main import multiaccess, pubtoaddr
+    from bitcoin.deterministic import bip32_descend, bip32_ckd, bip32_privtopub
+    xpubs = [bip32_privtopub(x) if x.startswith("xprv") else x for x in args]
+    data = {"addr": " ".join(xpubs)}
+    jdata = json.loads(make_request("https://www.blockonomics.co/api/balance", json.dumps(data)))
+    jdata = jdata.get("response")
+    addrs, values = multiaccess(jdata,"addr"), multiaccess(jdata,"confirmed")
+    d = dict.fromkeys(xpubs, {})
+    for xpub in xpubs:
+        c, i = 0, 0
+        while c <= 1:
+            addr = pubtoaddr(bip32_descend(bip32_ckd(xpub, c), i))
+            if addr in addrs:
+                d[xpub].update({
+                                "m/%d/%d" % (c, i): "%s:%d" % (addr, values[addrs.index(addr)])
+                                })
+            else:
+                c += 1
+            i += 1
+    return d
+
+
+def get_xpub_addrs(*args):
+    from bitcoin.main import multiaccess
+    from bitcoin.deterministic import bip32_descend, bip32_ckd, bip32_privtopub
+    xpubs = [bip32_privtopub(x) if x.startswith("xprv") else x for x in args]
+    jdata = json.loads(make_request("https://www.blockonomics.co/api/balance", \
+                                      json.dumps({"addr": " ".join(xpubs)}))).get("response")
+    addrs = multiaccess(jdata, "addr")
+    return addrs
+
+
+def get_xpub_outputs(*args):
+    from bitcoin.main import multiaccess
+    from bitcoin.deterministic import bip32_descend, bip32_ckd, bip32_privtopub
+    xpubs = [bip32_privtopub(x) if x.startswith("xprv") else x for x in args]
+    jdata = json.loads(make_request("https://www.blockonomics.co/api/balance", 
+                                      json.dumps({"addr": " ".join(xpubs)}))).get("response")
+    addrs = multiaccess(jdata, 'addrs')
+    values = map(str, multiaccess(jdata, "confirmed" or "unconfirmed"))
+    return [":".join(y) for y in [x for x in zip(addrs, values)]]
