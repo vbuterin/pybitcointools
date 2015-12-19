@@ -129,11 +129,11 @@ def bip32_privtopub(data):
 
 
 def bip32_ckd(key, *args, **kwargs):
-    """Same as bip32_ckd but takes bip32_path or ints"""
+    """CKD that takes bip32_path or ints, public key derivation is either "M/.." or kwarg public=True"""
     # use keyword public=True or end path in .pub for public child derivation
     argz = map(str, args)
     path = "/".join(argz)    # no effect if "m/path/0"
-    if not (path.startswith("m/") and path.startswith("M/")):
+    if not path.startswith("m/") or not path.startswith("M/"):
         path = "m/{0}".format(path)
     is_public = path.startswith("M/") or path.endswith(".pub") or kwargs.get("public", False)
     pathlist = parse_bip32_path(path)
