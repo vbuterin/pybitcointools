@@ -499,21 +499,35 @@ def get_block_height(txhash):
     j = json.loads(make_request('https://blockchain.info/rawtx/'+txhash).decode("utf-8"))
     return j['block_height']
 
-# fromAddr, toAddr, 12345, changeAddress
+
+# fromAddr OR txid:index, toAddr, 12345, changeAddress
 def get_tx_composite(inputs, outputs, output_value, change_address=None, network=None):
-    """mktx using blockcypher API"""
+    """use blockcypher API to composite a Tx"""
     inputs = [inputs] if not isinstance(inputs, list) else inputs
     outputs = [outputs] if not isinstance(outputs, list) else outputs
     network = set_network(change_address or inputs) if not network else network.lower()
-    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
-                  network=('test3' if network=='testnet' else 'main'))
+    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(\
+            network=('test3' if network=='testnet' else 'main'))
     is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
-    if any([is_address(x) for x in inputs]):
-        inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
+    if any([is_address(x) for x in inputs]):        # inputs as addresses
+        inputs_type = 'addresses'        
+    elif any(filter(lambda s: ":" in s, inputs)):   # inputs as utxo:idx
+        inputs_type = 'utxos'
+        ins = []
+        for i in inputs:
+            ins.append({
+                        "prev_hash":    i[:i.find(":")], 
+                        "output_index": int(i[i.find(":")+1:])
+                      })
+        inputs = ins[:]
+    elif any([is_address(x) for x in inputs]) and any(filter(lambda s: ":" in s, inputs)):
+        raise Exception("Inputs takes EITHER address or 'utxo:index'")
     if any([is_address(x) for x in outputs]):
-        outputs_type = 'addresses'       # TODO: add UTXO support
+        outputs_type = 'addresses'
+    else:
+        raise Exception("Output must be an address")
     data = {
-            'inputs':  [{inputs_type:  inputs}], 
+            'inputs':  [{"addresses":  inputs}] if inputs_type == "addresses" else inputs,
             'confirmations': 0, 
             'preference': 'high', 
             'outputs': [{outputs_type: outputs, "value": output_value}]
@@ -523,6 +537,6 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     jdata = json.loads(make_request(url, data))
     hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
     assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
-    return txh.encode("utf-8")
+    return txh[:-8].encode()
 
 blockcypher_mktx = get_tx_composite
