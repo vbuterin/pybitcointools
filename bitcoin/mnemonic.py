@@ -4,11 +4,10 @@ import binascii
 import random
 from bisect import bisect_left
 
-wordlist_english=list(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r'))
+wordlist_english=[w.strip() for w in open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r')]
 
 def eint_to_bytes(entint,entbits):
-	a=hex(entint)[2:].rstrip('L').zfill(32)
-	print(a)
+	a=hex(entint)[2:].rstrip('L').zfill(entbits//4)
 	return binascii.unhexlify(a)
 
 def mnemonic_int_to_words(mint,mint_num_words,wordlist=wordlist_english):
@@ -33,31 +32,15 @@ def entropy_to_words(entbytes,wordlist=wordlist_english):
 	
 	return mnemonic_int_to_words(mint,mint_num_words,wordlist)
 
-def words_bisect(word,wordlist=wordlist_english):
-	lo=bisect_left(wordlist,word)
-	hi=len(wordlist)-bisect_left(wordlist[:lo:-1],word)
-	
-	return lo,hi
-
 def words_split(wordstr,wordlist=wordlist_english):
-	def popword(wordstr,wordlist):
-		for fwl in range(1,9):
-			w=wordstr[:fwl].strip()
-			lo,hi=words_bisect(w,wordlist)
-			if(hi-lo == 1):
-				return w,wordstr[fwl:].lstrip()
-			wordlist=wordlist[lo:hi]
-		raise Exception("Wordstr %s not found in list" %(w))
-
-	words=[]
-	tail=wordstr
-	while(len(tail)):
-		head,tail=popword(tail,wordlist)
-		words.append(head)
+	words=wordstr.split()	
+	for w in words:
+		if(w not in wordlist):
+			raise Exception("Word %s not in wordlist" % (w))
 	return words
 
 def words_to_mnemonic_int(words,wordlist=wordlist_english):
-	if(instance(words,str)):
+	if(isinstance(words,str)):
 		words=words_split(words,wordlist)
 	return sum([wordlist.index(w) << (11*x) for x,w in enumerate(words[::-1])])
 
@@ -71,8 +54,9 @@ def words_verify(words,wordlist=wordlist_english):
 	entropy_bits=mint_bits-cs_bits
 	eint=mint >> cs_bits
 	csint=mint & ((1 << cs_bits)-1)
-	ebytes=_eint_to_bytes(eint,entropy_bits)
-	return csint == entropy_cs(ebytes)
+	ebytes=eint_to_bytes(eint,entropy_bits)
+	ecsint,ecsint_size=entropy_cs(ebytes)
+	return csint == ecsint
 
 def mnemonic_to_seed(mnemonic_phrase,passphrase=u''):
 	try:
@@ -119,6 +103,7 @@ if __name__=="__main__":
 	for v in testvectors['english']:
 		ebytes=binascii.unhexlify(v[0])
 		w=' '.join(entropy_to_words(ebytes))
+		passed=words_verify(w)
 		seed=mnemonic_to_seed(w,passphrase='TREZOR')
 		passed = passed and w==v[1]
 		passed = passed and binascii.hexlify(seed)==v[2]

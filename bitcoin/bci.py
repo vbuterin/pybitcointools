@@ -100,21 +100,23 @@ class _BlockchainInterfaceSet(object):
     interfaces=[]
     
     def __getattr__(cls,key):
-        sort(cls.interfaces,key=lambda x: return x.priority)
+        sort(cls.interfaces,key=lambda x: x.priority)
         for c in cls.interfaces:
             if(hasattr(c,key) and c.valid):
                 return getattr(c,key)
                 
 class BlockchainInterface(object):
-    __metaclass__=_BlockchainInterfaceSet
+	pass
+#    __metaclass__=_BlockchainInterfaceSet
     
 
 _prioritycounter=0
 def blockchain_interface_impl(cls):
+    global _prioritycounter
     cls.valid=True
     cls.priority=_prioritycounter
     _prioritycounter+=1
-    _BlockchainInterfaceSet.append(cls)
+    _BlockchainInterfaceSet.interfaces.append(cls)
     return cls
 
 @blockchain_interface_impl  
@@ -142,6 +144,10 @@ class BlockchainInfo(BlockchainInterface):
             except:
                 raise Exception("Failed to decode data: "+data)
         return u
+
+    @classmethod
+    def unspent_xpub(cls,*args):
+	pass
     
     # Pushes a transaction to the network using https://blockchain.info/pushtx
     @classmethod

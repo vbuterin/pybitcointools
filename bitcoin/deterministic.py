@@ -189,17 +189,31 @@ def coinvault_priv_to_bip32(*args):
     return bip32_serialize((MAINNET_PRIVATE, 0, b'\x00'*4, 0, I2, I3+b'\x01'))
 
 
-def bip32_descend(*args):
+def bip32_path(*args):
     if len(args) == 2 and isinstance(args[1], list):
         key, path = args
     else:
         key, path = args[0], map(int, args[1:])
-    for p in path:
-        key = bip32_ckd(key, p)
-    return bip32_extract_key(key)
+
+    return reduce(bip32_ckd,path,key)
+
+def bip32_descend(*args):
+    return bip32_extract_key(bip32_path(*args))
 
 #explicit harden method.
 def bip32_harden(x):
     return (1 << 31) + x
 
-    
+def hd_lookup(root,account=None,index=None,change=0,coin=0):
+    depth=bip32_deserialize(root)[1]
+    if(depth==0): #if root is master (has a depth=0)
+        if(index):
+            return bip32_path(root,bip32_harden(44),bip32_harden(coin),bip32_harden(account),change,index)
+        else:
+            return bip32_path(root,bip32_harden(44),bip32_harden(coin),bip32_harden(account))
+    elif(depth==3):
+	return bip32_path(root,change,index)
+    else:
+	raise Exception("%s does not appear to be a bip44-compatible xpubkey!" % (root))
+   
+
