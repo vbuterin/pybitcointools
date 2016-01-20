@@ -204,6 +204,14 @@ def bip32_descend(*args):
 def bip32_harden(x):
     return (1 << 31) + x
 
+def bip32_path_from_string(pathstring): #can only handle private key style paths not others.
+	def process(x):
+		nhx=x.strip("'")
+		return bip32_harden(int(nhx)) if nhx != x else int(nhx)
+	pe=pathstring.split("/") 
+	return [process(x) for x in pe[1:]]
+	
+
 def hd_lookup(root,account=None,index=None,change=0,coin=0):
     depth=bip32_deserialize(root)[1]
     if(depth==0): #if root is master (has a depth=0)
@@ -213,7 +221,7 @@ def hd_lookup(root,account=None,index=None,change=0,coin=0):
             return bip32_path(root,bip32_harden(44),bip32_harden(coin),bip32_harden(account))
     elif(depth==3):
 	return bip32_path(root,change,index)
-    else:
+    else: 
 	raise Exception("%s does not appear to be a bip44-compatible xpubkey!" % (root))
    
 

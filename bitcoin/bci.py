@@ -147,7 +147,29 @@ class BlockchainInfo(BlockchainInterface):
 
     @classmethod
     def unspent_xpub(cls,*args):
-	pass
+        u = []
+	for a in args:
+            try:
+                data = make_request('https://blockchain.info/unspent?active='+a)
+            except Exception as e:
+                if str(e) == 'No free outputs to spend':
+                    continue
+                else:
+                    raise Exception(e)
+            try:
+                jsonobj = json.loads(data.strip().decode("utf-8"))
+                for o in jsonobj["unspent_outputs"]:
+                    h = o['tx_hash'].decode('hex')[::-1].encode('hex')
+                    u.append({
+                        "output": h+':'+str(o['tx_output_n']),
+                        "value": o['value'],
+			"xpub": o['xpub']
+                    })
+            except Exception as e:
+		print(e)
+                raise Exception("Failed to decode data: "+data)
+        return u
+
     
     # Pushes a transaction to the network using https://blockchain.info/pushtx
     @classmethod

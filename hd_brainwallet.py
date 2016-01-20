@@ -2,7 +2,7 @@ import bitcoin
 import sys
 import argparse
 import urllib2
-import binascii
+import json
 
 require_offline=False
 running_offline=None
@@ -61,12 +61,17 @@ def get_master_key():
 	master_key=bitcoin.bip32_master_key(seed)
 	return master_key
 
-
-def send(args):
-	if(len(args.outputs) % 2 != 0):
-		raise Exception("When sending, there must be an even number of arguments for the outputs (address,price)")
+def sign(args):
+	master_key=get_master_key()
+	account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
+	input_transaction=json.load(args.input_transaction)
+	#compute the largest change address and largest address in the account (use xpub and bitcoin.bip32_string_to_path)
+	#compute all the underlying addresses and pkeys into a string hash
+	#decide on the change address
+	#build the transaction
+	#sign the transaction
+	#print the hex
 	
-
 def pubkey(args):
 	master_key=get_master_key()
 	
@@ -77,6 +82,41 @@ def pubkey(args):
 		account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
 		#print("The following is the extended public key for account #%d:" % (args.account))
 		print(bitcoin.bip32_privtopub(account_privkey))
+
+def send(args):
+	if(len(args.outputs) % 2 != 0):
+		raise Exception("When sending, there must be an even number of arguments for the outputs (address,price)")
+	unspents=bitcoin.BlockchainInfo.unspent_xpub(args.xpub)
+	def btctosatoshi(vs):
+		return int(float(vs)*100000000.0)
+	fee=btctosatoshi(args.fee)
+	if(fee < 0):
+		fee=int(-0.0001*100000000) #todo do something to estimated fee...make it negative or something though
+	outaddrval=[(args.outputs[2*i],btctosatoshi(args.outputs[2*i+1])) for i in range(len(args.outputs)//2)]
+	outtotalval=sum([o[1] for o in outaddrval])
+	unspenttotalval=sum([u['value'] for u in unspents])
+	if(outtotalval+abs(fee) >= unspenttotalval):
+		raise Exception("There is unlikely to be enough unspent outputs to cover the transaction and fees")
+	out={}
+	out['unspents']=unspents
+	out['fee']=fee #negative if estimated
+	out['outputs']=outaddrval
+
+	json.dump(out,sys.stdout)
+
+def address(args):
+	if(not args.index):
+		unspents=bitcoin.BlockchainInfo.unspent_xpub(args.xpub)
+		index=0
+		for u in unspents:
+			upath=u['xpub']['path']
+			cdex=bitcoin.bip32_path_from_string(upath)[-1]
+			index=max(cdex,index)
+		index+=1
+	else:
+		index=args.index
+	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,0,index))
+	print(address)
 	
 if __name__=="__main__":
 	aparser=argparse.ArgumentParser()
@@ -92,6 +132,11 @@ if __name__=="__main__":
 	aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the pubkey for.")
 	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account pubkey is the master extended pubkey.")
 	aparse_pubkey.set_defaults(func=pubkey)
+
+	aparse_address=subaparsers.add_parser('address',help='[online or offline] Get an address for an account')
+	aparse_address.add_argument('--xpub','-p',required=True,help="The xpubkey for the hdwallet account")
+	aparse_address.add_argument('--index','-i','--address',type=int,help='The index of the address to get from the account')
+	aparse_address.set_defaults(func=address)
 
 	args=aparser.parse_args()
 	args.func(args)

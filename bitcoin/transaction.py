@@ -482,7 +482,6 @@ def select(unspent, value):
 
 # Only takes inputs of the form { "output": blah, "value": foo }
 
-
 def mksend(*args):
     argz, change, fee = args[:-2], args[-2], int(args[-1])
     ins, outs = [], []
@@ -505,6 +504,9 @@ def mksend(*args):
             o2 = o
         outputs2.append(o2)
         osum += o2["value"]
+
+def estimate_fee(tx):
+    pass
 
     if isum < osum+fee:
         raise Exception("Not enough money")
