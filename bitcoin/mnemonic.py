@@ -1,7 +1,7 @@
 import hashlib
 import os.path
 import binascii
-import random
+from os import urandom as secure_random_bytes
 from bisect import bisect_left
 
 wordlist_english=[w.strip() for w in open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r')]
@@ -82,7 +82,18 @@ def mnemonic_to_seed(mnemonic_phrase,passphrase=u''):
 
 	return pbkdf2_hmac_sha256(password=mnemonic_phrase,salt='mnemonic'+passphrase)
 
-def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits=random.getrandbits):
+def _getrandbits(num_bits):
+    bytes=(num_bits >> 3) + (1 if (num_bits & 0x7) else 0)
+    rint=int(binascii.hexlify(secure_random_bytes(bytes)),16)
+    return rint & ((1 << num_bits)-1)
+
+def words_generate(num_bits_entropy=128,num_words=None,randombits=_getrandbits,wordlist=wordlist_english):
+    if(num_words is not None and num_words % 3 == 0):
+        num_bits_entropy=(32*11*num_words) // 33
+    rint=randombits(num_bits_entropy)
+    return entropy_to_words(eint_to_bytes(rint,num_bits_entropy),wordlist)
+    
+def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits=_getrandbits):
 	prefix_bits=len(prefix)*11
 	mine_bits=entbits-prefix_bits
 	pint=words_to_mnemonic_int(prefix,wordlist)
