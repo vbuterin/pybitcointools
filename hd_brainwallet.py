@@ -46,6 +46,11 @@ def get_password():
 	mnemonic=user_input('Type your password mnemonic, one word at a time:\n')
 	return mnemonic
 
+@offlineonly
+def get_entropy():
+	choice=user_input('Do you want to use\n\t(1) System Entropy\n\t(2) User Entropy\n')
+	
+
 def get_master_key():
 	words=' '.join(get_password().split())
 	try:
@@ -117,6 +122,9 @@ def address(args):
 		index=args.index
 	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,0,index))
 	print(address)
+
+def generate(args):
+	
 	
 if __name__=="__main__":
 	aparser=argparse.ArgumentParser()
