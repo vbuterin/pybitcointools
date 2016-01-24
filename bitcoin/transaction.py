@@ -505,9 +505,6 @@ def mksend(*args):
         outputs2.append(o2)
         osum += o2["value"]
 
-def estimate_fee(tx):
-    pass
-
     if isum < osum+fee:
         raise Exception("Not enough money")
     elif isum > osum+fee+5430:
