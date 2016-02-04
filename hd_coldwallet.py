@@ -112,7 +112,7 @@ def sign(args):
 	
 def pubkey(args):
 	master_key=get_master_key()
-	print(master_key)
+
 	if(args.root or (args.account and args.account < 0)):
 		#print("The following is your master root extended public key:")
 		print(bitcoin.bip32_privtopub(master_key))
@@ -139,11 +139,12 @@ def send(args):
 	unspenttotalval=sum([u['value'] for u in unspents])
 	changeamount=unspenttotalval-(outtotalval+abs(fee))
 	
-	if(changeamount < 0.0):
+	if(changeamount < 0):
 		raise Exception("There is unlikely to be enough unspent outputs to cover the transaction and fees")
 	out={}
-
-	outs=outaddrval+[[changeaddress,changeamount]]
+	outs=outaddrval
+	if(changeamount > 0):
+		outs+=[[changeaddress,changeamount]]
 	#print(unspents)
 	#print(outs)
 	otx=[{'address':o[0],'value':o[1]} for o in outs]
@@ -165,7 +166,7 @@ def address(args):
 	else:
 		index=args.index
 	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,c,index))
-	print(index)
+	
 	print(address)
 
 def generate(args):
