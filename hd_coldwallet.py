@@ -3,8 +3,9 @@ import sys
 import argparse
 import urllib2
 import json
+import math
 
-require_offline=False
+require_offline=True
 running_offline=None
 
 def user_input(s,expectednotchar=None):
@@ -33,12 +34,12 @@ def test_offline():
 		
 		
 def offlineonly(f):	
-	def wrapper(): 
+	def wrapper(*args,**kwargs): 
 		global require_offline
 		if(require_offline):
 			if(not test_offline()):
 				user_input('Warning!  You are not in offline mode! You should immediately quit before executing this function! Do you want to do so now? [Y/n]','n')
-		return f()
+		return f(*args,**kwargs)
 	return wrapper
 	
 @offlineonly
@@ -47,9 +48,33 @@ def get_password():
 	return mnemonic
 
 @offlineonly
-def get_entropy():
-	choice=user_input('Do you want to use\n\t(1) System Entropy\n\t(2) User Entropy\n')
-	
+def get_generated_words(entropy_amount=128,entropy_selection='system'):
+	if(entropy_selection=='system'):
+		return bitcoin.words_generate(num_bits_entropy=entropy_amount)
+	else:
+		cur_ent=1
+		max_ent=(1 << entropy_amount)
+		cur_bits=0
+		user_input('Enter randomness in the format "<1 to N>/<N>" until the total entropy is reached..for example, rolling a 6-sided dice and getting a 4 would be "4/6" [OK]')
+		while(cur_ent < max_ent):
+			r=user_input("Entropy So Far/Entropy Needed: %f/%d.\nNext pair: " % (math.log(cur_ent)/math.log(2),entropy_amount)).split('/')
+			v=int(r[0])-1
+			b=int(r[1])
+			cur_ent*=b
+			cur_bits*=b
+			cur_bits+=v
+		return bitcoin.words_generate(num_bits_entropy=entropy_amount,randombits=lambda x: cur_bits)
+			 
+		
+def check_outputs_max_index(unspents,changecode=0):
+	index=-1
+	for u in unspents:
+		upath=u['xpub']['path']
+		cdexpath=bitcoin.bip32_path_from_string(upath)
+		if(cdexpath[-2]==changecode):
+			cdex=cdexpath[-1]
+			index=max(cdex,index)
+	return index+1
 
 def get_master_key():
 	words=' '.join(get_password().split())
@@ -68,18 +93,26 @@ def get_master_key():
 
 def sign(args):
 	master_key=get_master_key()
-	account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
-	input_transaction=json.load(args.input_transaction)
-	#compute the largest change address and largest address in the account (use xpub and bitcoin.bip32_string_to_path)
-	#compute all the underlying addresses and pkeys into a string hash
-	#decide on the change address
-	#build the transaction
+	
+	input_transaction=json.load(args.input_file)
+	privs=input_transaction['keys']
+	tx=input_transaction['tx']
+	for k,p in privs.items():
+		pstr=bitcoin.bip32_path_from_string(p['path'])
+		xpubk=p['m']
+		a=0
+		priv_key=bitcoin.hd_lookup(master_key,account=a)
+		while(bitcoin.bip32_privtopub(priv_key) != xpubk):
+			priv_key=bitcoin.hd_lookup(master_key,account=a)
+			a+=1
+		privs[k]=bitcoin.bip32_descend(priv_key,pstr[0],pstr[1])
+	print(bitcoin.signall(str(tx),privs))
 	#sign the transaction
 	#print the hex
 	
 def pubkey(args):
 	master_key=get_master_key()
-	
+	print(master_key)
 	if(args.root or (args.account and args.account < 0)):
 		#print("The following is your master root extended public key:")
 		print(bitcoin.bip32_privtopub(master_key))
@@ -96,38 +129,52 @@ def send(args):
 		return int(float(vs)*100000000.0)
 	fee=btctosatoshi(args.fee)
 	if(fee < 0):
-		fee=int(-0.0001*100000000) #todo do something to estimated fee...make it negative or something though
+		fee=int(0.0001*100000000) #todo do something to estimated fee...make it negative or something though... DONT
 	outaddrval=[(args.outputs[2*i],btctosatoshi(args.outputs[2*i+1])) for i in range(len(args.outputs)//2)]
 	outtotalval=sum([o[1] for o in outaddrval])
+	unspents=bitcoin.select(unspents,outtotalval)
+	#unspents cull using outtotalval
+	changeindex=check_outputs_max_index(unspents,1)
+	changeaddress=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,1,changeindex))
 	unspenttotalval=sum([u['value'] for u in unspents])
-	if(outtotalval+abs(fee) >= unspenttotalval):
+	changeamount=unspenttotalval-(outtotalval+abs(fee))
+	
+	if(changeamount < 0.0):
 		raise Exception("There is unlikely to be enough unspent outputs to cover the transaction and fees")
 	out={}
-	out['unspents']=unspents
-	out['fee']=fee #negative if estimated
-	out['outputs']=outaddrval
 
+	outs=outaddrval+[[changeaddress,changeamount]]
+	#print(unspents)
+	#print(outs)
+	otx=[{'address':o[0],'value':o[1]} for o in outs]
+	tx=bitcoin.mktx(unspents,otx)
+
+	#compute all the underlying addresses and pubkeys into a string hash
+	#estimate the fee
+	#build the transaction
+	out['tx']=tx
+	out['keys']=dict([(u['output'],u['xpub']) for u in unspents])
+	#print(bitcoin.deserialize(tx))
 	json.dump(out,sys.stdout)
 
 def address(args):
-	if(not args.index):
+	c = 1 if args.change else 0
+	if(args.index < 0):
 		unspents=bitcoin.BlockchainInfo.unspent_xpub(args.xpub)
-		index=0
-		for u in unspents:
-			upath=u['xpub']['path']
-			cdex=bitcoin.bip32_path_from_string(upath)[-1]
-			index=max(cdex,index)
-		index+=1
+		index=check_outputs_max_index(unspents,c)
 	else:
 		index=args.index
-	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,0,index))
+	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,c,index))
+	print(index)
 	print(address)
 
 def generate(args):
-	
+	print(' '.join(get_generated_words(args.entropy_bits,args.entropy_source)))
 	
 if __name__=="__main__":
 	aparser=argparse.ArgumentParser()
+	aparser.add_argument('--no_offline_check',action='store_true',help="Disable the check verifying that you are offline")
+
 	subaparsers=aparser.add_subparsers()
 	aparse_send=subaparsers.add_parser('send',help="[online] Get the unspents and generate an unsigned transaction to some outputs")
 	aparse_send.add_argument('--xpub','-p',required=True,help="The xpubkey for the hdwallet account")
@@ -141,12 +188,26 @@ if __name__=="__main__":
 	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account pubkey is the master extended pubkey.")
 	aparse_pubkey.set_defaults(func=pubkey)
 
-	aparse_address=subaparsers.add_parser('address',help='[online or offline] Get an address for an account')
+	aparse_address=subaparsers.add_parser('address',help='[online or offline] Get an address for an hd wallet account')
 	aparse_address.add_argument('--xpub','-p',required=True,help="The xpubkey for the hdwallet account")
-	aparse_address.add_argument('--index','-i','--address',type=int,help='The index of the address to get from the account')
+	aparse_address.add_argument('--index','-i','--address',type=int,default=-1,help='The index of the address to get from the account')
+	aparse_address.add_argument('--change','-c',action='store_true',help='If present, generates the change address from the account')
 	aparse_address.set_defaults(func=address)
 
+	aparse_sign=subaparsers.add_parser('sign',help='[offline] Sign a transaction generated with the send command')
+	aparse_sign.add_argument('--input_file','-i',required=True,type=argparse.FileType('r'),help="The input file containing the transaction inputs") 
+	#aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to use to sign") #technically this CAN be derived from the transaction xpub
+	aparse_sign.set_defaults(func=sign)
+
+	aparse_generate=subaparsers.add_parser('generate',help='[offline] Generate a new hdwallet mnemonic')
+	aparse_generate.add_argument('--entropy_bits','--num_bits','-n',type=int,default=128,help='The number of bits of entropy to use to generate the wallet (must be a multiple of 32)')
+	aparse_generate.add_argument('--entropy_source','--source','-s',choices=['user','system'],default='system',help='The source of secure entropy to use to generate the wallet')
+	aparse_generate.set_defaults(func=generate)
+
 	args=aparser.parse_args()
+	if(args.no_offline_check):
+		require_offline=False
+
 	args.func(args)
 	
 	
