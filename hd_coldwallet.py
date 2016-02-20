@@ -132,13 +132,14 @@ def send(args):
 		fee=int(0.0001*100000000) #todo do something to estimated fee...make it negative or something though... DONT
 	outaddrval=[(args.outputs[2*i],btctosatoshi(args.outputs[2*i+1])) for i in range(len(args.outputs)//2)]
 	outtotalval=sum([o[1] for o in outaddrval])
-	unspents=bitcoin.select(unspents,outtotalval)
-	#unspents cull using outtotalval
 	changeindex=check_outputs_max_index(unspents,1)
 	changeaddress=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,1,changeindex))
+
+	unspents=bitcoin.select(unspents,outtotalval+fee)
+	#unspents cull using outtotalval
 	unspenttotalval=sum([u['value'] for u in unspents])
 	changeamount=unspenttotalval-(outtotalval+abs(fee))
-	
+
 	if(changeamount < 0):
 		raise Exception("There is unlikely to be enough unspent outputs to cover the transaction and fees")
 	out={}
