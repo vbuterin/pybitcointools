@@ -142,7 +142,6 @@ def words_mine(pattern,valid=lambda x : True ,wordlist=wordlists["english"],rand
 		lower=0
 		upper=1 << 11
 		lw,uw=m.group(1,2)
-		print(lw,uw)
 		if(lw):
 			if(lw != ""):
 				try:
@@ -159,7 +158,6 @@ def words_mine(pattern,valid=lambda x : True ,wordlist=wordlists["english"],rand
 			upper=next((index for index,value in enumerate(wordlist[::-1]) if lw >= value[:len(lw)]))
 			upper=2048-upper
 		
-		print(lower,upper)
 		ranges.append((lower,upper))
                     
 	total_randomness=reduce(lambda a,b: a*(b[1]-b[0]),ranges,1)
