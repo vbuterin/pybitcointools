@@ -19,14 +19,12 @@ def test_offline():
 	global running_offline
 	if(running_offline is None):
 		user_input("Make sure you are offline, alone, and your screen is not visible. [OK]")
-		print("Testing if you are online...")
 		try:
 			result=urllib2.urlopen("https://google.com",timeout=3.0).read()
 			user_input("You lied about being offline! [OK]")
 			running_offline=False
 			return False
 		except Exception as e:
-			print(e)
 			running_offline=True
 			return True
 	else:
@@ -110,6 +108,17 @@ def sign(args):
 	#sign the transaction
 	#print the hex
 	
+def privkey(args):
+	master_key=get_master_key()
+
+	if(args.root or (args.account and args.account < 0)):
+		#print("The following is your master root extended public key:")
+		print(master_key)
+	else:
+		account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
+		#print("The following is the extended public key for account #%d:" % (args.account))
+		print(account_privkey)
+
 def pubkey(args):
 	master_key=get_master_key()
 
@@ -189,6 +198,12 @@ if __name__=="__main__":
 	aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the pubkey for.")
 	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account pubkey is the master extended pubkey.")
 	aparse_pubkey.set_defaults(func=pubkey)
+
+	aparse_pubkey=subaparsers.add_parser('privkey',help='[offline] Get the extended HD privkey for a particular account')
+	aparse_pubkey_accountgroup=aparse_pubkey.add_mutually_exclusive_group(required=True)
+	aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the privkey for.")
+	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account privkey is the master extended privkey.")
+	aparse_pubkey.set_defaults(func=privkey)
 
 	aparse_address=subaparsers.add_parser('address',help='[online or offline] Get an address for an hd wallet account')
 	aparse_address.add_argument('--xpub','-p',required=True,help="The xpubkey for the hdwallet account")
