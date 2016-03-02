@@ -9,7 +9,8 @@ require_offline=True
 running_offline=None
 
 def user_input(s,expectednotchar=None,readanyway=False):
-	sys.stderr.write(s)
+	if(not readanyway):
+		sys.stderr.write(s)
 	if(not sys.stdin.isatty() and not readanyway):
 		if(expectednotchar):
 			sys.stderr.write(expectednotchar)
@@ -22,7 +23,7 @@ def user_input(s,expectednotchar=None,readanyway=False):
 def test_offline():
 	global running_offline
 	if(running_offline is None):
-		user_input("Make sure you are offline, alone, and your screen is not visible. [OK]")
+		user_input("Make sure you are offline, alone, and your screen is not visible. [OK]\n")
 		try:
 			result=urllib2.urlopen("https://google.com",timeout=3.0).read()
 			user_input("You lied about being offline! [OK]")
