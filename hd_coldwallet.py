@@ -8,8 +8,12 @@ import math
 require_offline=True
 running_offline=None
 
-def user_input(s,expectednotchar=None):
+def user_input(s,expectednotchar=None,readanyway=False):
 	sys.stderr.write(s)
+	if(not sys.stdin.isatty() and not readanyway):
+		if(expectednotchar):
+			sys.stderr.write(expectednotchar)
+		return expectednotchar
 	q=raw_input()
 	if(expectednotchar and (q[0].lower() not in expectednotchar)):
 		quit()
@@ -42,7 +46,7 @@ def offlineonly(f):
 	
 @offlineonly
 def get_password():
-	mnemonic=user_input('Type your password mnemonic, one word at a time:\n')
+	mnemonic=user_input('Type your password mnemonic, one word at a time:\n',readanyway=True)
 	return mnemonic
 
 @offlineonly
