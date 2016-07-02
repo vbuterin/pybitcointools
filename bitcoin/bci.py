@@ -93,7 +93,7 @@ def parse_addr_args(*args):
     if addr_args and isinstance(addr_args, tuple) and isinstance(addr_args[0], list):
         addr_args = addr_args[0]
     network = set_network(addr_args)
-    return addr_args, network   # note params are "reversed" now
+    return network, addr_args
 
 
 # Gets the unspent outputs of one or more addresses
