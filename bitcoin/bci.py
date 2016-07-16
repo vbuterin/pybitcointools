@@ -98,7 +98,7 @@ def parse_addr_args(*args):
 
 # Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
-    addrs, network = parse_addr_args(*args)
+    network, addrs = parse_addr_args(*args)
     u = []
     for a in addrs:
         try:
