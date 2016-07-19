@@ -482,7 +482,6 @@ def select(unspent, value):
 
 # Only takes inputs of the form { "output": blah, "value": foo }
 
-
 def mksend(*args):
     argz, change, fee = args[:-2], args[-2], int(args[-1])
     ins, outs = [], []
