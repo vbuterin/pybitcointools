@@ -21,6 +21,7 @@ class AESCipher(object):
 		self.key = key
 
 	def encrypt(self, raw):
+		#iv should probably be a hash of the message to ensure uniformity
 		raw = self.pad(raw)
 		iv = secure_random_bytes(AES.block_size)
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
@@ -38,7 +39,7 @@ class AESCipher(object):
 		return s[:-ord(s[len(s)-1:])]
 
 
-hashname='sha256'	#should this be hmac-sha512
+hashname='sha256'	#should this be hmac-sha512...yes, works with bip39 hmac and creates a 256 bit key for the symmetric key for the shamir case modulo prime.
 hmachash=hashlib.sha256
 
 def ecies_derive_keys(shared_secret,optional_shared_info0=''):
