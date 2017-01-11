@@ -1,7 +1,8 @@
 import bitcoin
+import hashlib,hmac
 from binascii import hexlify,unhexlify
 from os import urandom as secure_random_bytes
-import hashlib
+import base64
 
 try:
 	from hashlib import pbkdf2_hmac
@@ -45,33 +46,30 @@ _becies_hashname='sha512'
 _becies_hmachash=hashlib.sha256
 
 def becies_shared_secret(private_key,public_key,optional_shared_info0=''):
-	shared_secret_point=bitcoin.multiply(private_key,public_key)
-	shared_secret=bitcoin.decode_pubkey(bitcoin.multiply(private_key,public_key))[1] #todo: check point at infinity
+	shared_secret_point=bitcoin.multiply(public_key,private_key)
+	shared_secret=bitcoin.decode_pubkey(shared_secret_point)[1] #todo: check point at infinity? todo: compressed pubkey?
 	shared_secret_bin=_int2bin32b(shared_secret)
 
 	salt='becies'
-	key=shared_secret+optional_shared_info0
+	key=shared_secret_bin+optional_shared_info0
 	hmac_result=pbkdf2_hmac(_becies_hashname,key,salt=salt+key,iterations=2048) #https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
 	symmetric_key=hmac_result[:(len(hmac_result)//2)]
 	mac_key=hmac_result[(len(hmac_result)//2):]
 	return symmetric_key,mac_key
 
 def becies_tag(mac_key,encrypted_string,optional_shared_info1=''):
-	tag=hmac.new(key=mac_key,msg=encrypted_string+optional_shared_info1,digestmod=hmachash)
-	return tag
+	tag=hmac.new(key=mac_key,msg=encrypted_string+optional_shared_info1,digestmod=_becies_hmachash)
+	return tag.digest()
 
 def becies_encrypt(plaintext,pubkey,ephemeral_key=_secure_privkey(),optional_shared_info=('','')):
-	shared_secret=bitcoin.decode_pubkey(bitcoin.multiply(pubkey,ephemeral_key))[1]
-	shared_secret_bin=_int2bin32b(shared_secret)
-
 	ephemeral_pubkey=bitcoin.privtopub(ephemeral_key)
 
-	symmetric_key,mac_key=ecies_derive_keys(shared_secret_bin,optional_shared_info0=optional_shared_info[0])
+	symmetric_key,mac_key=becies_shared_secret(ephemeral_key,pubkey,optional_shared_info0=optional_shared_info[0])
 	
 	aes=AESCipher(symmetric_key)
 	encrypted_string=aes.encrypt(plaintext)
 	
-	tag=ecies_compute_tag(mac_key=mac_key,encrypted_string=encrypted_string,optional_shared_info1=optional_shared_info[1])
+	tag=becies_tag(mac_key=mac_key,encrypted_string=encrypted_string,optional_shared_info1=optional_shared_info[1])
 	return ephemeral_pubkey,encrypted_string,tag
 
 def becies_decrypt(ciphertuple,privkey,optional_shared_info=('','')):
@@ -79,13 +77,10 @@ def becies_decrypt(ciphertuple,privkey,optional_shared_info=('','')):
 	encrypted_string=ciphertuple[1]
 	msgtag=ciphertuple[2]
 
-	shared_secret=bitcoin.decode_pubkey(bitcoin.multiply(privkey,ephemeral_pubkey))[1] #todo: check point at infinity
-	shared_secret_bin=_int2bin32b(shared_secret)
-
-	symmetric_key,mac_key=ecies_derive_keys(shared_secret_bin,optional_shared_info0=optional_shared_info[0])
+	symmetric_key,mac_key=becies_shared_secret(privkey,ephemeral_pubkey,optional_shared_info0=optional_shared_info[0])
 
 	tag=ecies_compute_tag(mac_key=mac_key,encrypted_string=encrypted_string,optional_shared_info1=optional_shared_info[1])
-	if(tag != msgtag):
+	if(not hmac.compare_tag(tag,msgtag)):
 		raise "Decryption Failure...tag mismatch. The message may have been tampered with"
 	
 	aes=AESCipher(symmetric_key)
@@ -121,7 +116,7 @@ def becies_multi_encrypt(plaintext,k,public_keys,ephemeral_privkey=None,new_priv
 	group_pubkey=bitcoin.privtopub(coeffs[0])
 	becies_tuple=becies_encrypt(plaintext,group_pubkey,ephemeral_privkey=ephemeral_privkey)
 	
-	shared_secrets=[becies_shared_secret(r,B)) for B in public_keys]
+	shared_secrets=[becies_shared_secret(r,B) for B in public_keys]
 	offsets=[(p-s) % bitcoin.N for p,s in zip(points,shared_secrets)]
 	
 	return becies_tuple,offsets
@@ -136,4 +131,62 @@ def becies_multi_decrypt(becies_tuple,shared_secrets,indices,offsets):
 	group_privkey=lagrange_interpolate(indices,points,bitcoin.N)
 	return becies_decrypt(becies,group_privkey)
 	
+#https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
+#Variable length integer
+
+def _to_vla(v):
+	if(v > 0xFFFFFFFF):
+		return chr(0xFF)+unhexlify("%016X" % v)
+	if(v > 0xFFFF):
+		return chr(0xFE)+unhexlify("%08X" % v)
+	if(v > 0xFC):
+		return chr(0xFD)+unhexlify("%04X" % v)
+	return chr(v)
+
+def _from_vla(nine_bytestring):
+	c=ord(nine_bytestring[0])
+	if(c == 0xFF):
+		return int(hexlify(nine_bytestring[1:8])),8
+	if(c == 0xFE):
+		return int(hexlify(nine_bytestring[1:4])),4
+	if(c == 0xFD):
+		return int(hexlify(nine_bytestring[1:2])),2
+	return c,0
+
+def becies_encode(ephemeral_pubkey,ciphertext,tag,pubkeys=[],num_to_activate=None,offsets=None):
+	bout='\xc6\x6b\x20'#0xc66b20 3-byte prefix?  (encodes to xmsg in base64)
+
+	isaddresses=bool(pubkeys)
+	isgroup=bool(offsets)
+	#a vli indicating the header contents flags.
+	#offsets,and addresses are first two bits, rest are unused
+	bout+=_to_vla(int(isgroup) << 1  | int(isaddresses))
+	if(isaddresses):
+		bout+=_to_vla(len(pubkeys))
+		bout+=''.join([bitcoin.b58check_to_bin(bitcoin.pubtoaddr(p)) for p in pubkeys])
+	if(isgroup):
+		bout+=_to_vla(num_to_activate)		  #todo, num_to_activate must be strictly positive
+		bout+=_to_vla(len(offsets))
+		bout+=''.join([bitcoin.encode_privkey(priv) for priv in offsets])
+
+	bout+=bitcoin.encode_pubkey(ephemeral_pubkey,'bin_compressed')
+	bout+=_to_vla(len(ciphertext))
+	bout+=ciphertext
+	bout+=tag		#this has to come last for streaming mode too
+	return bout
+
+#serialization, base64 (dynamic length byte streams)
+#0xc66b20 3-byte prefix?  (encodes to xmsg)
+def becies_decode(encodedstr):
+	pass
+
+
+if __name__=='__main__':
+	k1=_secure_privkey()
+	K1=bitcoin.privtopub(k1)
+	k2=_secure_privkey()
+	K2=bitcoin.privtopub(k2)
+	R,c,t=becies_encrypt("Hello, World",K2)
+	xmsg=becies_encode(R,c,t,pubkeys=[K2])
+	print(base64.b64encode(xmsg))
 
