@@ -26,6 +26,7 @@ class AESCipher(object):
 		raw = self.pad(raw)
 		iv = secure_random_bytes(AES.block_size)	#iv should actually be assumed to be 0 and not transmitted. This is actually fine because the ephemeral_key must be random every time.
 								#http://www.secg.org/sec1-v2.pdf page 36
+								#https://github.com/ethereum/go-ethereum/issues/473
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		return iv + cipher.encrypt(raw)
 
