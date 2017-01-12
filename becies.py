@@ -134,7 +134,7 @@ def becies_multi_decrypt(becies_tuple,shared_secrets,indices,offsets):
 #https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
 #Variable length integer
 
-def _to_vla(v):
+def _to_vli(v):
 	if(v > 0xFFFFFFFF):
 		return chr(0xFF)+unhexlify("%016X" % v)
 	if(v > 0xFFFF):
@@ -143,34 +143,38 @@ def _to_vla(v):
 		return chr(0xFD)+unhexlify("%04X" % v)
 	return chr(v)
 
-def _from_vla(nine_bytestring):
+def _from_vli(nine_bytestring):
 	c=ord(nine_bytestring[0])
 	if(c == 0xFF):
-		return int(hexlify(nine_bytestring[1:8])),8
+		return int(hexlify(nine_bytestring[1:8])),9
 	if(c == 0xFE):
-		return int(hexlify(nine_bytestring[1:4])),4
+		return int(hexlify(nine_bytestring[1:4])),5
 	if(c == 0xFD):
-		return int(hexlify(nine_bytestring[1:2])),2
-	return c,0
+		return int(hexlify(nine_bytestring[1:2])),3
+	return c,1
 
+#maybe this should take a file like object for the encoding for streaming?  A coroutine? Hmm.
+BECIES_ADDRESSES_FLAG=1
+BECIES_GROUP_FLAG=2
+BECIES_MAGIC_BYTES='\xc6\x6b\x20'
 def becies_encode(ephemeral_pubkey,ciphertext,tag,pubkeys=[],num_to_activate=None,offsets=None):
-	bout='\xc6\x6b\x20'#0xc66b20 3-byte prefix?  (encodes to xmsg in base64)
+	bout=BECIES_MAGIC_BYTES#0xc66b20 3-byte prefix?  (encodes to xmsg in base64)
 
 	isaddresses=bool(pubkeys)
 	isgroup=bool(offsets)
 	#a vli indicating the header contents flags.
 	#offsets,and addresses are first two bits, rest are unused
-	bout+=_to_vla(int(isgroup) << 1  | int(isaddresses))
+	bout+=_to_vli(int(isgroup)*BECIES_GROUP_FLAG + int(isaddresses)*BECIES_ADDRESSES_FLAG)
 	if(isaddresses):
-		bout+=_to_vla(len(pubkeys))
+		bout+=_to_vli(len(pubkeys))
 		bout+=''.join([bitcoin.b58check_to_bin(bitcoin.pubtoaddr(p)) for p in pubkeys])
 	if(isgroup):
-		bout+=_to_vla(num_to_activate)		  #todo, num_to_activate must be strictly positive
-		bout+=_to_vla(len(offsets))
+		bout+=_to_vli(num_to_activate)		  #todo, num_to_activate must be strictly positive
+		bout+=_to_vli(len(offsets))
 		bout+=''.join([bitcoin.encode_privkey(priv) for priv in offsets])
 
 	bout+=bitcoin.encode_pubkey(ephemeral_pubkey,'bin_compressed')
-	bout+=_to_vla(len(ciphertext))
+	bout+=_to_vli(len(ciphertext))
 	bout+=ciphertext
 	bout+=tag		#this has to come last for streaming mode too
 	return bout
@@ -178,15 +182,48 @@ def becies_encode(ephemeral_pubkey,ciphertext,tag,pubkeys=[],num_to_activate=Non
 #serialization, base64 (dynamic length byte streams)
 #0xc66b20 3-byte prefix?  (encodes to xmsg)
 def becies_decode(encodedstr):
-	pass
-
-
+	if(encodedstr[:3] != BECIES_MAGIC_BYTES):
+		raise "BECIES magic header not found"
+	encodedstr=encodedstr[3:]
+	
+	flags,o=_from_vli(encodedstr)
+	encodedstr=encodedstr[o:]
+	
+	isaddresses=flags & BECIES_ADDRESSES_FLAG
+	isgroup=flags & BECIES_GROUP_FLAG
+	addresses=[]
+	offsets=[]
+	num_to_activate=None
+	if(isaddresses):
+		num_addresses,o=_from_vli(encodedstr)
+		encodedstr=encodedstr[o:]
+		addresses=[encodedstr[i:i+20] for i in range(0, num_addresses, 20)]
+		encodedstr=encodedstr[(num_addresses*20):]
+	if(isgroup):
+		num_to_activate,o=_from_vli(encodedstr)
+		encodedstr=encodedstr[o:]
+		num_offsets,o=_from_vli(encodedstr)
+		offsets=[encodedstr[i:i+n] for i in range(0, num_addresses, 32)]
+		encodedstr=encodedstr[(num_offsets*32):]
+	ephemeral_pubkey=encodedstr[:33]
+	encodedstr=encodedstr[33:]
+	ephemeral_pubkey=bitcoin.decode_pubkey(ephemeral_pubkey)
+	lcipher,o=_from_vli(encodedstr)
+	encodedstr=encodedstr[o:]
+	ciphertext=encodedstr[:lcipher]
+	encodedstr=encodedstr[o:]
+	tag=encodedstr
+	return ephemeral_pubkey,ciphertext,tag,addresses,num_to_activate,offsets
+	
 if __name__=='__main__':
 	k1=_secure_privkey()
 	K1=bitcoin.privtopub(k1)
 	k2=_secure_privkey()
 	K2=bitcoin.privtopub(k2)
 	R,c,t=becies_encrypt("Hello, World",K2)
-	xmsg=becies_encode(R,c,t,pubkeys=[K2])
-	print(base64.b64encode(xmsg))
-
+	msg=becies_encode(R,c,t,pubkeys=[K2])
+	output_expected=(R,c,t,[bitcoin.b58check_to_bin(bitcoin.pubtoaddr(K2))],None,[])
+	output=becies_decode(msg)
+	print(output)
+	print(output_expected)
+	print(str(output)==str(output_expected))
