@@ -24,7 +24,8 @@ class AESCipher(object):
 	def encrypt(self, raw):
 		#iv should probably be a hash of the message to ensure uniformity
 		raw = self.pad(raw)
-		iv = secure_random_bytes(AES.block_size)
+		iv = secure_random_bytes(AES.block_size)	#iv should actually be assumed to be 0 and not transmitted. This is actually fine because the ephemeral_key must be random every time.
+								#http://www.secg.org/sec1-v2.pdf page 36
 		cipher = AES.new(self.key, AES.MODE_CBC, iv)
 		return iv + cipher.encrypt(raw)
 
@@ -45,7 +46,7 @@ def _int2bin32b(v):
 _becies_hashname='sha512'
 _becies_hmachash=hashlib.sha256
 
-def becies_shared_secret(private_key,public_key,optional_shared_info0=''):
+def becies_shared_secret(private_key,public_key,optional_shared_info0=''):	#we do NOT use http://www.secg.org/sec1-v2.pdf ANSI KDF function, we use pkcs5_pbkdf2_hmac_sha512.  It's got more hardening and it's more common and already a part of bitcoin
 	shared_secret_point=bitcoin.multiply(public_key,private_key)
 	shared_secret=bitcoin.decode_pubkey(shared_secret_point)[1] #todo: check point at infinity? todo: compressed pubkey?
 	shared_secret_bin=_int2bin32b(shared_secret)
