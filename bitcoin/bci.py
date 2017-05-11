@@ -25,6 +25,11 @@ def make_request(*args):
 
 def is_testnet(inp):
     '''Checks if inp is a testnet address or if UTXO is a known testnet TxID''' 
+    try:
+        basestring = basestring
+    except NameError:
+        # 'basestring' is undefined, must be Python 3
+        basestring = (str,bytes)
     if isinstance(inp, (list, tuple)) and len(inp) >= 1:
         return any([is_testnet(x) for x in inp])
     elif not isinstance(inp, basestring):    # sanity check
@@ -66,6 +71,11 @@ def set_network(*args):
     for arg in args:
         if not arg: 
             pass
+        try:
+            basestring = basestring
+        except NameError:
+            # 'basestring' is undefined, must be Python 3
+            basestring = (str,bytes)
         if isinstance(arg, basestring):
             r.append(is_testnet(arg))
         elif isinstance(arg, (list, tuple)):
