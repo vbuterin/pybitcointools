@@ -42,6 +42,21 @@ def electrum_pubkey(masterkey, n, for_change=0):
     offset = bin_dbl_sha256(from_int_representation_to_bytes(n)+b':'+from_int_representation_to_bytes(for_change)+b':'+bin_mpk)
     return add_pubkeys('04'+mpk, privtopub(offset))
 
+# Accepts Electrum 2 XPUB master public key, index and secondary index
+# (conventionally 0 for ordinary addresses, 1 for change), returns pubkey
+
+def electrum_pubkey_v2(masterkey, n, for_change=0):
+    chain = bip32_ckd(masterkey, for_change)
+    child_key = bip32_ckd(chain, n)
+    return bip32_extract_key(child_key)
+
+# Accepts Electrum 2 XPUB master public key, index and secondary index
+# (conventionally 0 for ordinary addresses, 1 for change), returns address
+
+def electrum_address_v2(masterkey, n, for_change=0):
+    return pubkey_to_address(electrum_pubkey_v2(masterkey, n, for_change))
+
+
 # seed/stretched seed/pubkey -> address (convenience method)
 
 
