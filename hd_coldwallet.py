@@ -34,6 +34,19 @@ def test_offline():
 			return True
 	else:
 		return running_offline
+	
+	
+def coin_arg_parse(coin):
+	try:
+		return int(coin)
+	except:
+		coinlist={
+			'BTC':0,'XBT':0,
+			'LTC':2,
+			'ETH':0x3c,
+			'ETC':0x3d,
+			'XRP':0x90}
+		return coinlist.get(coin,default=0)
 		
 		
 def offlineonly(f):	
@@ -96,7 +109,8 @@ def get_master_key():
 
 def sign(args):
 	master_key=get_master_key()
-	
+	coinint=coin_arg_parse(args.coin)
+
 	input_transaction=json.load(args.input_file)
 	privs=input_transaction['keys']
 	tx=input_transaction['tx']
@@ -104,36 +118,33 @@ def sign(args):
 		pstr=bitcoin.bip32_path_from_string(p['path'])
 		xpubk=p['m']
 		a=0
-		priv_key=bitcoin.hd_lookup(master_key,account=a)
+		priv_key=bitcoin.hd_lookup(master_key,account=a,coin=coinint)
 		while(bitcoin.bip32_privtopub(priv_key) != xpubk):
-			priv_key=bitcoin.hd_lookup(master_key,account=a)
+			priv_key=bitcoin.hd_lookup(master_key,account=a,coin=coinint) 
 			a+=1
 		privs[k]=bitcoin.bip32_descend(priv_key,pstr[0],pstr[1])
 	print(bitcoin.signall(str(tx),privs))
 	#sign the transaction
 	#print the hex
 	
+def _get_privkey(args):
+	master_key=get_master_key()
+	coinint=coin_arg_parse(args.coin)
+
+	if(args.root or (args.account and args.account < 0)):
+		#print("The following is your master root extended public key:")
+		return master_key
+	else:
+		account_privkey=bitcoin.hd_lookup(master_key,account=args.account,coin=coinint)
+		#print("The following is the extended public key for account #%d:" % (args.account))
+		return account_privkey
+
+	
 def privkey(args):
-	master_key=get_master_key()
-
-	if(args.root or (args.account and args.account < 0)):
-		#print("The following is your master root extended public key:")
-		print(master_key)
-	else:
-		account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
-		#print("The following is the extended public key for account #%d:" % (args.account))
-		print(account_privkey)
-
+	print(_get_privkey(args))
+	
 def pubkey(args):
-	master_key=get_master_key()
-
-	if(args.root or (args.account and args.account < 0)):
-		#print("The following is your master root extended public key:")
-		print(bitcoin.bip32_privtopub(master_key))
-	else:
-		account_privkey=bitcoin.hd_lookup(master_key,account=args.account)
-		#print("The following is the extended public key for account #%d:" % (args.account))
-		print(bitcoin.bip32_privtopub(account_privkey))
+	print(bitcoin.bip32_privtopub(_get_privkey(args)))
 
 def send(args):
 	if(len(args.outputs) % 2 != 0):
@@ -180,6 +191,10 @@ def address(args):
 		index=check_outputs_max_index(unspents,c)
 	else:
 		index=args.index
+		
+	if(coin_arg_parse(args.coin) != coin_arg_parse('BTC')):
+		print("Error: not known how to build address for coin \""+args.coin+"\"")
+
 	address=bitcoin.pubtoaddr(bitcoin.bip32_descend(args.xpub,c,index))
 	
 	print(address)
