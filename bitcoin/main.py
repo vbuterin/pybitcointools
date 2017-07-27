@@ -417,7 +417,8 @@ def random_key():
 
 
 def random_electrum_seed():
-    entropy = os.urandom(32) \
+    #entropy = os.urandom(32) \ # fails in Python 3, hence copied from random_key()
+    entropy = random_string(32) \
         + str(random.randrange(2**256)) \
         + str(int(time.time() * 1000000))
     return sha256(entropy)[:32]
