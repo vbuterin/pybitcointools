@@ -2,6 +2,10 @@
 import json, re
 import random
 import sys
+
+from bitcoin.main import from_string_to_bytes
+
+
 try:
     from urllib.request import build_opener
 except:
@@ -256,7 +260,10 @@ def history(*args):
 def bci_pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$', tx):
         tx = tx.encode('hex')
-    return make_request('https://blockchain.info/pushtx', 'tx='+tx)
+    return make_request(
+        'https://blockchain.info/pushtx', 
+        from_string_to_bytes('tx='+tx)
+    )
 
 
 def eligius_pushtx(tx):

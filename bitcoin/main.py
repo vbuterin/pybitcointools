@@ -253,6 +253,7 @@ def add_privkeys(p1, p2):
     f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
     return encode_privkey((decode_privkey(p1, f1) + decode_privkey(p2, f2)) % N, f1)
 
+
 def mul_privkeys(p1, p2):
     f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
     return encode_privkey((decode_privkey(p1, f1) * decode_privkey(p2, f2)) % N, f1)
@@ -326,6 +327,8 @@ def subtract_privkeys(p1, p2):
     f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
     k2 = decode_privkey(p2, f2)
     return encode_privkey((decode_privkey(p1, f1) - k2) % N, f1)
+
+
 
 # Hashes
 
@@ -414,7 +417,8 @@ def random_key():
 
 
 def random_electrum_seed():
-    entropy = os.urandom(32) \
+    #entropy = os.urandom(32) \ # fails in Python 3, hence copied from random_key()
+    entropy = random_string(32) \
         + str(random.randrange(2**256)) \
         + str(int(time.time() * 1000000))
     return sha256(entropy)[:32]
@@ -579,3 +583,18 @@ def ecdsa_recover(msg, sig):
     v,r,s = decode_sig(sig)
     Q = ecdsa_raw_recover(electrum_sig_hash(msg), (v,r,s))
     return encode_pubkey(Q, 'hex_compressed') if v >= 31 else encode_pubkey(Q, 'hex')
+
+
+
+# add/subtract 
+def add(p1,p2):
+    if is_privkey(p1):
+        return add_privkeys(p1, p2)
+    else:
+        return add_pubkeys(p1, p2)
+
+def subtract(p1,p2):
+    if is_privkey(p1):
+        return subtract_privkeys(p1, p2)
+    else:
+        return subtract_pubkeys(p1, p2)
