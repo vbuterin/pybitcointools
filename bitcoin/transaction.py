@@ -137,14 +137,24 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     if hashcode == SIGHASH_NONE:
         newtx["outs"] = []
     elif hashcode == SIGHASH_SINGLE:
-        newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
-        for out in newtx["outs"][:len(newtx["ins"]) - 1]:
-            out['value'] = 2**64 - 1
-            out['script'] = ""
+        if i >= len(newtx["outs"]):
+            raise Exception("You are trying to use SIGHASH_SINGLE to sign an input that does not have a "
+                            "corresponding output (" + str(i) + "). This could lead to a irreversible lose "
+                                                                    "of funds. Signature process aborted.")
+        else:
+            newtx["outs"] = newtx["outs"][:i+1]
+            for out in newtx["outs"][:i]:
+                out["value"] = 2**64 - 1
+                out["script"] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
         newtx["ins"] = [newtx["ins"][i]]
     else:
         pass
+
+    if hashcode in [SIGHASH_NONE, SIGHASH_SINGLE]:
+        for inp in xrange(len(newtx["ins"])):
+            if inp is not i:
+                newtx["ins"][inp]['sequence'] = 0
     return newtx
 
 # Making the actual signatures
