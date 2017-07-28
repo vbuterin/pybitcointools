@@ -300,7 +300,9 @@ def deserialize_script(script):
 
 def serialize_script_unit(unit):
     if isinstance(unit, int):
-        if unit < 16:
+        if unit == 0:
+            return from_int_to_byte(0)
+        elif unit < 16:
             return from_int_to_byte(unit + 80)
         else:
             return from_int_to_byte(unit)
