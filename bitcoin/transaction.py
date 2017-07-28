@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import binascii, re, json, copy, sys
 from bitcoin.main import *
+from btc.pyspecials import safe_hexlify, from_string_to_bytes, from_int_to_byte, from_string_to_bytes
 from _functools import reduce
 
 ### Hex to bin converter and vice versa for objects
@@ -512,3 +513,30 @@ def mksend(*args):
         outputs2 += [{"address": change, "value": isum-osum-fee}]
 
     return mktx(ins, outputs2)
+
+def mk_opreturn(msg, rawtx=None, json=0):
+    def op_push(data):
+        import struct
+        if len(data) < 0x4c:
+            return from_int_to_byte(len(data)) + data
+        elif len(data) < 0xff:
+            return from_int_to_byte(76) + struct.pack('<B', len(data)) + from_string_to_bytes(data)
+        elif len(data) < 0xffff:
+            return from_int_to_byte(77) + struct.pack('<H', len(data)) + from_string_to_bytes(data)
+        elif len(data) < 0xffffffff:
+            return from_int_to_byte(78) + struct.pack('<I', len(data)) + from_string_to_bytes(data)
+        else: raise Exception("Input data error. Rawtx must be hex chars" \
+                            + "0xffffffff > len(data) > 0 ??")
+
+    orhex = safe_hexlify(b'\x6a' + op_push(msg))
+    orjson = {'script' : orhex, 'value' : 0}
+    if rawtx is not None:
+        try:
+            txo = deserialize(rawtx)
+            if not 'outs' in txo.keys(): raise Exception("OP_Return cannot be the sole output!")
+            txo['outs'].append(orjson)
+            newrawtx = serialize(txo)
+            return newrawtx
+        except:
+            raise Exception("Raw Tx Error!")
+    return orhex if not json else orjson
