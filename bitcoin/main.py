@@ -530,8 +530,8 @@ def ecdsa_sign(msg, priv):
 
 def ecdsa_raw_verify(msghash, vrs, pub):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        return False
+    #if not (27 <= v <= 34):
+    #    return False
 
     w = inv(s, N)
     z = hash_to_int(msghash)
@@ -557,8 +557,8 @@ def ecdsa_verify(msg, sig, pub):
 
 def ecdsa_raw_recover(msghash, vrs):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        raise ValueError("%d must in range 27-31" % v)
+    #if not (27 <= v <= 34):
+    #    raise ValueError("%d must in range 27-31" % v)
     x = r
     xcubedaxb = (x*x*x+A*x+B) % P
     beta = pow(xcubedaxb, (P+1)//4, P)
