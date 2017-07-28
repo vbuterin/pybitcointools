@@ -165,7 +165,7 @@ def raw_crack_bip32_privkey(parent_pub, priv):
 
     pprivkey = subtract_privkeys(key, I[:32]+b'\x01')
 
-    newvbytes = MAINNET_PRIVATE if vbytes == MAINNET_PUBLIC else TESTNET_PRIVATE
+    newvbytes = MAINNET_PRIVATE if pvbytes == MAINNET_PUBLIC else TESTNET_PRIVATE
     return (newvbytes, pdepth, pfingerprint, pi, pchaincode, pprivkey)
 
 
