@@ -45,7 +45,7 @@ def preparemultitx(frm, *args, **kwargs):
     u = unspent(frm, **kwargs)
     u2 = select(u, int(outvalue)+int(fee))
     argz = u2 + outs + [frm, fee]
-    return mksend(*argz)
+    return mksend(*argz, **kwargs)
 
 
 # BIP32 hierarchical deterministic multisig script

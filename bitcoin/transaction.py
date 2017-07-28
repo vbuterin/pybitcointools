@@ -9,7 +9,7 @@ from _functools import reduce
 def json_is_base(obj, base):
     if not is_python2 and isinstance(obj, bytes):
         return False
-    
+
     alpha = get_code_string(base)
     if isinstance(obj, string_types):
         for i in range(len(obj)):
@@ -58,7 +58,7 @@ def deserialize(tx):
 
     def read_var_int():
         pos[0] += 1
-        
+
         val = from_byte_to_int(tx[pos[0]-1])
         if val < 253:
             return val
@@ -328,7 +328,7 @@ else:
         if json_is_base(script, 16):
             return safe_hexlify(serialize_script(json_changebase(script,
                                     lambda x: binascii.unhexlify(x))))
-        
+
         result = bytes()
         for b in map(serialize_script_unit, script):
             result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
@@ -419,7 +419,7 @@ def is_inp(arg):
     return len(arg) > 64 or "output" in arg or "outpoint" in arg
 
 
-def mktx(*args):
+def mktx(*args, **kwargs):
     # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
     ins, outs = [], []
     for arg in args:
@@ -428,7 +428,7 @@ def mktx(*args):
         else:
             (ins if is_inp(arg) else outs).append(arg)
 
-    txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
+    txobj = {"locktime": kwargs.get('locktime', 0), "version": 1, "ins": [], "outs": []}
     for i in ins:
         if isinstance(i, dict) and "outpoint" in i:
             txobj["ins"].append(i)
@@ -483,7 +483,7 @@ def select(unspent, value):
 # Only takes inputs of the form { "output": blah, "value": foo }
 
 
-def mksend(*args):
+def mksend(*args, **kwargs):
     argz, change, fee = args[:-2], args[-2], int(args[-1])
     ins, outs = [], []
     for arg in argz:
@@ -511,4 +511,4 @@ def mksend(*args):
     elif isum > osum+fee+5430:
         outputs2 += [{"address": change, "value": isum-osum-fee}]
 
-    return mktx(ins, outputs2)
+    return mktx(ins, outputs2, **kwargs)
