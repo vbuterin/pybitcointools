@@ -46,7 +46,7 @@ def coin_arg_parse(coin):
 			'ETH':0x3c,
 			'ETC':0x3d,
 			'XRP':0x90}
-		return coinlist.get(coin,default=0)
+		return coinlist.get(coin,0)
 		
 		
 def offlineonly(f):	
@@ -205,7 +205,7 @@ def generate(args):
 if __name__=="__main__":
 	aparser=argparse.ArgumentParser()
 	aparser.add_argument('--no_offline_check',action='store_true',help="Disable the check verifying that you are offline")
-	aparser.add_argument('--coin',default='BTC','-c',help="An integer, or the coin string (ETC,BTC,XBT,are currently supported)")
+	aparser.add_argument('--coin','-c',default='BTC',help="An integer, or the coin string (ETC,BTC,XBT,are currently supported)")
 
 	subaparsers=aparser.add_subparsers()
 	aparse_send=subaparsers.add_parser('send',help="[online] Get the unspents and generate an unsigned transaction to some outputs")
