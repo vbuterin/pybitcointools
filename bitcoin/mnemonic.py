@@ -71,7 +71,7 @@ def words_verify(words,wordlist=wordlist_english):
 	entropy_bits=mint_bits-cs_bits
 	eint=mint >> cs_bits
 	csint=mint & ((1 << cs_bits)-1)
-	ebytes=_eint_to_bytes(eint,entropy_bits)
+	ebytes=eint_to_bytes(eint,entropy_bits)
 	return csint == entropy_cs(ebytes)
 
 def mnemonic_to_seed(mnemonic_phrase,passphrase=b''):
