@@ -121,11 +121,15 @@ def serialize(txobj):
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-
+SIGHAHS_FORKID = 0x40
 SIGHASH_ANYONECANPAY = 0x80
 
+def _signature_form_abc():
+    
+def _signature_form_segwit():
+    pass
 
-def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
+def _signature_form_classic(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
@@ -144,7 +148,12 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
         newtx["ins"] = [newtx["ins"][i]]
     else:
         pass
+    print("signature_form")
     return newtx
+
+
+def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
+    return _signature_form_classic(tx,i,script,hashcode)
 
 # Making the actual signatures
 
