@@ -3,7 +3,7 @@ import json, re
 import random
 import sys
 
-from bitcoin.main import from_string_to_bytes
+from bitcoin.main import bin_dbl_sha256, from_string_to_bytes
 
 
 try:
