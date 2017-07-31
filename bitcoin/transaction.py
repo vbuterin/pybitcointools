@@ -121,9 +121,8 @@ def serialize(txobj):
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-# this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
-# we fix the constant
-SIGHASH_ANYONECANPAY = 0x81
+
+SIGHASH_ANYONECANPAY = 0x80
 
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
@@ -134,14 +133,14 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     for inp in newtx["ins"]:
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
-    if hashcode == SIGHASH_NONE:
+    if (hashcode & 0x1F) == SIGHASH_NONE:
         newtx["outs"] = []
-    elif hashcode == SIGHASH_SINGLE:
+    elif (hashcode & 0x1F) == SIGHASH_SINGLE:
         newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
         for out in newtx["outs"][:len(newtx["ins"]) - 1]:
             out['value'] = 2**64 - 1
             out['script'] = ""
-    elif hashcode == SIGHASH_ANYONECANPAY:
+    elif (hashcode & 0x1F == SIGHASH_ALL) and (hashcode & SIGHASH_ANYONECANPAY):
         newtx["ins"] = [newtx["ins"][i]]
     else:
         pass
