@@ -125,6 +125,7 @@ SIGHAHS_FORKID = 0x40
 SIGHASH_ANYONECANPAY = 0x80
 
 def _signature_form_abc():
+    pass
     
 def _signature_form_segwit():
     pass
