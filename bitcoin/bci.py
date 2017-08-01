@@ -121,14 +121,20 @@ def blockchain_interface_impl(cls):
 
 @blockchain_interface_impl  
 class BlockchainInfo(BlockchainInterface):
+
     @classmethod
-    def unspent_xpub(cls,*args):
-        return cls.unspent(*args)
+    def unspent_xpub(cls,*args,**kwargs):
+        return cls.unspent(*args,**kwargs)
+
     @classmethod
-    def unspent(cls,*args):
+    def unspent(cls,*args,**kwargs):
         u=[]
         arglist='|'.join(args)
-        data = make_request('https://blockchain.info/unspent?active='+arglist)
+        confirmations=kwargs.get('confirmations',None)
+        requestring='https://blockchain.info/unspent?active='+arglist
+        if(confirmations is not None and confirmations > 0):
+            rargs="&confirmations="+str(confirmations)
+        data = make_request(requeststring+rargs)
         try:
             jsonobj = json.loads(data.strip().decode("utf-8"))
             for o in jsonobj["unspent_outputs"]:
@@ -141,7 +147,6 @@ class BlockchainInfo(BlockchainInterface):
                     xv['xpub']=o['xpub']
                 u.append(xv)
         except Exception as e:
-            print(e)
             raise Exception("Failed to decode data: "+data)
             
 
