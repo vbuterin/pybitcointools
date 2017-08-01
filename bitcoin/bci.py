@@ -122,53 +122,28 @@ def blockchain_interface_impl(cls):
 @blockchain_interface_impl  
 class BlockchainInfo(BlockchainInterface):
     @classmethod
-    def unspent(cls,*args):
-        addrs, network = parse_addr_args(*args)
-        u = []
-        for a in addrs:
-            try:
-                data = make_request('https://blockchain.info/unspent?active='+a)
-            except Exception as e:
-                if str(e) == 'No free outputs to spend':
-                    continue
-                else:
-                    raise Exception(e)
-            try:
-                jsonobj = json.loads(data.decode("utf-8"))
-                for o in jsonobj["unspent_outputs"]:
-                    h = o['tx_hash'].decode('hex')[::-1].encode('hex')
-                    u.append({
-                        "output": h+':'+str(o['tx_output_n']),
-                        "value": o['value']
-                    })
-            except:
-                raise Exception("Failed to decode data: "+data)
-        return u
-
-    @classmethod
     def unspent_xpub(cls,*args):
-        u = []
-	for a in args:
-            try:
-                data = make_request('https://blockchain.info/unspent?active='+a)
-            except Exception as e:
-                if str(e) == 'No free outputs to spend':
-                    continue
-                else:
-                    raise Exception(e)
-            try:
-                jsonobj = json.loads(data.strip().decode("utf-8"))
-                for o in jsonobj["unspent_outputs"]:
-                    h = o['tx_hash'].decode('hex')[::-1].encode('hex')
-                    u.append({
-                        "output": h+':'+str(o['tx_output_n']),
-                        "value": o['value'],
-			"xpub": o['xpub']
-                    })
-            except Exception as e:
-		print(e)
-                raise Exception("Failed to decode data: "+data)
-        return u
+        return cls.unspent(*args)
+    @classmethod
+    def unspent(cls,*args):
+        u=[]
+        arglist='|'.join(args)
+        data = make_request('https://blockchain.info/unspent?active='+arglist)
+        try:
+            jsonobj = json.loads(data.strip().decode("utf-8"))
+            for o in jsonobj["unspent_outputs"]:
+                h = o['tx_hash'].decode('hex')[::-1].encode('hex')
+                xv={
+                "output": h+':'+str(o['tx_output_n']),
+                "value": o['value']
+                }
+                if('xpub' in o):
+                    xv['xpub']=o['xpub']
+                u.append(xv)
+        except Exception as e:
+            print(e)
+            raise Exception("Failed to decode data: "+data)
+            
 
     
     # Pushes a transaction to the network using https://blockchain.info/pushtx
