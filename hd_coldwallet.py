@@ -180,6 +180,7 @@ def send(args):
 	#estimate the fee
 	#build the transaction
 	out['tx']=tx
+	u['xpub']['value']=u['value']
 	out['keys']=dict([(u['output'],u['xpub']) for u in unspents])
 	#print(bitcoin.deserialize(tx))
 	json.dump(out,sys.stdout)

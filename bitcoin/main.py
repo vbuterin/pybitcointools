@@ -476,6 +476,8 @@ def is_address(addr):
 # EDCSA
 
 
+    
+
 def encode_sig(v, r, s):
     vb, rb, sb = from_int_to_byte(v), encode(r, 256), encode(s, 256)
     

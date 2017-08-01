@@ -2,6 +2,7 @@
 import binascii, re, json, copy, sys
 from bitcoin.main import *
 from _functools import reduce
+import struct
 
 ### Hex to bin converter and vice versa for objects
 
@@ -121,36 +122,111 @@ def serialize(txobj):
 SIGHASH_ALL = 1
 SIGHASH_NONE = 2
 SIGHASH_SINGLE = 3
-SIGHAHS_FORKID = 0x40
+SIGHASH_FORKID = 0x40
 SIGHASH_ANYONECANPAY = 0x80
 
-def _signature_form_abc():
-    pass
+def _int_to4bytes(x):
+    return struct.pack("<L",x)
+
+def _abc_get_prevouthash(tx):
+    prevoutstr=bytes()
+    for txinput in tx["ins"]:
+        prevoutstr+=binascii.unhexlify(txinput['outpoint']['hash'])+_int_to4bytes(txinput['outpoint']['index'])
+    return bin_dbl_sha256(prevoutstr)
+
+def _abc_get_sequencehash(tx):
+    seqoutstr=bytes()
+    for txinput in tx["ins"]:
+        seqoutstr+=_int_to4bytes(txinput['sequence'])
+    return bin_dbl_sha256(seqoutstr)
+        
+def _abc_get_outputshash(tx):
+    outstr=bytes()
+    for txoutput in tx["outs"]:
+        outstr+=struct.pack("<Q",txoutput['value'])+binascii.unhexlify(txoutput['script'])
+    return bin_dbl_sha256(outstr)
+
+
+def _signature_form_abc(tx, i, script, hashcode):
+    if isinstance(tx,string_or_bytes_types):
+        tx=deserialize(tx)
+    print(tx)
+    hashprevout=b'\x00'*32
+    hashseqout=b'\x00'*32
+    hashoutputs=b'\x00'*32
+
+    notsinglenone=((hashcode & 0x1f) != SIGHASH_SINGLE) and ((hashcode & 0x1f) != SIGHASH_NONE)
+
+    if(not (hashcode & SIGHASH_ANYONECANPAY)):
+        hashprevout=_abc_get_prevouthash(tx)
+        if(notsinglenone):
+            hashseqout=_abc_get_sequencehash(tx)
+
+    if(notsinglenone):
+        hashoutputs=_abc_get_outputshash(tx)
+    elif((hashcode & 0x1f) == SIGHASH_SINGLE and i < len(tx['outs'])):
+        txoutstring=struct.pack("<Q",tx['outs'][i]['value'])+binascii.unhexlify(tx['outs'][i]['script'])
+        hashoutputs=bin_dbl_sha256(txoutstring)
+        
+    print(tx)
+    sigout=bytes()
+    sigout+=_int_to4bytes(tx['version'])
+    sigout+=hashprevout
+    sigout+=hashseqout
+    sigout+=binascii.unhexlify(tx['ins'][i]['outpoint']['hash'])+_int_to4bytes(tx['ins'][i]['outpoint']['index'])
+    sigout+=script
+    if('amount' not in tx['ins'][i]):
+        raise Exception("Cannot do bitcoin abc transaction sig without input bitcoin amount")
+    else:
+        sigout+=_int_to4bytes(tx['ins'][i]['amount'])
+    sigout+=_int_to4bytes(tx['ins'][i]['sequence'])
+    sigout+=hashoutputs
+    forkId=0
+    sigout+=_int_to4bytes(hashcode)
+    return sigout
+        
     
 def _signature_form_segwit():
     pass
 
 def _signature_form_classic(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
+
+    hashcode |= SIGHASH_FORKID
+    if(hashcode & SIGHASH_FORKID):
+        return _signature_form_abc(tx,i,script,hashcode)
+
     if isinstance(tx, string_or_bytes_types):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
+
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
-    if (hashcode & 0x1F) == SIGHASH_NONE:
+    if (hashcode & 0x1f) == SIGHASH_NONE:
         newtx["outs"] = []
-    elif (hashcode & 0x1F) == SIGHASH_SINGLE:
-        newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
-        for out in newtx["outs"][:len(newtx["ins"]) - 1]:
-            out['value'] = 2**64 - 1
-            out['script'] = ""
+    elif (hashcode & 0x1f) == SIGHASH_SINGLE:
+        if i >= len(newtx["outs"]):
+            raise Exception("You are trying to use SIGHASH_SINGLE to sign an input that does not have a "
+                            "corresponding output (" + str(i) + "). This could lead to a irreversible lose "
+                                                                    "of funds. Signature process aborted.")
+        else:
+            newtx["outs"] = newtx["outs"][:i+1]
+            for out in newtx["outs"][:i]:
+                out["value"] = 2**64 - 1
+                out["script"] = ""
     elif (hashcode & 0x1F == SIGHASH_ALL) and (hashcode & SIGHASH_ANYONECANPAY):
         newtx["ins"] = [newtx["ins"][i]]
     else:
         pass
-    print("signature_form")
+
+    if hashcode in [SIGHASH_NONE, SIGHASH_SINGLE]:
+        for inp in xrange(len(newtx["ins"])):
+            if inp is not i:
+                newtx["ins"][inp]['sequence'] = 0
     return newtx
+
+
 
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
