@@ -123,11 +123,12 @@ def sign(args):
 			priv_key=bitcoin.hd_lookup(master_key,account=a,coin=coinint) 
 			a+=1
 		privs[k]=bitcoin.bip32_descend(priv_key,pstr[0],pstr[1])
+        #print(privs[k])
 	print(bitcoin.signall(str(tx),privs))
 	#sign the transaction
 	#print the hex
 	
-def _get_privkey(args):
+def _get_xprv(args):
 	master_key=get_master_key()
 	coinint=coin_arg_parse(args.coin)
 
@@ -140,11 +141,11 @@ def _get_privkey(args):
 		return account_privkey
 
 	
-def privkey(args):
-	print(_get_privkey(args))
+def getxprv(args):
+	print(_get_xprv(args))
 	
-def pubkey(args):
-	print(bitcoin.bip32_privtopub(_get_privkey(args)))
+def getxpub(args):
+	print(bitcoin.bip32_privtopub(_get_xprv(args)))
 
 def send(args):
 	if(len(args.outputs) % 2 != 0):
@@ -215,17 +216,17 @@ if __name__=="__main__":
 	aparse_send.add_argument('outputs',help="The outputs, two at a time in <addr> <amount> format...e.g. 1L3qUmg3GeuGrGvi1JxT2jMhAdV76qVj7V 1.032",nargs='+')
 	aparse_send.set_defaults(func=send)
 	
-	aparse_pubkey=subaparsers.add_parser('pubkey',help='[offline] Get the extended HD pubkey for a particular account')
-	aparse_pubkey_accountgroup=aparse_pubkey.add_mutually_exclusive_group(required=True)
-	aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the pubkey for.")
-	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account pubkey is the master extended pubkey.")
-	aparse_pubkey.set_defaults(func=pubkey)
+	aparse_getxpub=subaparsers.add_parser('getxpub',help='[offline] Get the extended HD pubkey for a particular account')
+	aparse_getxpub_accountgroup=aparse_getxpub.add_mutually_exclusive_group(required=True)
+	aparse_getxpub_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the pubkey for.")
+	aparse_getxpub_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account pubkey is the master extended pubkey.")
+	aparse_getxpub.set_defaults(func=getxpub)
 
-	aparse_pubkey=subaparsers.add_parser('privkey',help='[offline] Get the extended HD privkey for a particular account')
-	aparse_pubkey_accountgroup=aparse_pubkey.add_mutually_exclusive_group(required=True)
-	aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the privkey for.")
-	aparse_pubkey_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account privkey is the master extended privkey.")
-	aparse_pubkey.set_defaults(func=privkey)
+	aparse_getxprv=subaparsers.add_parser('getxprv',help='[offline] Get the extended HD privkey for a particular account')
+	aparse_getxprv_accountgroup=aparse_getxprv.add_mutually_exclusive_group(required=True)
+	aparse_getxprv_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to export the privkey for.")
+	aparse_getxprv_accountgroup.add_argument('--root','-r',action='store_true',help="The exported wallet account privkey is the master extended privkey.")
+	aparse_getxprv.set_defaults(func=getxprv)
 
 	aparse_address=subaparsers.add_parser('address',help='[online or offline] Get an address for an hd wallet account')
 	aparse_address.add_argument('--xpub','-p',required=True,help="The xpubkey for the hdwallet account")
@@ -235,7 +236,7 @@ if __name__=="__main__":
 
 	aparse_sign=subaparsers.add_parser('sign',help='[offline] Sign a transaction generated with the send command')
 	aparse_sign.add_argument('--input_file','-i',required=True,type=argparse.FileType('r'),help="The input file containing the transaction inputs") 
-	#aparse_pubkey_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to use to sign") #technically this CAN be derived from the transaction xpub
+	#aparse_getxpub_accountgroup.add_argument('--account','-a',type=int,help="The number of the hd wallet account to use to sign") #technically this CAN be derived from the transaction xpub
 	aparse_sign.set_defaults(func=sign)
 
 	aparse_generate=subaparsers.add_parser('generate',help='[offline] Generate a new hdwallet mnemonic')

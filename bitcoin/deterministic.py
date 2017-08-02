@@ -137,12 +137,18 @@ def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
     return bip32_serialize((vbytes, 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))
 
 
-def bip32_bin_extract_key(data):
-    return bip32_deserialize(data)[-1]
+
 
 
 def bip32_extract_key(data):
-    return safe_hexlify(bip32_deserialize(data)[-1])
+    deserial=bip32_deserialize(data)
+    key=deserial[-1]
+    if(deserial[0] in PRIVATE):
+        key=key[:-1]
+    return safe_hexlify(key)
+
+def bip32_bin_extract_key(data):
+    return binascii.unhexlify(bip32_extract_key(data))
 
 # Exploits the same vulnerability as above in Electrum wallets
 # Takes a BIP32 pubkey and one of the child privkeys of its corresponding
@@ -220,8 +226,8 @@ def hd_lookup(root,account=None,index=None,change=0,coin=0):
         else:
             return bip32_path(root,bip32_harden(44),bip32_harden(coin),bip32_harden(account))
     elif(depth==3):
-	return bip32_path(root,change,index)
+        return bip32_path(root,change,index)
     else: 
-	raise Exception("%s does not appear to be a bip44-compatible xpubkey!" % (root))
+        raise Exception("%s does not appear to be a bip44-compatible xpubkey!" % (root))
    
 

@@ -131,7 +131,8 @@ class BlockchainInfo(BlockchainInterface):
         u=[]
         arglist='|'.join(args)
         confirmations=kwargs.get('confirmations',None)
-        requestring='https://blockchain.info/unspent?active='+arglist
+        requeststring='https://blockchain.info/unspent?active='+arglist
+        rargs=""
         if(confirmations is not None and confirmations > 0):
             rargs="&confirmations="+str(confirmations)
         data = make_request(requeststring+rargs)
@@ -146,8 +147,10 @@ class BlockchainInfo(BlockchainInterface):
                 if('xpub' in o):
                     xv['xpub']=o['xpub']
                 u.append(xv)
+            return u
         except Exception as e:
             raise Exception("Failed to decode data: "+data)
+
             
 
     

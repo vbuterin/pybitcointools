@@ -150,7 +150,7 @@ def _abc_get_outputshash(tx):
 def _signature_form_abc(tx, i, script, hashcode):
     if isinstance(tx,string_or_bytes_types):
         tx=deserialize(tx)
-    print(tx)
+
     hashprevout=b'\x00'*32
     hashseqout=b'\x00'*32
     hashoutputs=b'\x00'*32
@@ -168,7 +168,6 @@ def _signature_form_abc(tx, i, script, hashcode):
         txoutstring=struct.pack("<Q",tx['outs'][i]['value'])+binascii.unhexlify(tx['outs'][i]['script'])
         hashoutputs=bin_dbl_sha256(txoutstring)
         
-    print(tx)
     sigout=bytes()
     sigout+=_int_to4bytes(tx['version'])
     sigout+=hashprevout
@@ -192,9 +191,10 @@ def _signature_form_segwit():
 def _signature_form_classic(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
 
-    hashcode |= SIGHASH_FORKID
-    if(hashcode & SIGHASH_FORKID):
-        return _signature_form_abc(tx,i,script,hashcode)
+    #print(hashcode)
+    #hashcode |= SIGHASH_FORKID
+   # if(hashcode & SIGHASH_FORKID):
+     #   return _signature_form_abc(tx,i,script,hashcode)
 
     if isinstance(tx, string_or_bytes_types):
         return serialize(signature_form(deserialize(tx), i, script, hashcode))
@@ -298,7 +298,7 @@ def ecdsa_tx_sign(tx, priv, hashcode=SIGHASH_ALL):
 
 
 def ecdsa_tx_verify(tx, sig, pub, hashcode=SIGHASH_ALL):
-    return ecdsa_raw_verify(bin_txhash(tx, hashcode), der_decode_sig(sig), pub)
+    return ecdsa_raw_verify(bin_txhash(tx, hashcode), der_decode_sig(sig[:-2]), pub)
 
 
 def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
@@ -439,8 +439,10 @@ def verify_tx_input(tx, i, script, sig, pub):
     if not re.match('^[0-9a-fA-F]*$', sig):
         sig = safe_hexlify(sig)
     hashcode = decode(sig[-2:], 16)
+   # print(hashcode)
     modtx = signature_form(tx, int(i), script, hashcode)
-    return ecdsa_tx_verify(modtx, sig, pub, hashcode)
+    #print('signature_form:'+safe_hexlify(modtx))
+    return ecdsa_tx_verify(safe_hexlify(modtx), sig, pub, hashcode)
 
 
 def sign(tx, i, priv, hashcode=SIGHASH_ALL):
@@ -451,8 +453,11 @@ def sign(tx, i, priv, hashcode=SIGHASH_ALL):
         priv = safe_hexlify(priv)
     pub = privkey_to_pubkey(priv)
     address = pubkey_to_address(pub)
-    signing_tx = signature_form(tx, i, mk_pubkey_script(address), hashcode)
+    script=mk_pubkey_script(address)
+    signing_tx = signature_form(tx, i, script, hashcode)
     sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
+    #print({'pub':pub,'sig':sig,'script':script})
+   # print('signature_form:'+signing_tx)
     txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([sig, pub])
     return serialize(txobj)
