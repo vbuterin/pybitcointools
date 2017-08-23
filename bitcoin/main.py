@@ -508,6 +508,7 @@ def ecdsa_raw_sign(msghash, priv):
 
     z = hash_to_int(msghash)
     k = deterministic_generate_k(msghash, priv)
+    print('k:'+str(k))
 
     r, y = fast_multiply(G, k)
     s = inv(k, N) * (z + r*decode_privkey(priv)) % N

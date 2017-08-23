@@ -136,15 +136,11 @@ def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
     I = hmac.new(from_string_to_bytes("Bitcoin seed"), seed, hashlib.sha512).digest()
     return bip32_serialize((vbytes, 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))
 
-
-
-
-
 def bip32_extract_key(data):
     deserial=bip32_deserialize(data)
     key=deserial[-1]
-    if(deserial[0] in PRIVATE):
-        key=key[:-1]
+    #if(deserial[0] in PRIVATE):
+    #    key=key[:-1] //compressed private keys have a dangling \0x01
     return safe_hexlify(key)
 
 def bip32_bin_extract_key(data):
