@@ -28,13 +28,13 @@ def make_request(*args):
 
 
 def is_testnet(inp):
-    '''Checks if inp is a testnet address or if UTXO is a known testnet TxID''' 
+    '''Checks if inp is a testnet address or if UTXO is a known testnet TxID'''
     if isinstance(inp, (list, tuple)) and len(inp) >= 1:
         return any([is_testnet(x) for x in inp])
     elif not isinstance(inp, basestring):    # sanity check
         raise TypeError("Input must be str/unicode, not type %s" % str(type(inp)))
 
-    if not inp or (inp.lower() in ("btc", "testnet")): 
+    if not inp or (inp.lower() in ("btc", "testnet")):
         pass
 
     ## ADDRESSES
@@ -68,7 +68,7 @@ def set_network(*args):
     '''Decides if args for unspent/fetchtx/pushtx are mainnet or testnet'''
     r = []
     for arg in args:
-        if not arg: 
+        if not arg:
             pass
         if isinstance(arg, basestring):
             r.append(is_testnet(arg))
@@ -261,7 +261,7 @@ def bci_pushtx(tx):
     if not re.match('^[0-9a-fA-F]*$', tx):
         tx = tx.encode('hex')
     return make_request(
-        'https://blockchain.info/pushtx', 
+        'https://blockchain.info/pushtx',
         from_string_to_bytes('tx='+tx)
     )
 
@@ -520,13 +520,13 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     if any([is_address(x) for x in outputs]):
         outputs_type = 'addresses'       # TODO: add UTXO support
     data = {
-            'inputs':  [{inputs_type:  inputs}], 
-            'confirmations': 0, 
-            'preference': 'high', 
+            'inputs':  [{inputs_type:  inputs}],
+            'confirmations': 0,
+            'preference': 'high',
             'outputs': [{outputs_type: outputs, "value": output_value}]
             }
     if change_address:
-        data["change_address"] = change_address    # 
+        data["change_address"] = change_address    #
     jdata = json.loads(make_request(url, data))
     hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
     assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
