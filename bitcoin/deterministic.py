@@ -134,8 +134,8 @@ def bip32_ckd(data, i):
 
 def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
     I = hmac.new(
-            from_string_to_bytes("Bitcoin seed"), 
-            from_string_to_bytes(seed), 
+            from_string_to_bytes("Bitcoin seed"),
+            from_string_to_bytes(seed),
             hashlib.sha512
         ).digest()
     return bip32_serialize((vbytes, 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))

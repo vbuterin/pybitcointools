@@ -9,7 +9,7 @@ from _functools import reduce
 def json_is_base(obj, base):
     if not is_python2 and isinstance(obj, bytes):
         return False
-    
+
     alpha = get_code_string(base)
     if isinstance(obj, string_types):
         for i in range(len(obj)):
@@ -58,7 +58,7 @@ def deserialize(tx):
 
     def read_var_int():
         pos[0] += 1
-        
+  
         val = from_byte_to_int(tx[pos[0]-1])
         if val < 253:
             return val
@@ -175,7 +175,7 @@ def is_bip66(sig):
     if (sig[0] == 0x30) and (sig[1] == len(sig)-2):     # check if sighash is missing
             sig.extend(b"\1")		                   	# add SIGHASH_ALL for testing
     #assert (sig[-1] & 124 == 0) and (not not sig[-1]), "Bad SIGHASH value"
-    
+
     if len(sig) < 9 or len(sig) > 73: return False
     if (sig[0] != 0x30): return False
     if (sig[1] != len(sig)-3): return False
@@ -328,7 +328,7 @@ else:
         if json_is_base(script, 16):
             return safe_hexlify(serialize_script(json_changebase(script,
                                     lambda x: binascii.unhexlify(x))))
-        
+  
         result = bytes()
         for b in map(serialize_script_unit, script):
             result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
