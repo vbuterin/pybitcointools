@@ -98,6 +98,12 @@ def parse_addr_args(*args):
     network = set_network(addr_args)
     return network, addr_args
 
+def make_unspent(o):
+    #h = bytes_to_hex_string(safe_from_hex(o['tx_hash'])[::-1])
+    return {
+                    "output": o['tx_hash_big_endian']+':'+str(o['tx_output_n']),
+                    "value": o['value']
+                }
 
 # Gets the unspent outputs of one or more addresses
 def bci_unspent(*args):
@@ -114,11 +120,7 @@ def bci_unspent(*args):
         try:
             jsonobj = json.loads(data.decode("utf-8"))
             for o in jsonobj["unspent_outputs"]:
-                h = bytes_to_hex_string(safe_from_hex(o['tx_hash'])[::-1])
-                u.append({
-                    "output": h+':'+str(o['tx_output_n']),
-                    "value": o['value']
-                })
+                u.append(make_unspent(o))
         except:
             raise Exception("Failed to decode data: "+data)
     return u
@@ -151,19 +153,14 @@ def blockcypher_unspent(*args):
 
     data = make_request(url)
     jsonobj = json.loads(data.decode("utf-8"))['txrefs']
-    o = []
-    if 'unspent' in jsonobj:
-        jsonobj = [jsonobj]
-    for tx in jsonobj:
-        for u in tx['unspent']:
-            o.append({
-                "output": u['tx']+':'+str(u['n']),
-                "value": int(u['amount'].replace('.', ''))
-            })
-    return o
+    u = []
+    for o in jsonobj:
+        o['tx_hash_big_endian'] = o['tx_hash']
+        u.append(make_unspent(o))
+    return u
 
 
-def helloblock_unspent(*args):
+def blockexplorer_unspent(*args):
     addrs, network = parse_addr_args(*args)
     if network == 'testnet':
         url = 'https://testnet.helloblock.io/v1/addresses/%s/unspents?limit=500&offset=%s'
