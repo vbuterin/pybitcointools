@@ -491,6 +491,14 @@ class TestConversions(unittest.TestCase):
             )
         )
 
+class TestBCI(unittest.TestCase):
+    def test_unspent(self):
+        unspent_outputs = bci_unspent("1MQmZKGjRLUMUb8piNXzY1QzAN4syArses")
+        self.assertEqual(unspent_outputs, [
+            {'output': '9e141a9e89c93e75c83ac87bbac1932fe11907125c10db53eac4206dffb8b757:0', 'value': 488316}])
+        unspent_outputs = blockcypher_unspent("1MQmZKGjRLUMUb8piNXzY1QzAN4syArses")
+        self.assertEqual(unspent_outputs, [
+            {'output': '9e141a9e89c93e75c83ac87bbac1932fe11907125c10db53eac4206dffb8b757:0', 'value': 488316}])
 
 if __name__ == '__main__':
     unittest.main()

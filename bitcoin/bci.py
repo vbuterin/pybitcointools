@@ -3,8 +3,7 @@ import json, re
 import random
 import sys
 
-from bitcoin.main import from_string_to_bytes
-
+from bitcoin.main import from_string_to_bytes, string_or_bytes_types, bytes_to_hex_string, safe_from_hex
 
 try:
     from urllib.request import build_opener
@@ -31,7 +30,7 @@ def is_testnet(inp):
     '''Checks if inp is a testnet address or if UTXO is a known testnet TxID''' 
     if isinstance(inp, (list, tuple)) and len(inp) >= 1:
         return any([is_testnet(x) for x in inp])
-    elif not isinstance(inp, basestring):    # sanity check
+    elif not isinstance(inp, string_or_bytes_types):    # sanity check
         raise TypeError("Input must be str/unicode, not type %s" % str(type(inp)))
 
     if not inp or (inp.lower() in ("btc", "testnet")): 
@@ -70,7 +69,7 @@ def set_network(*args):
     for arg in args:
         if not arg: 
             pass
-        if isinstance(arg, basestring):
+        if isinstance(arg, string_or_bytes_types):
             r.append(is_testnet(arg))
         elif isinstance(arg, (list, tuple)):
             return set_network(*arg)
@@ -115,7 +114,7 @@ def bci_unspent(*args):
         try:
             jsonobj = json.loads(data.decode("utf-8"))
             for o in jsonobj["unspent_outputs"]:
-                h = o['tx_hash'].decode('hex')[::-1].encode('hex')
+                h = bytes_to_hex_string(safe_from_hex(o['tx_hash'])[::-1])
                 u.append({
                     "output": h+':'+str(o['tx_output_n']),
                     "value": o['value']
@@ -125,7 +124,7 @@ def bci_unspent(*args):
     return u
 
 
-def blockr_unspent(*args):
+def blockcypher_unspent(*args):
     # Valid input formats: blockr_unspent([addr1, addr2,addr3])
     #                      blockr_unspent(addr1, addr2, addr3)
     #                      blockr_unspent([addr1, addr2, addr3], network)
@@ -133,27 +132,30 @@ def blockr_unspent(*args):
     # Where network is 'btc' or 'testnet'
     network, addr_args = parse_addr_args(*args)
 
-    if network == 'testnet':
-        blockr_url = 'http://tbtc.blockr.io/api/v1/address/unspent/'
-    elif network == 'btc':
-        blockr_url = 'http://btc.blockr.io/api/v1/address/unspent/'
-    else:
-        raise Exception(
-            'Unsupported network {0} for blockr_unspent'.format(network))
-
     if len(addr_args) == 0:
         return []
     elif isinstance(addr_args[0], list):
         addrs = addr_args[0]
     else:
         addrs = addr_args
-    res = make_request(blockr_url+','.join(addrs))
-    data = json.loads(res.decode("utf-8"))['data']
+
+    if network == 'testnet':
+        url = 'https://api.blockcypher.com/v1/btc/test3/addrs/%s?unspentOnly=true' % ','.join(addrs)
+    elif network =='bcy_test':
+        url = 'https://api.blockcypher.com/v1/bcy/test/addrs/%s?unspentOnly=true' % ','.join(addrs)
+    elif network == 'btc':
+        url = 'https://api.blockcypher.com/v1/btc/main/addrs/%s?unspentOnly=true' % ','.join(addrs)
+    else:
+        raise Exception(
+            'Unsupported network {0} for blockcypher_unspent'.format(network))
+
+    data = make_request(url)
+    jsonobj = json.loads(data.decode("utf-8"))['txrefs']
     o = []
-    if 'unspent' in data:
-        data = [data]
-    for dat in data:
-        for u in dat['unspent']:
+    if 'unspent' in jsonobj:
+        jsonobj = [jsonobj]
+    for tx in jsonobj:
+        for u in tx['unspent']:
             o.append({
                 "output": u['tx']+':'+str(u['n']),
                 "value": int(u['amount'].replace('.', ''))
@@ -186,7 +188,7 @@ def helloblock_unspent(*args):
 
 unspent_getters = {
     'bci': bci_unspent,
-    'blockr': blockr_unspent,
+    'blockr': blockcypher_unspent,
     'helloblock': helloblock_unspent
 }
 
