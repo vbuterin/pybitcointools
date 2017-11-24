@@ -221,7 +221,6 @@ def blockcypher_history(*args):
     if len(addrs) == 0:
         return []
 
-
     try:
         url = 'https://api.blockcypher.com/v1/btc/%s/addrs/%s?limit=2000' % (blockcypher_net_to_urls[network], ';'.join(addrs))
     except KeyError:
@@ -389,13 +388,13 @@ def fetchtx(*args, **kwargs):
     f = fetchtx_getters.get(kwargs.get('source', ''), blockcypher_fetchtx)
     return f(*args)
 
-
-def firstbits(address):
+#First bits URLs seem to be no longer working @ blockchain.info
+"""def firstbits(address):
     if len(address) >= 25:
         return make_request('https://blockchain.info/q/getfirstbits/'+address)
     else:
         return make_request(
-            'https://blockchain.info/q/resolvefirstbits/'+address)
+            'https://blockchain.info/q/resolvefirstbits/'+address)"""
 
 
 def get_block_at_height(height):
