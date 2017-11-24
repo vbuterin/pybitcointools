@@ -496,14 +496,15 @@ def sign(tx, i, priv, hashcode=SIGHASH_ALL,inp=None):
     if len(priv) <= 33:
         priv = safe_hexlify(priv)
     pub = privkey_to_pubkey(priv)
-    address = pubkey_to_address(pub)
+    compressed_pub = encode_pubkey(pub, 'hex_compressed')
+    address = pubkey_to_address(compressed_pub)
     script=mk_pubkey_script(address)
     signing_tx = signature_form(tx, i, script, hashcode, inp)
     sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
     #print({'pub':pub,'sig':sig,'script':script})
    # print('signature_form:'+signing_tx)
     txobj = deserialize(tx)
-    txobj["ins"][i]["script"] = serialize_script([sig, pub])
+    txobj["ins"][i]["script"] = serialize_script([sig, compressed_pub])
     return serialize(txobj)
 
 
