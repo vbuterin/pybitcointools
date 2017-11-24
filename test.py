@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from operator import itemgetter
 import unittest
 
 import bitcoin.ripemd as ripemd
@@ -514,16 +515,195 @@ class TestConversions(unittest.TestCase):
             )
         )
 
+class TestAddressUnspent(unittest.TestCase):
+    satoshi_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+    satoshi_unspent_len = 132
+    mainnet_address = "1FdJkPdpXtK3t5utZHJAop3saLZWfPfgak"
+    mainnet_unspent = [
+        {'output': 'c5b78c0980b91d566e7818fc7a092083baf398202fa5d9801c727b1857f6f465:0', 'value': 1324731536},
+        {'output': 'db966b76e8abed95070fefcf87de37d8923bdbc512b1f986e55e18d0bc5c7fc5:0', 'value': 1405023504},
+    ]
+    mainnet_address_multiple = ["1FdJkPdpXtK3t5utZHJAop3saLZWfPfgak", "1MQmZKGjRLUMUb8piNXzY1QzAN4syArses"]
+    mainnet_unspent_multiple = [
+        {'output': 'c5b78c0980b91d566e7818fc7a092083baf398202fa5d9801c727b1857f6f465:0', 'value': 1324731536},
+        {'output': 'db966b76e8abed95070fefcf87de37d8923bdbc512b1f986e55e18d0bc5c7fc5:0', 'value': 1405023504},
+        {'output': '9e141a9e89c93e75c83ac87bbac1932fe11907125c10db53eac4206dffb8b757:0', 'value': 488316}]
+    testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
+    testnet_unspent = [
+            {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
+    testnet_address_multiple = ["mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"]
+    testnet_unspent_multiple = [
+        {'output': '307f1073011c14fb1c2d687706c18301fdafc985fb7da8e256536a179b3f8e95:0', 'value': 110000000},
+        {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
 
-class TestBCI(unittest.TestCase):
-    def test_unspent(self):
-        unspent_outputs = bci_unspent("1MQmZKGjRLUMUb8piNXzY1QzAN4syArses")
-        self.assertEqual(unspent_outputs, [
-            {'output': '9e141a9e89c93e75c83ac87bbac1932fe11907125c10db53eac4206dffb8b757:0', 'value': 488316}])
-        unspent_outputs = blockcypher_unspent("1MQmZKGjRLUMUb8piNXzY1QzAN4syArses")
-        self.assertEqual(unspent_outputs, [
-            {'output': '9e141a9e89c93e75c83ac87bbac1932fe11907125c10db53eac4206dffb8b757:0', 'value': 488316}]
-        )
+    def test_parse_addr_args(self):
+        network, addr_args = parse_addr_args(self.mainnet_address_multiple)
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(self.mainnet_address_multiple, "btc")
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(*self.mainnet_address_multiple)
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(*self.mainnet_address_multiple, "btc")
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(self.testnet_address_multiple)
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, self.testnet_address_multiple)
+
+        network, addr_args = parse_addr_args(self.testnet_address_multiple, "testnet")
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, self.testnet_address_multiple)
+
+        network, addr_args = parse_addr_args(*self.testnet_address_multiple)
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, self.testnet_address_multiple)
+
+        network, addr_args = parse_addr_args(*self.testnet_address_multiple, "testnet")
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, self.testnet_address_multiple)
+
+    def assertUnorderedListEqual(self, list1, list2, key):
+        list1 = sorted(list1, key=itemgetter(key))
+        list2 = sorted(list2, key=itemgetter(key))
+        self.assertEqual(list1, list2)
+
+    def test_unspent_mainnet(self):
+        unspent_outputs = bci_unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs = blockcypher_unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs_bci = bci_unspent(self.satoshi_address)
+        self.assertGreaterEqual(len(unspent_outputs_bci), self.satoshi_unspent_len)
+        unspent_outputs_bc = blockcypher_unspent(self.satoshi_address)
+        self.assertGreaterEqual(len(unspent_outputs_bc), self.satoshi_unspent_len)
+        self.assertEqual(len(unspent_outputs_bci), len(unspent_outputs_bc))
+        unspent_outputs = unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs = unspent(self.mainnet_address, source="blockexplorer")
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+
+    def test_unspent_mainnet_multiple_address(self):
+        unspent_outputs = bci_unspent(self.mainnet_address_multiple)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent_multiple, 'output')
+        unspent_outputs = blockcypher_unspent(self.mainnet_address_multiple)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent_multiple, 'output')
+
+    def test_unspent_testnet(self):
+        self.assertRaises(Exception, bci_unspent, self.testnet_address)
+        unspent_outputs = blockcypher_unspent(self.testnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent, 'output')
+
+    def test_unspent_testnet_multiple(self):
+        self.assertRaises(Exception, bci_unspent, self.testnet_address_multiple)
+        unspent_outputs = blockcypher_unspent(self.testnet_address_multiple)
+        self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent_multiple, 'output')
+
+class TestBlockInfo(unittest.TestCase):
+    minimum_last_block_height_main = 495929
+    minimum_last_block_height_testnet = 1231684
+
+    def test_last_block_height(self):
+        height = last_block_height_bci()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height("testnet")
+        self.assertGreaterEqual(height, self.minimum_last_block_height_testnet)
+        height = last_block_height_blockcypher()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height_blockcypher("testnet")
+        self.assertGreaterEqual(height, self.minimum_last_block_height_testnet)
+
+class TestGetTransactions(unittest.TestCase):
+    tx_hashes = ["7fe165ca88fb2439d6fd1002105a485bfccbb288f1f9c9fdcc33da8690d45981",
+                 "7412e5e86e0f07d4dd818b0f6d4389c9f196c5715828c5092c0e5f5c67cc2687"]
+    tx_hexes = [b'0100000001b082b343052ef7b5f71914a2a5d4063ee843e49db595919f1aeabcb4b006f76b010000006a473044022069daff9568e26cb85ef155eead74e1e1acf338a495a287c709e92ba75fe36ad102201fb9a8ea9a46fa7d0437b635bf7a25dd6c3aace214029e8fcbf48beaebb890cf012102187edfe5487df34118a8afb1b447e42cb75d9655d586a3578d5be89f5b2763dfffffffff0216d6d40a000000001976a9147d48ab93a39eeb9a5f3a5fe53a20efb533b6da6488ac6bf20000000000001976a9145f10a0434f1d4f5119a3d3f17ea44c35a947330f88ac00000000',
+                b'0100000001d83ca497f91a9d6f75dd9c12ed2db1c54ae67f8113aea40536e055cbe722c846010000006a47304402206ab6fd2a107378f52437528a4802d5e40c1deb94b83f2ea07553eaf6f8339ccb02206b919b92b63721123e20c4e3c4cf9c37b041fae6ea2ef376b7c95a3c6537ba67012103542aa3891b2e2c3950ecbdbd10d1e8ce63a59682dcf6c5ff3a085649b9c3ef0affffffff01e00a0001000000001976a914d9c07c45043736caeed61bfaa9122301dfb248da88ac00000000']
+    tx_jsons_bic = [{'ver': 1, 'inputs': [{'sequence': 4294967295, 'witness': '', 'prev_out': {'spent': True, 'tx_index': 304339214, 'type': 0, 'addr': '1L37ACyxXpT1qe25BVY6D3MUu6jcZN4a85', 'value': 182032657, 'n': 1, 'script': '76a914d0d05ce4e78d93ee95a7d79e82638dc84c7298bb88ac'}, 'script': '473044022069daff9568e26cb85ef155eead74e1e1acf338a495a287c709e92ba75fe36ad102201fb9a8ea9a46fa7d0437b635bf7a25dd6c3aace214029e8fcbf48beaebb890cf012102187edfe5487df34118a8afb1b447e42cb75d9655d586a3578d5be89f5b2763df'}], 'weight': 900, 'block_height': 495924, 'relayed_by': '0.0.0.0', 'out': [{'spent': True, 'tx_index': 304357770, 'type': 0, 'addr': '1CRSXCGg1Ky9Q5gTh6eXewHqN89TPtuFsJ', 'value': 181720598, 'n': 0, 'script': '76a9147d48ab93a39eeb9a5f3a5fe53a20efb533b6da6488ac'}, {'spent': False, 'tx_index': 304357770, 'type': 0, 'addr': '19ff7RPZuHubMSfUuYmeNAePy4gwE2oGJ6', 'value': 62059, 'n': 1, 'script': '76a9145f10a0434f1d4f5119a3d3f17ea44c35a947330f88ac'}], 'lock_time': 0, 'size': 225, 'double_spend': False, 'time': 1511544761, 'tx_index': 304357770, 'vin_sz': 1, 'hash': '7fe165ca88fb2439d6fd1002105a485bfccbb288f1f9c9fdcc33da8690d45981', 'vout_sz': 2},
+                    {'ver': 1, 'inputs': [{'sequence': 4294967295, 'witness': '', 'prev_out': {'spent': True, 'tx_index': 298590677, 'type': 0, 'addr': '1MJxQ5aa4rEi4PTxmHMimZTC3TL58BSbZ2', 'value': 17080000, 'n': 1, 'script': '76a914dec7d4b435bd882db9e553a5a69665af0860d41788ac'}, 'script': '47304402206ab6fd2a107378f52437528a4802d5e40c1deb94b83f2ea07553eaf6f8339ccb02206b919b92b63721123e20c4e3c4cf9c37b041fae6ea2ef376b7c95a3c6537ba67012103542aa3891b2e2c3950ecbdbd10d1e8ce63a59682dcf6c5ff3a085649b9c3ef0a'}], 'weight': 764, 'block_height': 495924, 'relayed_by': '0.0.0.0', 'out': [{'spent': True, 'tx_index': 304357871, 'type': 0, 'addr': '1LrNDkTLt2qDCuTfG3kK9pbn9A43gR9Be3', 'value': 16780000, 'n': 0, 'script': '76a914d9c07c45043736caeed61bfaa9122301dfb248da88ac'}], 'lock_time': 0, 'size': 191, 'double_spend': False, 'time': 1511544779, 'tx_index': 304357871, 'vin_sz': 1, 'hash': '7412e5e86e0f07d4dd818b0f6d4389c9f196c5715828c5092c0e5f5c67cc2687', 'vout_sz': 1}]
+    tx_jsons_bc = [{'block_hash': '0000000000000000007045f220469d8579364e8a3d92eaa3dc47642f65ceb101', 'block_height': 495924, 'block_index': 2, 'hash': '7fe165ca88fb2439d6fd1002105a485bfccbb288f1f9c9fdcc33da8690d45981', 'addresses': ['19ff7RPZuHubMSfUuYmeNAePy4gwE2oGJ6', '1CRSXCGg1Ky9Q5gTh6eXewHqN89TPtuFsJ', '1L37ACyxXpT1qe25BVY6D3MUu6jcZN4a85'], 'total': 181782657, 'fees': 250000, 'size': 225, 'preference': 'high', 'relayed_by': '85.6.243.56:8333', 'confirmed': '2017-11-24T17:35:44Z', 'received': '2017-11-24T17:32:41.065Z', 'ver': 1, 'double_spend': False, 'vin_sz': 1, 'vout_sz': 2, 'confirmations': 7, 'confidence': 1, 'inputs': [{'prev_hash': '6bf706b0b4bcea1a9f9195b59de443e83e06d4a5a21419f7b5f72e0543b382b0', 'output_index': 1, 'script': '473044022069daff9568e26cb85ef155eead74e1e1acf338a495a287c709e92ba75fe36ad102201fb9a8ea9a46fa7d0437b635bf7a25dd6c3aace214029e8fcbf48beaebb890cf012102187edfe5487df34118a8afb1b447e42cb75d9655d586a3578d5be89f5b2763df', 'output_value': 182032657, 'sequence': 4294967295, 'addresses': ['1L37ACyxXpT1qe25BVY6D3MUu6jcZN4a85'], 'script_type': 'pay-to-pubkey-hash', 'age': 495914}], 'outputs': [{'value': 181720598, 'script': '76a9147d48ab93a39eeb9a5f3a5fe53a20efb533b6da6488ac', 'spent_by': 'dc6d48bb503bb25174636a8b70029fbf25d757c671a3e0cfc8ab13941cbbeb41', 'addresses': ['1CRSXCGg1Ky9Q5gTh6eXewHqN89TPtuFsJ'], 'script_type': 'pay-to-pubkey-hash'}, {'value': 62059, 'script': '76a9145f10a0434f1d4f5119a3d3f17ea44c35a947330f88ac', 'addresses': ['19ff7RPZuHubMSfUuYmeNAePy4gwE2oGJ6'], 'script_type': 'pay-to-pubkey-hash'}]},
+                   {'block_hash': '0000000000000000007045f220469d8579364e8a3d92eaa3dc47642f65ceb101', 'block_height': 495924, 'block_index': 1, 'hash': '7412e5e86e0f07d4dd818b0f6d4389c9f196c5715828c5092c0e5f5c67cc2687', 'addresses': ['1LrNDkTLt2qDCuTfG3kK9pbn9A43gR9Be3', '1MJxQ5aa4rEi4PTxmHMimZTC3TL58BSbZ2'], 'total': 16780000, 'fees': 300000, 'size': 191, 'preference': 'high', 'relayed_by': '137.117.193.113:8333', 'confirmed': '2017-11-24T17:35:44Z', 'received': '2017-11-24T17:32:59.921Z', 'ver': 1, 'double_spend': False, 'vin_sz': 1, 'vout_sz': 1, 'confirmations': 7, 'confidence': 1, 'inputs': [{'prev_hash': '46c822e7cb55e03605a4ae13817fe64ac5b12ded129cdd756f9d1af997a43cd8', 'output_index': 1, 'script': '47304402206ab6fd2a107378f52437528a4802d5e40c1deb94b83f2ea07553eaf6f8339ccb02206b919b92b63721123e20c4e3c4cf9c37b041fae6ea2ef376b7c95a3c6537ba67012103542aa3891b2e2c3950ecbdbd10d1e8ce63a59682dcf6c5ff3a085649b9c3ef0a', 'output_value': 17080000, 'sequence': 4294967295, 'addresses': ['1MJxQ5aa4rEi4PTxmHMimZTC3TL58BSbZ2'], 'script_type': 'pay-to-pubkey-hash', 'age': 493205}], 'outputs': [ {'value': 16780000, 'script': '76a914d9c07c45043736caeed61bfaa9122301dfb248da88ac', 'spent_by': 'e217dd7b48b8cd838d279d8bba4642ec33cb9bf1f6cb426b90c5de95e762ed60','addresses': ['1LrNDkTLt2qDCuTfG3kK9pbn9A43gR9Be3'], 'script_type': 'pay-to-pubkey-hash'}]}]
+
+    def assertUnorderedListEqual(self, list1, list2, key):
+        list1 = sorted(list1, key=itemgetter(key))
+        list2 = sorted(list2, key=itemgetter(key))
+        self.assertEqual(list1, list2)
+
+    def test_get_transaction_hex(self):
+        tx_hex = bci_fetchtx(self.tx_hashes[0])
+        self.assertEqual(tx_hex, self.tx_hexes[0])
+        tx_hex = blockcypher_fetchtx(self.tx_hashes[0])
+        self.assertEqual(tx_hex, self.tx_hexes[0])
+
+    def test_get_multiple_transaction_hex(self):
+        tx_hexes = bci_fetchtx(self.tx_hashes)
+        self.assertUnorderedListEqual(tx_hexes, self.tx_hexes, "hash")
+        tx_hex = blockcypher_fetchtx(self.tx_hashes)
+        self.assertUnorderedListEqual(tx_hex, self.tx_hexes, "hash")
+
+    def test_get_transaction_json(self):
+        tx_json = bci_fetchtx(self.tx_hashes[0], hexonly=False)
+        self.assertEqual(tx_json, self.tx_jsons_bic[0])
+        tx_json = blockcypher_fetchtx(self.tx_hashes[0], hexonly=False)
+        self.assertEqual(tx_json, self.tx_jsons_bc[0])
+
+    def test_get_multiple_transaction_json(self):
+        tx_json = bci_fetchtx(self.tx_hashes, hexonly=False)
+        self.assertUnorderedListEqual(tx_json, self.tx_jsons_bic, "hash")
+        tx_json = blockcypher_fetchtx(self.tx_hashes, hexonly=False)
+        self.assertUnorderedListEqual(tx_json, self.tx_jsons_bc, "hash")
+
+class TestAddressHistory(unittest.TestCase):
+    mainnet_address2 = "1MQmZKGjRLUMUb8piNXzY1QzAN4syArses"
+    mainnet_address = "15PCVmcqCmtXPhBiNTrXc3SXU4hZw7FTJW"
+    mainnet_history = [{'address': '15PCVmcqCmtXPhBiNTrXc3SXU4hZw7FTJW', 'value': 14922000,
+                        'output': 'a03a455bf6b1bb02b2d245e0443bc0a9763f5a4c1cc010a990e85d9c54fade12:20',
+                        'block_height': 465523,
+                        'spend': 'e94f2de0db1a2c4d936d3ef0ebe088f4ab1ad9d2fdf7020ba10c98a35e0a615a:3'},
+                       {'address': '15PCVmcqCmtXPhBiNTrXc3SXU4hZw7FTJW', 'value': 32570319,
+                        'output': '76a61b5a879d176d6227edd266396bc21b03bde6a81c02f896b6ffe5a74d5b51:52',
+                        'block_height': 465454,
+                        'spend': 'e94f2de0db1a2c4d936d3ef0ebe088f4ab1ad9d2fdf7020ba10c98a35e0a615a:0'}]
+    testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
+    testnet_history = [
+            {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
+    testnet_address_multiple = ["mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"]
+    testnet_history_multiple = [
+        {'output': '307f1073011c14fb1c2d687706c18301fdafc985fb7da8e256536a179b3f8e95:0', 'value': 110000000},
+        {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
+
+    def test_history_mainnet(self):
+        txs = bci_history(self.mainnet_address)
+        print(txs)
+        """self.assertListEqual(txs, self.mainnet_history)
+        txs = blockcypher_history(self.mainnet_address)
+        self.assertListEqual(txs, self.mainnet_history)
+        txs = blockexplorer_history(self.mainnet_address)
+        self.assertListEqual(txs, self.mainnet_history)
+        txs = history(self.mainnet_address)
+        self.assertListEqual(txs, self.mainnet_history)
+
+
+    def test_history_testnet(self):
+        self.assertRaises(Exception, bci_history, self.testnet_address)
+        txs = blockcypher_history(self.testnet_address)
+        self.assertDictEqual(txs, self.testnet_history)
+        txs = blockexplorer_history(self.testnet_address)
+        self.assertDictEqual(txs, self.testnet_history)
+
+    def test_history_testnet_multiple(self):
+        self.assertRaises(Exception, bci_unspent, self.testnet_address_multiple)
+        history = blockcypher_unspent(self.testnet_address_multiple)
+        self.assertListEqual(history, self.testnet_history_multiple)
+        history = blockexplorer_unspent(self.testnet_address_multiple)
+        self.assertListEqual(history, self.testnet_history_multiple)"""
 
 if __name__ == '__main__':
     unittest.main()

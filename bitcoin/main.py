@@ -329,7 +329,7 @@ def subtract_privkeys(p1, p2):
     return encode_privkey((decode_privkey(p1, f1) - k2) % N, f1)
 
 
-
+256
 # Hashes
 
 
