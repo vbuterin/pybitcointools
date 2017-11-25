@@ -2,8 +2,9 @@
 import json, re
 import random
 import sys
+import requests
 
-from bitcoin.main import from_string_to_bytes, string_or_bytes_types
+from bitcoin.main import from_string_to_bytes, string_or_bytes_types, bin_dbl_sha256, bytes_to_hex_string, safe_from_hex
 
 try:
     from urllib.request import build_opener
@@ -24,6 +25,7 @@ def make_request(*args):
         except:
             p = e
         raise Exception(p)
+
 
 def is_blockcypher_testchain(inp):
     if isinstance(inp, (list, tuple)) and len(inp) >= 1:
@@ -320,18 +322,6 @@ def eligius_pushtx(tx):
         if len(quote) >= 5:
             return quote[1:-1]
 
-def blockcypher_decodetx(tx, network="btc"):
-    try:
-        url = 'https://api.blockcypher.com/v1/%s/txs/decode' % blockcypher_net_to_urls[network]
-    except KeyError:
-        raise Exception(
-            'Unsupported network {0} for blockcypher_pushtx'.format(network))
-
-    if not re.match('^[0-9a-fA-F]*$', tx):
-        tx = tx.encode('hex')
-    import requests
-    return requests.post(url, data={'tx': tx})
-
 def blockcypher_pushtx(tx, network='btc'):
     try:
         url = 'https://api.blockcypher.com/v1/%s/txs/push' % blockcypher_net_to_urls[network]
@@ -341,13 +331,12 @@ def blockcypher_pushtx(tx, network='btc'):
 
     if not re.match('^[0-9a-fA-F]*$', tx):
         tx = tx.encode('hex')
-    import requests
-    return requests.post(url, data={'tx': tx})
+    return requests.post(url, json={'tx': tx})
 
 
 pushtx_getters = {
     'bci': bci_pushtx,
-    'blockr': blockcypher_pushtx,
+    'blockcypher': blockcypher_pushtx,
 }
 
 
@@ -536,7 +525,7 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     inputs = [inputs] if not isinstance(inputs, list) else inputs
     outputs = [outputs] if not isinstance(outputs, list) else outputs
     network = set_network(change_address or inputs) if not network else network.lower()
-    url = "http://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
+    url = "https://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
                   network=('test3' if network=='testnet' else 'main'))
     is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
     if any([is_address(x) for x in inputs]):
@@ -545,15 +534,15 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
         outputs_type = 'addresses'       # TODO: add UTXO support
     data = {
             'inputs':  [{inputs_type:  inputs}], 
-            'confirmations': 0, 
-            'preference': 'high', 
+            'confirmations': 0,
+            'preference': 'high',
             'outputs': [{outputs_type: outputs, "value": output_value}]
             }
     if change_address:
         data["change_address"] = change_address    # 
-    jdata = json.loads(make_request(url, data))
+    jdata = requests.post(url, json=data).json()
     hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
-    assert bin_dbl_sha256(txh.decode('hex')).encode('hex') == hash, "checksum mismatch %s" % hash
-    return txh.encode("utf-8")
+    assert bytes_to_hex_string(bin_dbl_sha256(safe_from_hex(txh))) == hash, "checksum mismatch %s" % hash
+    return txh
 
 blockcypher_mktx = get_tx_composite

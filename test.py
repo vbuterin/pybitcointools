@@ -3,6 +3,7 @@ import os
 import random
 from operator import itemgetter
 import unittest
+from blockcypher import *
 
 import bitcoin.ripemd as ripemd
 from bitcoin import *
@@ -724,9 +725,11 @@ class MakeTransactionTests(unittest.TestCase):
     testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
     testnet_private_key_2 = "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f"
     testnet_address_2 = "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu"
+    testnet_private_key_3 = "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"
+    testnet_address_3 = "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"
+    api_key = "573375de83e64bf6b1259420d198dbd5"
 
     def test_testnet_transaction(self):
-        unspents = unspent(self.testnet_address_2)
         pub1 = privtopub(self.testnet_private_key)
         addr1 = pubtoaddr(pub1, magicbyte=self.testnet_magicbyte)
         self.assertEqual(addr1, self.testnet_address)
@@ -737,7 +740,7 @@ class MakeTransactionTests(unittest.TestCase):
         value = 1100000
         if unspents and sum(o['value'] for o in unspents) > value:
             details = {
-                'addr': addr1,
+                'sender': addr1,
                 'private_key': self.testnet_private_key,
                 'unspents': unspents,
                 'receiver': addr2,
@@ -747,26 +750,26 @@ class MakeTransactionTests(unittest.TestCase):
             if not unspents:
                 raise Exception("No unspents found for testnet addresses")
             details = {
-                'addr': addr2,
+                'sender': addr2,
                 'private_key': self.testnet_private_key_2,
                 'unspents': unspents,
                 'receiver': addr1
             }
-        outs = [{'value': value, 'address': details['receiver']}]
+        fee = 54400
+        total_unspent = sum([u['value'] for u in details['unspents']])
+        outs = [{'value': value, 'address': details['receiver']}, {'value': total_unspent-value-fee, 'address': details['sender']}]
+        outs1 = [outs[0]['address']]
         tx = mktx(details['unspents'], outs)
+        tx1 = get_tx_composite([details['sender']], outs1, value, network="testnet")
         for i in range(0, len(unspents)):
             tx = sign(tx,i,details['private_key'])
-        response = blockcypher_decodetx(tx, network="bcy_test")
-        pass
-        response = blockcypher_pushtx(tx, network="bcy_test")
-        pass
-
-
-    def test_blockcypher_test(self):
-        addr = self.bc_testchain_address
-        addr2 = self.bc_testchain_address2
-        unspents = unspent(addr, addr2)
-        print(unspents)
+        for i in range(0, len(unspents)):
+            tx1 = sign(tx1,i,details['private_key'])
+        self.assertEqual(tx, tx1)
+        signedtxdetails = decodetx(tx,coin_symbol="btc-testnet", api_key=self.api_key)      #Check change address
+        signedtxdetails1 = decodetx(tx1, coin_symbol="btc-testnet", api_key=self.api_key)   #Check change address
+        response = blockcypher_pushtx(tx, network="testnet")
+        self.assertEqual(response.status_code, 201)
 
 
 if __name__ == '__main__':
