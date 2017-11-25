@@ -531,19 +531,25 @@ class TestAddressUnspent(unittest.TestCase):
     testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
     testnet_unspent = [
             {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
-    testnet_address_multiple = ["mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"]
-    testnet_unspent_multiple = [
-        {'output': '307f1073011c14fb1c2d687706c18301fdafc985fb7da8e256536a179b3f8e95:0', 'value': 110000000},
-        {'output': '056b4f3201fff0a3fac2e93af0278a0fc8f9c602b3f4a955b051b7b46253be99:0', 'value': 110000000}]
+    blockcypher_test_address = "CAuGy4TdxCDKeTkzsWm4AmCjpRY3WQgstV"
+    blockcypher_test_unspent = []
+
+    def setUp(self):
+        import requests
+        """response = requests.post("https://api.blockcypher.com/v1/bcy/test/addrs?token=573375de83e64bf6b1259420d198dbd5")
+        result = response.json())"""
+        requests.get("https://api.blockcypher.com/v1/bcy/test/faucet?token=573375de83e64bf6b1259420d198dbd5",
+                     params={"address": self.blockcypher_test_address, "amount": 100000})
+
 
     def test_parse_addr_args(self):
-        network, addr_args = parse_addr_args(self.mainnet_address_multiple)
+        network, addr_args = parse_addr_args(self.mainnet_address)
         self.assertEqual(network, "btc")
-        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+        self.assertListEqual(addr_args, [self.mainnet_address])
 
-        network, addr_args = parse_addr_args(self.mainnet_address_multiple, "btc")
+        network, addr_args = parse_addr_args(self.mainnet_address, "btc")
         self.assertEqual(network, "btc")
-        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+        self.assertListEqual(addr_args, [self.mainnet_address])
 
         network, addr_args = parse_addr_args(*self.mainnet_address_multiple)
         self.assertEqual(network, "btc")
@@ -553,21 +559,17 @@ class TestAddressUnspent(unittest.TestCase):
         self.assertEqual(network, "btc")
         self.assertListEqual(addr_args, self.mainnet_address_multiple)
 
-        network, addr_args = parse_addr_args(self.testnet_address_multiple)
+        network, addr_args = parse_addr_args(self.testnet_address)
         self.assertEqual(network, "testnet")
-        self.assertListEqual(addr_args, self.testnet_address_multiple)
+        self.assertListEqual(addr_args, [self.testnet_address])
 
-        network, addr_args = parse_addr_args(self.testnet_address_multiple, "testnet")
+        network, addr_args = parse_addr_args([self.testnet_address], "testnet")
         self.assertEqual(network, "testnet")
-        self.assertListEqual(addr_args, self.testnet_address_multiple)
+        self.assertListEqual(addr_args, [self.testnet_address])
 
-        network, addr_args = parse_addr_args(*self.testnet_address_multiple)
-        self.assertEqual(network, "testnet")
-        self.assertListEqual(addr_args, self.testnet_address_multiple)
-
-        network, addr_args = parse_addr_args(*self.testnet_address_multiple, "testnet")
-        self.assertEqual(network, "testnet")
-        self.assertListEqual(addr_args, self.testnet_address_multiple)
+        network, addr_args = parse_addr_args(self.blockcypher_test_address, "bcy_test")
+        self.assertEqual(network, "bcy_test")
+        self.assertEqual(addr_args, [self.blockcypher_test_address])
 
     def assertUnorderedListEqual(self, list1, list2, key):
         list1 = sorted(list1, key=itemgetter(key))
@@ -600,10 +602,11 @@ class TestAddressUnspent(unittest.TestCase):
         unspent_outputs = blockcypher_unspent(self.testnet_address)
         self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent, 'output')
 
-    def test_unspent_testnet_multiple(self):
-        self.assertRaises(Exception, bci_unspent, self.testnet_address_multiple)
-        unspent_outputs = blockcypher_unspent(self.testnet_address_multiple)
-        self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent_multiple, 'output')
+    def test_unspent_bcy_test(self):
+        self.assertRaises(Exception, bci_unspent, self.blockcypher_test_address)
+        unspent_outputs = blockcypher_unspent(self.blockcypher_test_address)
+        print(unspent_outputs)
+        self.assertUnorderedListEqual(unspent_outputs, self.blockcypher_test_unspent, 'output')
 
 class TestBlockInfo(unittest.TestCase):
     minimum_last_block_height_main = 495929
@@ -693,10 +696,8 @@ class TestAddressHistory(unittest.TestCase):
     def test_history_mainnet(self):
         txs = bci_history(self.mainnet_address)
         print(txs)
-        """self.assertListEqual(txs, self.mainnet_history)
-        txs = blockcypher_history(self.mainnet_address)
         self.assertListEqual(txs, self.mainnet_history)
-        txs = blockexplorer_history(self.mainnet_address)
+        txs = blockcypher_history(self.mainnet_address)
         self.assertListEqual(txs, self.mainnet_history)
         txs = history(self.mainnet_address)
         self.assertListEqual(txs, self.mainnet_history)
@@ -706,15 +707,67 @@ class TestAddressHistory(unittest.TestCase):
         self.assertRaises(Exception, bci_history, self.testnet_address)
         txs = blockcypher_history(self.testnet_address)
         self.assertDictEqual(txs, self.testnet_history)
-        txs = blockexplorer_history(self.testnet_address)
-        self.assertDictEqual(txs, self.testnet_history)
 
     def test_history_testnet_multiple(self):
         self.assertRaises(Exception, bci_unspent, self.testnet_address_multiple)
         history = blockcypher_unspent(self.testnet_address_multiple)
         self.assertListEqual(history, self.testnet_history_multiple)
-        history = blockexplorer_unspent(self.testnet_address_multiple)
-        self.assertListEqual(history, self.testnet_history_multiple)"""
+
+class MakeTransactionTests(unittest.TestCase):
+    testnet_magicbyte = 111
+    bc_testchain_magicbyte = 26
+    bc_testchain_private_key = "d31432f5bedc4305f516165058b47b4ee18df20fa5447aad0d5158970573852d"
+    bc_testchain_private_key2 = "18320636eb362527c90c7d6baa54fb04bb5d537cd94c499134868f3f3abc909d"
+    bc_testchain_address = "BxQzEE8oBaoADSRZQiV2DKThnh6M9e2dHC"
+    bc_testchain_address2 = "BtGgQwWz5esqjT4JVQrBMw3cRdd4k8GwXy"
+    testnet_private_key = "cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk"
+    testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
+    testnet_private_key_2 = "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f"
+    testnet_address_2 = "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu"
+
+    def test_testnet_transaction(self):
+        unspents = unspent(self.testnet_address_2)
+        pub1 = privtopub(self.testnet_private_key)
+        addr1 = pubtoaddr(pub1, magicbyte=self.testnet_magicbyte)
+        self.assertEqual(addr1, self.testnet_address)
+        pub2 = privtopub(self.testnet_private_key_2)
+        addr2 = pubtoaddr(pub2, magicbyte=self.testnet_magicbyte)
+        self.assertEqual(addr2, self.testnet_address_2)
+        unspents = unspent(addr1)
+        value = 1100000
+        if unspents and sum(o['value'] for o in unspents) > value:
+            details = {
+                'addr': addr1,
+                'private_key': self.testnet_private_key,
+                'unspents': unspents,
+                'receiver': addr2,
+            }
+        else:
+            unspents = unspent(addr2)
+            if not unspents:
+                raise Exception("No unspents found for testnet addresses")
+            details = {
+                'addr': addr2,
+                'private_key': self.testnet_private_key_2,
+                'unspents': unspents,
+                'receiver': addr1
+            }
+        outs = [{'value': value, 'address': details['receiver']}]
+        tx = mktx(details['unspents'], outs)
+        for i in range(0, len(unspents)):
+            tx = sign(tx,i,details['private_key'])
+        response = blockcypher_decodetx(tx, network="bcy_test")
+        pass
+        response = blockcypher_pushtx(tx, network="bcy_test")
+        pass
+
+
+    def test_blockcypher_test(self):
+        addr = self.bc_testchain_address
+        addr2 = self.bc_testchain_address2
+        unspents = unspent(addr, addr2)
+        print(unspents)
+
 
 if __name__ == '__main__':
     unittest.main()
