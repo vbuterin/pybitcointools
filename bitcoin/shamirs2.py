@@ -43,7 +43,7 @@ def becies_multi_encrypt(plaintext,k,public_keys,new_privkey_func=_secure_privke
 	group_pubkey=bitcoin.privtopub(coeffs[0])
 	becies=becies_encrypt(plaintext,r,group_pubkey)
 	
-	shared_secrets=[becies_shared_secret(r,B)) for B in public_keys]
+	shared_secrets=[becies_shared_secret(r,B) for B in public_keys]
 	offsets=[(p-s) % bitcoin.N for p,s in zip(points,shared_secrets)]
 	
 	return becies,offsets

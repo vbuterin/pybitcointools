@@ -166,7 +166,8 @@ def check_hash(label,bytesofar,value):
     
     
 
-def _signature_form_abc(tx, i, script, hashcode,inp):
+def _signature_form_abc(tx, i, script, hashcode, inp):
+    input = inp[0]
     if isinstance(tx,string_or_bytes_types):
         tx=deserialize(tx)
 
@@ -198,18 +199,18 @@ def _signature_form_abc(tx, i, script, hashcode,inp):
     check_hash("hashSequence",sigout,safe_hexlify(hashseqout[::-1]))
     sigout+=_serialize_outpoint(tx['ins'][i]['outpoint'])
     check_hash("prevout_this",sigout,safe_hexlify(_serialize_outpoint(tx['ins'][i]['outpoint'])))
-    if('scriptPubKey' not in inp):
+    if('scriptPubKey' not in input):
         raise Exception("Cannot do bitcoin abc transaction sig without input scriptPubKey value")
     else:
-        script=inp['scriptPubKey']
+        script=input['scriptPubKey']
         sigout+=num_to_var_int(len(script)//2)+binascii.unhexlify(script)
         check_hash("scriptCode",sigout,script)
 
-    if('value' not in inp):
+    if('value' not in input):
         raise Exception("Cannot do bitcoin abc transaction sig without input bitcoin value")
     else:
-        sigout+=struct.pack("<Q",inp['value'])
-        check_hash("amount",sigout,inp['value'])
+        sigout+=struct.pack("<Q",input['value'])
+        check_hash("amount",sigout,input['value'])
 
     sigout+=_int_to4bytes(tx['ins'][i]['sequence'])
     check_hash("nSequence",sigout,tx['ins'][i]['sequence'])
@@ -267,11 +268,11 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL,inp=None):
     i, hashcode = int(i), int(hashcode)
 
     if isinstance(tx, string_or_bytes_types):
-        return signature_form(deserialize(tx), i, script, hashcode,inp)
+        return signature_form(deserialize(tx), i, script, hashcode, inp)
 
     if(hashcode & SIGHASH_FORKID):
-        return _signature_form_abc(tx,i,script,hashcode,inp)
-    return serialize(_signature_form_classic(tx,i,script,hashcode,inp=None))
+        return _signature_form_abc(tx,i,script,hashcode, inp)
+    return serialize(_signature_form_classic(tx,i,script,hashcode, inp=None))
 
 # Making the actual signatures
 
@@ -495,18 +496,19 @@ def sign(tx, i, priv, hashcode=SIGHASH_ALL,inp=None):
     if len(priv) <= 33:
         priv = safe_hexlify(priv)
     pub = privkey_to_pubkey(priv)
-    address = pubkey_to_address(pub)
+    compressed_pub = encode_pubkey(pub, 'hex_compressed')
+    address = pubkey_to_address(compressed_pub)
     script=mk_pubkey_script(address)
-    signing_tx = signature_form(tx, i, script, hashcode,inp)
+    signing_tx = signature_form(tx, i, script, hashcode, inp)
     sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
     #print({'pub':pub,'sig':sig,'script':script})
    # print('signature_form:'+signing_tx)
     txobj = deserialize(tx)
-    txobj["ins"][i]["script"] = serialize_script([sig, pub])
+    txobj["ins"][i]["script"] = serialize_script([sig, compressed_pub])
     return serialize(txobj)
 
 
-def signall(tx, priv,hashcode=SIGHASH_ALL,inps={}):
+def signall(tx, priv, hashcode=SIGHASH_ALL, inps={}):
     # if priv is a dictionary, assume format is
     # { 'txinhash:txinidx' : privkey }
     # if inps is a dictionary, assume format is 
@@ -514,14 +516,14 @@ def signall(tx, priv,hashcode=SIGHASH_ALL,inps={}):
    
     if isinstance(priv, dict):
         for e, i in enumerate(deserialize(tx)["ins"]):
-            lv="%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])
+            lv = "%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])
             k = priv[lv]
-            tx = sign(tx, e, k,hashcode,inps.get(lv,None))
+            tx = sign(tx, e, k, hashcode, inps.get(lv, None))
             
     else:
         for i in range(len(deserialize(tx)["ins"])):
-            lv="%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])
-            tx = sign(tx, i, priv,hashcode,inps.get(lv,None))
+            lv = "%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])
+            tx = sign(tx, i, priv, hashcode, inps.get(lv, None))
     return tx
 
 
@@ -530,7 +532,7 @@ def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL,inps=None):
         tx = binascii.unhexlify(tx)
     if re.match('^[0-9a-fA-F]*$', script):
         script = binascii.unhexlify(script)
-    modtx = signature_form(tx, i, script, hashcode,inps)
+    modtx = signature_form(tx, i, script, hashcode, inps)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
 
