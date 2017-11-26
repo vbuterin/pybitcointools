@@ -665,7 +665,6 @@ class MakeTransactionTests(unittest.TestCase):
     testnet_address_2 = "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu"
     testnet_private_key_3 = "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"
     testnet_address_3 = "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"
-    api_key = "573375de83e64bf6b1259420d198dbd5"
 
     def test_testnet_transaction(self):
         pub1 = privtopub(self.testnet_private_key)

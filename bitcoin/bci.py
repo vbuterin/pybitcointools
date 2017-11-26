@@ -410,7 +410,7 @@ block_header_data_getters = {
 
 def get_block_header_data(inp, **kwargs):
     f = block_header_data_getters.get(kwargs.get('source', ''),
-                                      bci_get_block_header_data)
+                                      blockcypher_get_block_header_data)
     return f(inp, **kwargs)
 
 
