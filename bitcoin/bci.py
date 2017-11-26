@@ -95,7 +95,6 @@ def parse_addr_args(*args):
     return network, addr_args
 
 def make_unspent(o):
-    #h = bytes_to_hex_string(safe_from_hex(o['tx_hash'])[::-1])
     return {
                     "output": o['tx_hash_big_endian']+':'+str(o['tx_output_n']),
                     "value": o['value']
