@@ -2,7 +2,7 @@ import json
 import os
 import random
 import unittest
-
+from operator import itemgetter
 import bitcoin.ripemd as ripemd
 from bitcoin import *
 
@@ -491,6 +491,240 @@ class TestConversions(unittest.TestCase):
             )
         )
 
+class TestAddressUnspent(unittest.TestCase):
+
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting address unspent tests')
+
+    mainnet_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
+    mainnet_unspent = [
+        {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000},
+        {'output': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34:1', 'value': 5000000},
+    ]
+    mainnet_address_multiple = ["12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR", "1HuuxuHPxMvt9JfTc5LKDnbLYr5h9epfQS"]
+    mainnet_unspent_multiple = [
+        {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000},
+        {'output': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34:1', 'value': 5000000},
+        {'output': '1bcb2f731b3a46898857b762b6a237e9221578cdc6d0144b1fd9ffe5ba5aa895:1', 'value': 18750000000}]
+    testnet_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
+    testnet_unspent = [
+            {'output': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c:0', 'value': 180000000}]
+
+    def test_parse_addr_args(self):
+        network, addr_args = parse_addr_args(self.mainnet_address)
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, [self.mainnet_address])
+
+        network, addr_args = parse_addr_args(self.mainnet_address, "btc")
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, [self.mainnet_address])
+
+        network, addr_args = parse_addr_args(*self.mainnet_address_multiple)
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(*self.mainnet_address_multiple, "btc")
+        self.assertEqual(network, "btc")
+        self.assertListEqual(addr_args, self.mainnet_address_multiple)
+
+        network, addr_args = parse_addr_args(self.testnet_address)
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, [self.testnet_address])
+
+        network, addr_args = parse_addr_args([self.testnet_address], "testnet")
+        self.assertEqual(network, "testnet")
+        self.assertListEqual(addr_args, [self.testnet_address])
+
+    def assertUnorderedListEqual(self, list1, list2, key):
+        list1 = sorted(list1, key=itemgetter(key))
+        list2 = sorted(list2, key=itemgetter(key))
+        self.assertEqual(list1, list2)
+
+    def test_unspent_mainnet(self):
+        unspent_outputs = bci_unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs = blockcypher_unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs = unspent(self.mainnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+        unspent_outputs = unspent(self.mainnet_address, source="blockexplorer")
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent, 'output')
+
+    def test_unspent_mainnet_multiple_address(self):
+        unspent_outputs = bci_unspent(self.mainnet_address_multiple)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent_multiple, 'output')
+        unspent_outputs = blockcypher_unspent(self.mainnet_address_multiple)
+        self.assertUnorderedListEqual(unspent_outputs, self.mainnet_unspent_multiple, 'output')
+
+    def test_unspent_testnet(self):
+        self.assertRaises(Exception, bci_unspent, self.testnet_address)
+        unspent_outputs = blockcypher_unspent(self.testnet_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent, 'output')
+
+class TestBlockInfo(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting block info tests')
+
+    minimum_last_block_height_main = 495929
+    minimum_last_block_height_testnet = 1231684
+    block_height = 294322
+    mainnet_block_info = {
+        'version': 2,
+        'hash': "0000000000000000189bba3564a63772107b5673c940c16f12662b3e8546b412",
+        'prevhash': "0000000000000000ced0958bd27720b71d32c5847e40660aaca39f33c298abb0",
+        'timestamp': 1396684158,
+        'merkle_root': "359d624d37aee1efa5662b7f5dbc390e996d561afc8148e8d716cf6ad765a952",
+        'bits': 419486617,
+        'nonce': 1225187768,
+    }
+    bc_mainnet_block_info = mainnet_block_info.copy()
+    bc_mainnet_block_info['nonce'] = 0  #Blockcypher always returns a nonce of 0
+    bc_mainnet_block_info['timestamp'] = '2014-04-05T07:49:18Z'
+    testnet_block_info = {
+        'version': 2,
+        'hash': "00000000001be2d75acc520630a117874316c07fd7a724afae1a5d99038f4f4a",
+        'prevhash': "000000000024f2b5690d852116dce43768c9c38922e94a5d7e848f7c2514e517",
+        'timestamp': '2014-10-03T19:31:19Z',
+        'merkle_root': "9c66b31403a26d737a7408d00d242fc99761d1c2cc9f2f3f205c79804f22848f",
+        'bits': 457179072,
+        'nonce': 0,
+    }
+
+    def test_last_block_height(self):
+        height = last_block_height_bci()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height("testnet")
+        self.assertGreaterEqual(height, self.minimum_last_block_height_testnet)
+        height = last_block_height_blockcypher()
+        self.assertGreaterEqual(height, self.minimum_last_block_height_main)
+        height = last_block_height_blockcypher("testnet")
+        self.assertGreaterEqual(height, self.minimum_last_block_height_testnet)
+
+    def test_block_header_data(self):
+        block = bci_get_block_header_data(self.block_height)
+        self.assertDictEqual(block, self.mainnet_block_info)
+        block = blockcypher_get_block_header_data(self.block_height)
+        self.assertDictEqual(block, self.bc_mainnet_block_info)
+        block = blockcypher_get_block_header_data(self.block_height, network="testnet")
+        self.assertDictEqual(block, self.testnet_block_info)
+
+
+class TestFetchTransactions(unittest.TestCase):
+    tx_hashes = ["7fe165ca88fb2439d6fd1002105a485bfccbb288f1f9c9fdcc33da8690d45981",
+                 "7412e5e86e0f07d4dd818b0f6d4389c9f196c5715828c5092c0e5f5c67cc2687"]
+    tx_hexes = [b'0100000001b082b343052ef7b5f71914a2a5d4063ee843e49db595919f1aeabcb4b006f76b010000006a473044022069daff9568e26cb85ef155eead74e1e1acf338a495a287c709e92ba75fe36ad102201fb9a8ea9a46fa7d0437b635bf7a25dd6c3aace214029e8fcbf48beaebb890cf012102187edfe5487df34118a8afb1b447e42cb75d9655d586a3578d5be89f5b2763dfffffffff0216d6d40a000000001976a9147d48ab93a39eeb9a5f3a5fe53a20efb533b6da6488ac6bf20000000000001976a9145f10a0434f1d4f5119a3d3f17ea44c35a947330f88ac00000000',
+                b'0100000001d83ca497f91a9d6f75dd9c12ed2db1c54ae67f8113aea40536e055cbe722c846010000006a47304402206ab6fd2a107378f52437528a4802d5e40c1deb94b83f2ea07553eaf6f8339ccb02206b919b92b63721123e20c4e3c4cf9c37b041fae6ea2ef376b7c95a3c6537ba67012103542aa3891b2e2c3950ecbdbd10d1e8ce63a59682dcf6c5ff3a085649b9c3ef0affffffff01e00a0001000000001976a914d9c07c45043736caeed61bfaa9122301dfb248da88ac00000000']
+    testnet_hash = "9683898a35fdfe8033fd4f1ef6ddf0dc3f20bf5813b05495421797ba861711b5"
+    testnet_hex = b"0100000001cd9ac8bd3d454d5869abba0b9fb820b05d16ce7645334de28c39ef21025c263d000000006a47304402200403e11c283e39a727e6c0dc9531a8052341b97575d50443e48268e1681c5df302200d89802f0c2cf11e86fbb06a3072e8a0d72371c336512d2ae3a2c3de6d6bafbc0121038aa15d2666158670e1a752f07194817e75146c31cddd2b029e3657502604e132feffffff0280f0fa02000000001976a914f23096605eb5a5767ed88d487d732ec37bc768e688acc887bf04000000001976a91468a45d67b9ce61fd1bb880aa2f9353a10df5c61a88ac46cb1200"
+
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting fetch tx tests')
+
+    def assertUnorderedListEqual(self, list1, list2):
+        list1 = sorted(list1)
+        list2 = sorted(list2)
+        self.assertEqual(list1, list2)
+
+    def test_get_transaction_hex(self):
+        tx_hex = bci_fetchtx(self.tx_hashes[0])
+        self.assertEqual(tx_hex, self.tx_hexes[0])
+        tx_hex = blockcypher_fetchtx(self.tx_hashes[0])
+        self.assertEqual(tx_hex, self.tx_hexes[0])
+
+    def test_get_transaction_hex_testnet(self):
+        tx_hex = blockcypher_fetchtx(self.testnet_hash, network="testnet")
+        self.assertEqual(tx_hex, self.testnet_hex)
+
+    def test_get_multiple_transaction_hex(self):
+        tx_hexes = bci_fetchtx(self.tx_hashes)
+        self.assertUnorderedListEqual(tx_hexes, self.tx_hexes)
+        tx_hex = blockcypher_fetchtx(self.tx_hashes)
+        self.assertUnorderedListEqual(tx_hex, self.tx_hexes)
+
+class MakeTransactionTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting make transaction tests')
+
+    testnet_magicbyte = 111
+    testnet_private_key = "cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk"
+    testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
+    testnet_private_key_2 = "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f"
+    testnet_address_2 = "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu"
+    testnet_private_key_3 = "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"
+    testnet_address_3 = "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"
+
+    def test_testnet_transaction(self):
+        pub1 = privtopub(self.testnet_private_key)
+        addr1 = pubtoaddr(pub1, magicbyte=self.testnet_magicbyte)
+        self.assertEqual(addr1, self.testnet_address)
+        pub2 = privtopub(self.testnet_private_key_2)
+        addr2 = pubtoaddr(pub2, magicbyte=self.testnet_magicbyte)
+        self.assertEqual(addr2, self.testnet_address_2)
+        pub3 = privtopub(self.testnet_private_key_3)
+        addr3 = pubtoaddr(pub3, magicbyte=self.testnet_magicbyte)
+        self.assertEqual(addr3, self.testnet_address_3)
+        value = 1100000
+        fee = 54400
+        required_sats = value + fee
+
+        #Find which of the 3 addresses currently has unspents with more than 1100000 value, and set transaction
+        #paramaters accordingly
+
+        unspents = unspent(addr1)
+        unspent_value = sum(o['value'] for o in unspents)
+        if unspents and unspent_value >= required_sats:
+            details = {
+                'sender': addr1,
+                'private_key': self.testnet_private_key,
+                'unspents': unspents,
+                'receiver': addr2,
+                'change_address': addr3
+            }
+        else:
+            unspents = unspent(addr2)
+            unspent_value = sum(o['value'] for o in unspents)
+            if unspents and unspent_value >= required_sats:
+                details = {
+                    'sender': addr2,
+                    'private_key': self.testnet_private_key_2,
+                    'unspents': unspents,
+                    'receiver': addr1,
+                    'change_address': addr3
+                }
+            else:
+                unspents = unspent(addr3)
+                unspent_value = sum(o['value'] for o in unspents)
+                if unspents and unspent_value >= required_sats:
+                    details = {
+                        'sender': addr3,
+                        'private_key': self.testnet_private_key_3,
+                        'unspents': unspents,
+                        'receiver': addr2,
+                        'change_address': addr1
+                    }
+                else:
+                    raise Exception("Unspents with more than %s satoshis not found for any of of the 3 testnet addresses" % required_sats)
+
+        change_value = unspent_value - required_sats
+        outs = [{'value': value, 'address': details['receiver']}, {'value': change_value, 'address': details['change_address']}]
+
+        tx = mktx(details['unspents'], outs)
+
+        for i in range(0, len(unspents)):
+            tx = sign(tx,i,details['private_key'])
+
+        response = pushtx(tx, network="testnet")
+        self.assertEqual(response.status_code, 201)
 
 if __name__ == '__main__':
     unittest.main()
