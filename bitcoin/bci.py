@@ -112,7 +112,7 @@ def bci_unspent(*args):
         url = 'https://blockchain.info/unspent?active=%s&limit=1000' % '|'.join(addrs)
     else:
         raise Exception(
-            'Unsupported network {0} for blockchain.info_unspent'.format(network))
+            'Unsupported network {0} for blockchain.info'.format(network))
 
     data = make_request(url)
     outputs = json.loads(data.decode("utf-8"))["unspent_outputs"]
@@ -131,7 +131,7 @@ def blockcypher_unspent(*args):
         url = 'https://api.blockcypher.com/v1/%s/addrs/%s?unspentOnly=true&limit=2000' % (blockcypher_net_to_urls[network], ';'.join(addrs))
     except KeyError:
         raise Exception(
-            'Unsupported network {0} for blockcypher_unspent'.format(network))
+            'Unsupported network {0} for blockcypher'.format(network))
 
     response = make_request(url)
     data = json.loads(response.decode("utf-8"))
@@ -243,7 +243,7 @@ def blockcypher_pushtx(tx, network='btc'):
         url = 'https://api.blockcypher.com/v1/%s/txs/push' % blockcypher_net_to_urls[network]
     except KeyError:
         raise Exception(
-            'Unsupported network {0} for blockcypher_pushtx'.format(network))
+            'Unsupported network {0} for blockcypher'.format(network))
 
     if not re.match('^[0-9a-fA-F]*$', tx):
         tx = tx.encode('hex')
@@ -269,7 +269,11 @@ def last_block_height_bci(network="btc"):
     return jsonobj["height"]
 
 def last_block_height_blockcypher(network='btc'):
-    url = "https://api.blockcypher.com/v1/%s" % blockcypher_net_to_urls[network]
+    try:
+        url = "https://api.blockcypher.com/v1/%s" % blockcypher_net_to_urls[network]
+    except KeyError:
+        raise Exception(
+            'Unsupported network {0} for blockcypher'.format(network))
     data = make_request(url)
     jsonobj = json.loads(data.decode("utf-8"))
     return jsonobj['height']
@@ -308,7 +312,7 @@ def blockcypher_fetchtx(txhash, network='btc'):
         url = "https://api.blockcypher.com/v1/%s/txs/%s" % (blockcypher_net_to_urls[network], ';'.join(txhash))
     except KeyError:
         raise Exception(
-            'Unsupported network {0} for blockcypher_fetchtx'.format(network))
+            'Unsupported network {0} for blockcypher'.format(network))
     response = make_request("%s?includeHex=true" % url)
     data = json.loads(response.decode("utf-8"))
     if isinstance(data, dict):
@@ -324,13 +328,12 @@ def fetchtx(*args, **kwargs):
     f = fetchtx_getters.get(kwargs.get('source', ''), blockcypher_fetchtx)
     return f(*args)
 
-#First bits URLs seem to be no longer working @ blockchain.info
-"""def firstbits(address):
+def firstbits(address):
     if len(address) >= 25:
         return make_request('https://blockchain.info/q/getfirstbits/'+address)
     else:
         return make_request(
-            'https://blockchain.info/q/resolvefirstbits/'+address)"""
+            'https://blockchain.info/q/resolvefirstbits/'+address)
 
 
 def get_block_at_height(height):
@@ -367,7 +370,7 @@ def blockcypher_get_block_header_data(height, network='btc'):
         url = "https://api.blockcypher.com/v1/%s/blocks/%s" % (blockcypher_net_to_urls[network], height)
     except KeyError:
         raise Exception(
-            'Unsupported network {0} for blockcypher_fetchtx'.format(network))
+            'Unsupported network {0} for blockcypher'.format(network))
 
     j = json.loads(make_request(url).decode("utf-8"))
     return {
@@ -432,7 +435,7 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
     network = set_network(change_address or inputs) if not network else network.lower()
     url = "https://api.blockcypher.com/v1/btc/{network}/txs/new?includeToSignTx=true".format(
                   network=('test3' if network=='testnet' else 'main'))
-    is_address = lambda a: bool(re.match("^[123mnBC][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
+    is_address = lambda a: bool(re.match("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$", a))
     if any([is_address(x) for x in inputs]):
         inputs_type = 'addresses'        # also accepts UTXOs, only addresses supported presently
     if any([is_address(x) for x in outputs]):
@@ -445,7 +448,7 @@ def get_tx_composite(inputs, outputs, output_value, change_address=None, network
             }
     if change_address:
         data["change_address"] = change_address    # 
-    jdata = requests.post(url, json=data).json()
+    jdata = json.loads(make_request(url, data))
     hash, txh = jdata.get("tosign")[0], jdata.get("tosign_tx")[0]
     assert bytes_to_hex_string(bin_dbl_sha256(safe_from_hex(txh))) == hash, "checksum mismatch %s" % hash
     return txh

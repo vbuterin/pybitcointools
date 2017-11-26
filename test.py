@@ -492,6 +492,12 @@ class TestConversions(unittest.TestCase):
         )
 
 class TestAddressUnspent(unittest.TestCase):
+
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting address unspent tests')
+
     mainnet_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
     mainnet_unspent = [
         {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000},
@@ -558,6 +564,11 @@ class TestAddressUnspent(unittest.TestCase):
         self.assertUnorderedListEqual(unspent_outputs, self.testnet_unspent, 'output')
 
 class TestBlockInfo(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting block info tests')
+
     minimum_last_block_height_main = 495929
     minimum_last_block_height_testnet = 1231684
     block_height = 294322
@@ -612,6 +623,11 @@ class TestFetchTransactions(unittest.TestCase):
     testnet_hash = "9683898a35fdfe8033fd4f1ef6ddf0dc3f20bf5813b05495421797ba861711b5"
     testnet_hex = b"0100000001cd9ac8bd3d454d5869abba0b9fb820b05d16ce7645334de28c39ef21025c263d000000006a47304402200403e11c283e39a727e6c0dc9531a8052341b97575d50443e48268e1681c5df302200d89802f0c2cf11e86fbb06a3072e8a0d72371c336512d2ae3a2c3de6d6bafbc0121038aa15d2666158670e1a752f07194817e75146c31cddd2b029e3657502604e132feffffff0280f0fa02000000001976a914f23096605eb5a5767ed88d487d732ec37bc768e688acc887bf04000000001976a91468a45d67b9ce61fd1bb880aa2f9353a10df5c61a88ac46cb1200"
 
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting fetch tx tests')
+
     def assertUnorderedListEqual(self, list1, list2):
         list1 = sorted(list1)
         list2 = sorted(list2)
@@ -634,6 +650,11 @@ class TestFetchTransactions(unittest.TestCase):
         self.assertUnorderedListEqual(tx_hex, self.tx_hexes)
 
 class MakeTransactionTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        print('Starting make transaction tests')
+
     testnet_magicbyte = 111
     testnet_private_key = "cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk"
     testnet_address = "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW"
