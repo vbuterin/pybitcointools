@@ -3,7 +3,7 @@ import sys, json, re
 from bitcoin import *
 
 if len(sys.argv) == 1:
-    print "pybtctool <command> <arg1> <arg2> ..."
+    print("pybtctool <command> <arg1> <arg2> ...")
 else:
     cmdargs, preargs, kwargs = [], [], {}
     i = 2
@@ -31,6 +31,6 @@ else:
     args = preargs + cmdargs[1:]
     o = vars()[cmd](*args, **kwargs)
     if isinstance(o, (list, dict)):
-        print json.dumps(o)
+        print(json.dumps(o))
     else:
-        print o
+        print(o)
