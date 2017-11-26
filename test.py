@@ -16,7 +16,7 @@ class TestECCArithmetic(unittest.TestCase):
     def test_all(self):
         for i in range(8):
             print('### Round %d' % (i + 1))
-            x, y = random.randrange(2 ** 256), random.randrange(2 ** 256)
+            x, y = random.randrange(2**256), random.randrange(2**256)
             self.assertEqual(
                 multiply(multiply(G, x), y)[0],
                 multiply(multiply(G, y), x)[0]
@@ -82,7 +82,7 @@ class TestElectrumWalletInternalConsistency(unittest.TestCase):
 
     def test_all(self):
         for i in range(3):
-            seed = sha256(str(random.randrange(2 ** 40)))[:32]
+            seed = sha256(str(random.randrange(2**40)))[:32]
             mpk = electrum_mpk(seed)
             for i in range(5):
                 pk = electrum_privkey(seed, i)
@@ -121,7 +121,7 @@ class TestTransactionSignVerify(unittest.TestCase):
         alphabet = "1234567890qwertyuiopasdfghjklzxcvbnm"
         for i in range(10):
             msg = ''.join([random.choice(alphabet) for i in range(random.randrange(20, 200))])
-            priv = sha256(str(random.randrange(2 ** 256)))
+            priv = sha256(str(random.randrange(2**256)))
             pub = privtopub(priv)
             sig = ecdsa_tx_sign(msg, priv)
             self.assertTrue(
@@ -162,7 +162,7 @@ class TestTransaction(unittest.TestCase):
     # FIXME: I don't know how to write this as a unit test.
     # What should be asserted?
     def test_all(self):
-        privs = [sha256(str(random.randrange(2 ** 256))) for x in range(4)]
+        privs = [sha256(str(random.randrange(2**256))) for x in range(4)]
         pubs = [privtopub(priv) for priv in privs]
         addresses = [pubtoaddr(pub) for pub in pubs]
         mscript = mk_multisig_script(pubs[1:], 2, 3)
@@ -252,13 +252,13 @@ class TestBIP0032(unittest.TestCase):
              'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi'],
             [['pub'],
              'xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8'],
-            [[2 ** 31],
+            [[2**31],
              'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'],
-            [[2 ** 31, 1],
+            [[2**31, 1],
              'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'],
-            [[2 ** 31, 1, 2 ** 31 + 2],
+            [[2**31, 1, 2**31 + 2],
              'xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM'],
-            [[2 ** 31, 1, 2 ** 31 + 2, 'pub', 2, 1000000000],
+            [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000],
              'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy']
         ]
 
@@ -282,13 +282,13 @@ class TestBIP0032(unittest.TestCase):
              'tprv8ZgxMBicQKsPeDgjzdC36fs6bMjGApWDNLR9erAXMs5skhMv36j9MV5ecvfavji5khqjWaWSFhN3YcCUUdiKH6isR4Pwy3U5y5egddBr16m'],
             [['pub'],
              'tpubD6NzVbkrYhZ4XgiXtGrdW5XDAPFCL9h7we1vwNCpn8tGbBcgfVYjXyhWo4E1xkh56hjod1RhGjxbaTLV3X4FyWuejifB9jusQ46QzG87VKp'],
-            [[2 ** 31],
+            [[2**31],
              'tprv8bxNLu25VazNnppTCP4fyhyCvBHcYtzE3wr3cwYeL4HA7yf6TLGEUdS4QC1vLT63TkjRssqJe4CvGNEC8DzW5AoPUw56D1Ayg6HY4oy8QZ9'],
-            [[2 ** 31, 1],
+            [[2**31, 1],
              'tprv8e8VYgZxtHsSdGrtvdxYaSrryZGiYviWzGWtDDKTGh5NMXAEB8gYSCLHpFCywNs5uqV7ghRjimALQJkRFZnUrLHpzi2pGkwqLtbubgWuQ8q'],
-            [[2 ** 31, 1, 2 ** 31 + 2],
+            [[2**31, 1, 2**31 + 2],
              'tprv8gjmbDPpbAirVSezBEMuwSu1Ci9EpUJWKokZTYccSZSomNMLytWyLdtDNHRbucNaRJWWHANf9AzEdWVAqahfyRjVMKbNRhBmxAM8EJr7R15'],
-            [[2 ** 31, 1, 2 ** 31 + 2, 'pub', 2, 1000000000],
+            [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000],
              'tpubDHNy3kAG39ThyiwwsgoKY4iRenXDRtce8qdCFJZXPMCJg5dsCUHayp84raLTpvyiNA9sXPob5rgqkKvkN8S7MMyXbnEhGJMW64Cf4vFAoaF']
         ]
 
@@ -330,39 +330,39 @@ class TestBIP0032(unittest.TestCase):
 
         # m/0'
         assert bip32_ckd(master,
-                         2 ** 31) == "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7"
+                         2**31) == "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7"
         assert bip32_privtopub(bip32_ckd(master,
-                                         2 ** 31)) == "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
+                                         2**31)) == "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
 
         # m/1'
         assert bip32_ckd(master,
-                         2 ** 31 + 1) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
+                         2**31 + 1) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
         assert bip32_privtopub(bip32_ckd(master,
-                                         2 ** 31 + 1)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
+                                         2**31 + 1)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
 
         # m/1'
         assert bip32_ckd(master,
-                         1 + 2 ** 31) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
+                         1 + 2**31) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
         assert bip32_privtopub(bip32_ckd(master,
-                                         1 + 2 ** 31)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
+                                         1 + 2**31)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
 
         # m/0'/0
-        assert bip32_ckd(bip32_ckd(master, 2 ** 31),
+        assert bip32_ckd(bip32_ckd(master, 2**31),
                          "0") == "xprv9wTYmMFdV23N21MM6dLNavSQV7Sj7meSPXx6AV5eTdqqGLjycVjb115Ec5LgRAXscPZgy5G4jQ9csyyZLN3PZLxoM1h3BoPuEJzsgeypdKj"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2 ** 31),
+        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2**31),
                                          "0")) == "xpub6ASuArnXKPbfEVRpCesNx4P939HDXENHkksgxsVG1yNp9958A33qYoPiTN9QrJmWFa2jNLdK84bWmyqTSPGtApP8P7nHUYwxHPhqmzUyeFG"
 
         # m/0'/0'
-        assert bip32_ckd(bip32_ckd(master, 2 ** 31),
-                         2 ** 31) == "xprv9wTYmMFmpgaLB5Hge4YtaGqCKpsYPTD9vXWSsmdZrNU3Y2i4WoBykm6ZteeCLCCZpGxdHQuqEhM6Gdo2X6CVrQiTw6AAneF9WSkA9ewaxtS"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2 ** 31),
-                                         2 ** 31)) == "xpub6ASuArnff48dPZN9k65twQmvsri2nuw1HkS3gA3BQi12Qq3D4LWEJZR3jwCAr1NhsFMcQcBkmevmub6SLP37bNq91SEShXtEGUbX3GhNaGk"
+        assert bip32_ckd(bip32_ckd(master, 2**31),
+                         2**31) == "xprv9wTYmMFmpgaLB5Hge4YtaGqCKpsYPTD9vXWSsmdZrNU3Y2i4WoBykm6ZteeCLCCZpGxdHQuqEhM6Gdo2X6CVrQiTw6AAneF9WSkA9ewaxtS"
+        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2**31),
+                                         2**31)) == "xpub6ASuArnff48dPZN9k65twQmvsri2nuw1HkS3gA3BQi12Qq3D4LWEJZR3jwCAr1NhsFMcQcBkmevmub6SLP37bNq91SEShXtEGUbX3GhNaGk"
 
         # m/44'/0'/0'/0/0
-        assert bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2 ** 31), 2 ** 31), 2 ** 31), 0),
+        assert bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2**31), 2**31), 2**31), 0),
                          0) == "xprvA4A9CuBXhdBtCaLxwrw64Jaran4n1rgzeS5mjH47Ds8V67uZS8tTkG8jV3BZi83QqYXPcN4v8EjK2Aof4YcEeqLt688mV57gF4j6QZWdP9U"
         assert bip32_privtopub(
-            bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2 ** 31), 2 ** 31), 2 ** 31), 0),
+            bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2**31), 2**31), 2**31), 0),
                       0)) == "xpub6H9VcQiRXzkBR4RS3tU6RSXb8ouGRKQr1f1NXfTinCfTxvEhygCiJ4TDLHz1dyQ6d2Vz8Ne7eezkrViwaPo2ZMsNjVtFwvzsQXCDV6HJ3cV"
 
 
