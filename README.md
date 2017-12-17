@@ -1,5 +1,25 @@
 # Pybitcointools, Python library for Bitcoin signatures and transactions
 
+This is a fork of Vitalik Buterin's original pybitcointools which is no longer maintained. Short-term roadmap:
+
+* Better python3 support
+* Replace as much as possible of the bci.py library with blockcypher's own library for easier maintenaince
+* More test cases for key fuctionality
+* Possible renaming (pycryptotools?)
+* Release on pip
+
+Longer-term roadmap:
+* Support of more coins (Bitcoin Cash, Bitcoin Gold, Bitcoin God, Litecoin, Dash, etc.)
+* Updated api (while the no-classes format can still be used for Bitcoin, there will be a new classes interface which will make it easier to add new coins)
+* Integrate pull requests from pybitcointools, e.g. Segwit support
+* Read the docs page
+* E-commerce tools (exchange rates, short-time invoices)
+* Desktop GUI for easy creation, signing and broadcasting of raw transactions
+* Seed-based multi-crypto wallet
+
+
+
+The rest of this readme is pretty much takendirectly from the original pybitcointools library.
 ### Advantages:
 
 * Functions have a simple interface, inputting and outputting in standard formats
