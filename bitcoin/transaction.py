@@ -358,14 +358,14 @@ def verify_tx_input(tx, i, script, sig, pub):
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
 
-def sign(tx, i, priv, hashcode=SIGHASH_ALL):
+def sign(tx, i, priv, magicbyte=0, hashcode=SIGHASH_ALL):
     i = int(i)
     if (not is_python2 and isinstance(re, bytes)) or not re.match('^[0-9a-fA-F]*$', tx):
         return binascii.unhexlify(sign(safe_hexlify(tx), i, priv))
     if len(priv) <= 33:
         priv = safe_hexlify(priv)
     pub = privkey_to_pubkey(priv)
-    address = pubkey_to_address(pub)
+    address = pubkey_to_address(pub, magicbyte=magicbyte)
     signing_tx = signature_form(tx, i, mk_pubkey_script(address), hashcode)
     sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
     txobj = deserialize(tx)
@@ -373,16 +373,16 @@ def sign(tx, i, priv, hashcode=SIGHASH_ALL):
     return serialize(txobj)
 
 
-def signall(tx, priv):
+def signall(tx, priv, magicbyte=0):
     # if priv is a dictionary, assume format is
     # { 'txinhash:txinidx' : privkey }
     if isinstance(priv, dict):
         for e, i in enumerate(deserialize(tx)["ins"]):
             k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
-            tx = sign(tx, e, k)
+            tx = sign(tx, e, k, magicbyte=magicbyte)
     else:
         for i in range(len(deserialize(tx)["ins"])):
-            tx = sign(tx, i, priv)
+            tx = sign(tx, i, priv, magicbyte=magicbyte)
     return tx
 
 

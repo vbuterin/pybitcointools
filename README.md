@@ -9,7 +9,7 @@ This is a fork of Vitalik Buterin's original pybitcointools which is no longer m
 * Release on pip
 
 Longer-term roadmap:
-* Support of more coins (Bitcoin Cash, Bitcoin Gold, Bitcoin God, Litecoin, Dash, etc.)
+* Support of more coins (Bitcoin Cash, Bitcoin Gold, Bitcoin God, Dogecoin, Litecoin, Dash, etc.)
 * Updated api (while the no-classes format can still be used for Bitcoin, there will be a new classes interface which will make it easier to add new coins)
 * Integrate pull requests from pybitcointools, e.g. Segwit support
 * Read the docs page

@@ -1,8 +1,8 @@
-from bitcoin.main import *
-from bitcoin.transaction import *
-from bitcoin.bci import *
-from bitcoin.deterministic import *
-from bitcoin.blocks import *
+from .main import *
+from .blockcypherapi import *
+from .transaction import *
+from .deterministic import *
+from .blocks import *
 
 
 # Takes privkey, address, value (satoshis), fee (satoshis)
@@ -11,7 +11,7 @@ def send(frm, to, value, fee=10000, **kwargs):
 
 
 # Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
-def sendmultitx(frm, *args, **kwargs):
+def sendmultitx(frm, *args, magicbyte=0, coin_symbol="btc", **kwargs):
     tv, fee = args[:-1], int(args[-1])
     outs = []
     outvalue = 0
@@ -19,12 +19,12 @@ def sendmultitx(frm, *args, **kwargs):
         outs.append(a)
         outvalue += int(a.split(":")[1])
 
-    u = unspent(privtoaddr(frm), **kwargs)
+    u = unspent(privtoaddr(frm, magicbyte=magicbyte), coin_symbol=coin_symbol, **kwargs)
     u2 = select(u, int(outvalue)+int(fee))
-    argz = u2 + outs + [privtoaddr(frm), fee]
+    argz = u2 + outs + [privtoaddr(frm, magicbyte=magicbyte), fee]
     tx = mksend(*argz)
-    tx2 = signall(tx, frm)
-    return pushtx(tx2, **kwargs)
+    tx2 = signall(tx, frm, magicbyte=magicbyte)
+    return pushtx(tx2, coin_symbol=coin_symbol)
 
 
 # Takes address, address, value (satoshis), fee(satoshis)
@@ -34,7 +34,7 @@ def preparetx(frm, to, value, fee=10000, **kwargs):
 
 
 # Takes address, address:value, address:value ... (satoshis), fee(satoshis)
-def preparemultitx(frm, *args, **kwargs):
+def preparemultitx(frm, *args, coin_symbol="btc", **kwargs):
     tv, fee = args[:-1], int(args[-1])
     outs = []
     outvalue = 0
@@ -42,7 +42,7 @@ def preparemultitx(frm, *args, **kwargs):
         outs.append(a)
         outvalue += int(a.split(":")[1])
 
-    u = unspent(frm, **kwargs)
+    u = unspent(frm, coin_symbol=coin_symbol **kwargs)
     u2 = select(u, int(outvalue)+int(fee))
     argz = u2 + outs + [frm, fee]
     return mksend(*argz)
@@ -94,7 +94,7 @@ def sign_coinvault_tx(tx, priv):
         txobj['ins'][j]['script'] = serialize_script(scr)
     return serialize(txobj)
 
-
+""" The following methods need integration with blockcypher API
 # Inspects a transaction
 def inspect(tx, **kwargs):
     d = deserialize(tx)
@@ -126,3 +126,4 @@ def merkle_prove(txhash):
     hashes = get_txs_in_block(blocknum)
     i = hashes.index(txhash)
     return mk_merkle_proof(header, hashes, i)
+"""
