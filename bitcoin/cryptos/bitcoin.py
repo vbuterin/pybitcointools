@@ -7,7 +7,6 @@ from .. import main, transaction
 class Bitcoin(object):
     coin_symbol = "btc"
     hashcode = SIGHASH_ALL
-    explorer = blockcypherapi
 
     def __init__(self):
         self.metadata = COIN_METADATA[self.coin_symbol]
