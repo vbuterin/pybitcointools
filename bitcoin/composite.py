@@ -1,14 +1,13 @@
-from .main import *
-from .blockcypherapi import *
-from .transaction import *
-from .deterministic import *
+from bitcoin.explorers.blockcypherapi import *
+
 from .blocks import *
+from .deterministic import *
+from .transaction import *
 
 
 # Takes privkey, address, value (satoshis), fee (satoshis)
 def send(frm, to, value, fee=10000, **kwargs):
     return sendmultitx(frm, to + ":" + str(value), fee, **kwargs)
-
 
 # Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
 def sendmultitx(frm, *args, magicbyte=0, coin_symbol="btc", **kwargs):

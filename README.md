@@ -2,24 +2,31 @@
 
 This is a fork of Vitalik Buterin's original pybitcointools which is no longer maintained. Short-term roadmap:
 
-* Better python3 support
-* Replace as much as possible of the bci.py library with blockcypher's own library for easier maintenaince
+
+Currently working on:
+
+* Adding additional coins
+
+Done:
+Better Python3 support
+Replace bci.py with blockcypher's own Python library
+Class-based api for different coins, making it easier to add new coins with a common interface
+
+Currently working on:
+* Additional coins. Already added api endpoints for gathering unspents and pushing transactions for various coins (see the cryptos directory). The main complexity comes from creating and signing raw transactions. For example, Bitcoin Cash implements replay protection using SIGHASH_FORKID. Appreciate any help with this.
 * More test cases for key fuctionality
 * Possible renaming (pycryptotools?)
 * Release on pip
 
 Longer-term roadmap:
 * Support of more coins (Bitcoin Cash, Bitcoin Gold, Bitcoin God, Dogecoin, Litecoin, Dash, etc.)
-* Updated api (while the no-classes format can still be used for Bitcoin, there will be a new classes interface which will make it easier to add new coins)
 * Integrate pull requests from pybitcointools, e.g. Segwit support
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
 * Seed-based multi-crypto wallet
 
-
-
-The rest of this readme is pretty much takendirectly from the original pybitcointools library.
+The rest of this readme is pretty much taken directly from the original pybitcointools library.
 ### Advantages:
 
 * Functions have a simple interface, inputting and outputting in standard formats
