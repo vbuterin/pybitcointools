@@ -1,50 +1,5 @@
-from bitcoin.explorers.blockcypherapi import *
-
-from .blocks import *
 from .deterministic import *
 from .transaction import *
-
-
-# Takes privkey, address, value (satoshis), fee (satoshis)
-def send(frm, to, value, fee=10000, **kwargs):
-    return sendmultitx(frm, to + ":" + str(value), fee, **kwargs)
-
-# Takes privkey, "address1:value1,address2:value2" (satoshis), fee (satoshis)
-def sendmultitx(frm, *args, magicbyte=0, coin_symbol="btc", **kwargs):
-    tv, fee = args[:-1], int(args[-1])
-    outs = []
-    outvalue = 0
-    for a in tv:
-        outs.append(a)
-        outvalue += int(a.split(":")[1])
-
-    u = unspent(privtoaddr(frm, magicbyte=magicbyte), coin_symbol=coin_symbol, **kwargs)
-    u2 = select(u, int(outvalue)+int(fee))
-    argz = u2 + outs + [privtoaddr(frm, magicbyte=magicbyte), fee]
-    tx = mksend(*argz)
-    tx2 = signall(tx, frm, magicbyte=magicbyte)
-    return pushtx(tx2, coin_symbol=coin_symbol)
-
-
-# Takes address, address, value (satoshis), fee(satoshis)
-def preparetx(frm, to, value, fee=10000, **kwargs):
-    tovalues = to + ":" + str(value)
-    return preparemultitx(frm, tovalues, fee, **kwargs)
-
-
-# Takes address, address:value, address:value ... (satoshis), fee(satoshis)
-def preparemultitx(frm, *args, coin_symbol="btc", **kwargs):
-    tv, fee = args[:-1], int(args[-1])
-    outs = []
-    outvalue = 0
-    for a in tv:
-        outs.append(a)
-        outvalue += int(a.split(":")[1])
-
-    u = unspent(frm, coin_symbol=coin_symbol **kwargs)
-    u2 = select(u, int(outvalue)+int(fee))
-    argz = u2 + outs + [frm, fee]
-    return mksend(*argz)
 
 
 # BIP32 hierarchical deterministic multisig script

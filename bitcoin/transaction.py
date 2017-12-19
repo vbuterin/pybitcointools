@@ -124,6 +124,7 @@ SIGHASH_SINGLE = 3
 # this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
 # we fix the constant
 SIGHASH_ANYONECANPAY = 0x81
+SIGHASH_FORKID = 0x40
 
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
@@ -373,16 +374,16 @@ def sign(tx, i, priv, magicbyte=0, hashcode=SIGHASH_ALL):
     return serialize(txobj)
 
 
-def signall(tx, priv, magicbyte=0):
+def signall(tx, priv, magicbyte=0, hashcode=SIGHASH_ALL):
     # if priv is a dictionary, assume format is
     # { 'txinhash:txinidx' : privkey }
     if isinstance(priv, dict):
         for e, i in enumerate(deserialize(tx)["ins"]):
             k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
-            tx = sign(tx, e, k, magicbyte=magicbyte)
+            tx = sign(tx, e, k, magicbyte=magicbyte, hashcode=hashcode)
     else:
         for i in range(len(deserialize(tx)["ins"])):
-            tx = sign(tx, i, priv, magicbyte=magicbyte)
+            tx = sign(tx, i, priv, magicbyte=magicbyte, hashcode=hashcode)
     return tx
 
 

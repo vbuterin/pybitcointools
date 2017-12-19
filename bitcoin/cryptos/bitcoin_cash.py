@@ -1,29 +1,17 @@
 from .bitcoin import Bitcoin
 from .. import composite
+from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 from ..explorers import insightapi
 
 class BitcoinCash(Bitcoin):
     coin_symbol = "bch"
+    hashcode = SIGHASH_ALL + SIGHASH_FORKID
 
-    def sign(self, *args, **kwargs):
-        #Need to implement SIGHASH_FORK flag
-        raise NotImplementedError
+    def unspent(self, *addrs):
+        return insightapi.unspent(*addrs)
 
-    def signall(self, *args):
-        # Need to implement SIGHASH_FORK flag
-        raise NotImplementedError
+    def history(self, *addrs):
+        return insightapi.history(*addrs)
 
-    def unspent(self, *args):
-        return insightapi.unspent(*args)
-
-    def history(self, *args):
-        return insightapi.history(*args)
-
-    def pushtx(self, *args):
-        return insightapi.pushtx(*args)
-
-    def preparetx(self, *args, **kwargs):
-        return composite.preparetx(*args, magicbyte=self.magicbyte, **kwargs)
-
-    def preparemultitx(self, *args, **kwargs):
-        return composite.preparemultitx(*args, magicbyte=self.magicbyte, **kwargs)
+    def pushtx(self, tx):
+        return insightapi.pushtx(tx)
