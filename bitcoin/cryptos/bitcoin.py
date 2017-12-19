@@ -36,6 +36,9 @@ class Bitcoin(object):
     def pushtx(self, tx):
         return blockcypherapi.pushtx(tx, coin_symbol=self.coin_symbol)
 
+    def mktx(self, *args):
+        return transaction.mktx(*args)
+
     # Takes privkey, address, value (satoshis), fee (satoshis)
     def send(self, privkey, to, value, fee=10000, **kwargs):
         return self.sendmultitx(privkey, to + ":" + str(value), fee, **kwargs)
