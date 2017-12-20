@@ -533,6 +533,7 @@ class BaseCoinCase(unittest.TestCase):
 
         c = self.coin()
 
+        #Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -547,6 +548,7 @@ class BaseCoinCase(unittest.TestCase):
                 from_addr_i = i
                 unspents = addr_unspents
 
+        #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
         change_value = int(outputs_value - send_value)
@@ -564,28 +566,36 @@ class BaseCoinCase(unittest.TestCase):
         outs = [{'value': send_value, 'address': receiver},
                 {'value': change_value, 'address': change_address}]
 
+        #Create the transaction using all available unspents as inputs
         tx = c.mktx(unspents, outs)
 
+        #3rd party check that transaction is ok, not really necessary. Blockcypher requires an API key for this request
         if self.blockcypher_api_key:
             tx_decoded = self.decodetx(tx)
 
+        #For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
         try:
             privkey = self.privkeys[from_addr_i]
         except IndexError:
             privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
 
-        self.assertEqual(sender, c.privtoaddr(privkey), msg="Private key is not valid for address %s on %s" % (sender, c.display_name))
+        #Verify that the private key belongs to the sender address for this network
+        self.assertEqual(sender, c.privtoaddr(privkey), msg="Private key does not belong to address %s on %s" % (sender, c.display_name))
 
+        #Sign each input with the given private key
         for i in range(0, len(unspents)):
             tx = c.sign(tx, i, privkey)
 
+        #Check transaction format is still ok
         if self.blockcypher_api_key:
             signed_tx_decoded = self.decodetx(tx)
 
+        #Push the transaction to the network
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
     def assertPushTxOK(self, result):
+        #For chain.so. Override for other explorers.
         try:
             self.assertEqual(result['status'], "success")
             print("Txid %s successfully broadcast on %s network" % (result['data']['txid'], result['data']['network']))
@@ -593,7 +603,6 @@ class BaseCoinCase(unittest.TestCase):
             raise AssertionError("Push tx failed. Status: %s" % result['status'])
         except KeyError:
             raise AssertionError("Push tx failed. Response: %s" % result)
-
 
     def decodetx(self, tx):
         return blockcypher.decodetx(tx, coin_symbol=self.blockcypher_coin_symbol, api_key=self.blockcypher_api_key)
