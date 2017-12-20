@@ -15,7 +15,6 @@ class BitcoinCash(Bitcoin):
             self.display_name = "Bitcoin Cash Testnet"
             self.coin_symbol = "tbcc"
             self.magicbyte = 111
-            #raise NotImplementedError("Testnet support for this coin has not been implemented yet!")
 
     def unspent(self, *addrs):
         return blockdozer.unspent(*addrs, coin_symbol=self.coin_symbol)
@@ -27,4 +26,4 @@ class BitcoinCash(Bitcoin):
         return blockdozer.pushtx(tx, coin_symbol=self.coin_symbol)
 
     def sign(self, *args):
-        raise NotImplementedError("Signing transations for Bitcoin cash implemented")
+        raise NotImplementedError("Signing transations for Bitcoin cash not implemented")
