@@ -8,6 +8,7 @@ import bitcoin.ripemd as ripemd
 from bitcoin import *
 from bitcoin import cryptos
 
+
 class TestECCArithmetic(unittest.TestCase):
 
     @classmethod
@@ -504,6 +505,7 @@ class BaseCoinCase(unittest.TestCase):
     coin = cryptos.Bitcoin
     blockcypher_api_key = None
     blockcypher_coin_symbol = None
+    testnet = True
 
     @classmethod
     def setUpClass(cls):
@@ -515,7 +517,7 @@ class BaseCoinCase(unittest.TestCase):
         self.assertEqual(list1, list2)
 
     def assertUnspentOK(self):
-        c = self.coin()
+        c = self.coin(testnet=self.testnet)
         unspent_outputs = c.unspent(self.unspent_address)
         self.assertUnorderedListEqual(unspent_outputs, self.unspent, 'output')
 
@@ -531,7 +533,7 @@ class BaseCoinCase(unittest.TestCase):
 
     def assertTransactionOK(self):
 
-        c = self.coin()
+        c = self.coin(testnet=self.testnet)
 
         #Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
@@ -607,6 +609,7 @@ class BaseCoinCase(unittest.TestCase):
     def decodetx(self, tx):
         return blockcypher.decodetx(tx, coin_symbol=self.blockcypher_coin_symbol, api_key=self.blockcypher_api_key)
 
+
 @skip("very high fees")
 class TestBitcoin(BaseCoinCase):
     name = "Bitcoin"
@@ -614,6 +617,7 @@ class TestBitcoin(BaseCoinCase):
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     fee = 54400
     blockcypher_coin_symbol = "btc"
+    testnet = False
 
     unspent_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
     unspent = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'block_height': 1238008,
@@ -636,20 +640,21 @@ class TestBitcoin(BaseCoinCase):
         self.assertUnspentOK()
 
     def test_unspent_multiple(self):
-        c = self.coin()
+        c = self.coin(testnet=self.testnet)
         unspent_outputs = c.unspent(self.unspent_address_multiple)
         self.assertUnorderedListEqual(unspent_outputs, self.unspent_multiple, 'output')
 
 
 class TestBitcoinTestnet(BaseCoinCase):
     name = "Bitcoin Testnet"
-    coin = cryptos.BitcoinTestnet
+    coin = cryptos.Bitcoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
                    "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
     fee = 54400
     blockcypher_coin_symbol = "btc-testnet"
+    testnet = True
 
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
     unspent = [{'output': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c:0', 'value': 180000000,
@@ -671,6 +676,7 @@ class TestBitcoinCash(TestBitcoin):
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     blockcypher_coin_symbol = "btc"
     fee = 54400
+    tesnet = False
 
     unspent_address = "1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS"
     unspent = [

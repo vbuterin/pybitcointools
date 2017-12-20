@@ -1,13 +1,21 @@
 from bitcoin.explorers import sochainapi
 from ..transaction import SIGHASH_ALL, select, mksend
 from .. import main, transaction
+from .base import BaseCoin
 
 
-class Bitcoin(object):
+class Bitcoin(BaseCoin):
     coin_symbol = "BTC"
     display_name = "Bitcoin"
     magicbyte = 0
     hashcode = SIGHASH_ALL
+
+    def __init__(self, testnet=False, **kwargs):
+        super(Bitcoin, self).__init__(testnet, **kwargs)
+        if self.is_testnet:
+            self.display_name = "Bitcoin Testnet"
+            self.coin_symbol = "BTCTEST"
+            self.magicbyte = 111
 
     def privtopub(self, privkey):
         return main.privtopub(privkey)
@@ -74,8 +82,3 @@ class Bitcoin(object):
         u2 = select(u, int(outvalue) + int(fee))
         argz = u2 + outs + [frm, fee]
         return mksend(*argz)
-
-class BitcoinTestnet(Bitcoin):
-    display_name = "Bitcoin Testnet"
-    coin_symbol = "BTCTEST"
-    magicbyte = 111
