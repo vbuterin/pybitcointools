@@ -4,7 +4,9 @@ from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 from ..explorers import insightapi
 
 class BitcoinCash(Bitcoin):
-    coin_symbol = "bch"
+    display_name = "Bitcoin Cash"
+    coin_symbol = "BCH"
+    magicbyte = 0
     hashcode = SIGHASH_ALL + SIGHASH_FORKID
 
     def unspent(self, *addrs):
@@ -15,3 +17,8 @@ class BitcoinCash(Bitcoin):
 
     def pushtx(self, tx):
         return insightapi.pushtx(tx)
+
+class BitcoinCashTestnet(BitcoinCash):
+    display_name = "Bitcoin Cash Testnet"
+    coin_symbol = "BCHTEST"
+    magicbyte = 111

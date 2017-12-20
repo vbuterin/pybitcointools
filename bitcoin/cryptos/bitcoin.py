@@ -1,16 +1,13 @@
-from bitcoin.explorers import blockcypherapi
+from bitcoin.explorers import sochainapi
 from ..transaction import SIGHASH_ALL, select, mksend
-from .constants import COIN_METADATA
 from .. import main, transaction
 
 
 class Bitcoin(object):
-    coin_symbol = "btc"
+    coin_symbol = "BTC"
+    display_name = "Bitcoin"
+    magicbyte = 0
     hashcode = SIGHASH_ALL
-
-    def __init__(self):
-        self.metadata = COIN_METADATA[self.coin_symbol]
-        self.magicbyte = self.metadata['vbyte_pubkey']
 
     def privtopub(self, privkey):
         return main.privtopub(privkey)
@@ -28,13 +25,13 @@ class Bitcoin(object):
         return transaction.signall(tx, privkey, magicbyte=self.magicbyte, hashcode=self.hashcode)
 
     def unspent(self, *addrs, **kwargs):
-        return blockcypherapi.unspent(*addrs, coin_symbol=self.coin_symbol, **kwargs)
+        return sochainapi.unspent(*addrs, coin_symbol=self.coin_symbol, **kwargs)
 
     def history(self, *addrs, **kwargs):
-        return blockcypherapi.history(*addrs, coin_symbol=self.coin_symbol, **kwargs)
+        return sochainapi.history(*addrs, coin_symbol=self.coin_symbol, **kwargs)
 
     def pushtx(self, tx):
-        return blockcypherapi.pushtx(tx, coin_symbol=self.coin_symbol)
+        return sochainapi.pushtx(tx, coin_symbol=self.coin_symbol)
 
     def mktx(self, *args):
         return transaction.mktx(*args)
@@ -77,3 +74,8 @@ class Bitcoin(object):
         u2 = select(u, int(outvalue) + int(fee))
         argz = u2 + outs + [frm, fee]
         return mksend(*argz)
+
+class BitcoinTestnet(Bitcoin):
+    display_name = "Bitcoin Testnet"
+    coin_symbol = "BTCTEST"
+    magicbyte = 111

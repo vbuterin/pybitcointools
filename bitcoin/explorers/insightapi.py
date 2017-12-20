@@ -3,7 +3,7 @@ import re
 import requests
 from .blockcypherapi import parse_addr_args
 
-#https://github.com/bitpay/insight-api
+#Docs: https://github.com/bitpay/insight-api
 
 base_url = "https://bch-insight.bitpay.com/api"
 sendtx_url = base_url + "/tx/send"
@@ -37,5 +37,5 @@ def history(*args):
     if len(addrs) == 0:
         return []
 
-    response = requests.post(address_url % addrs.join(','))
+    response = requests.get(address_url % addrs.join(','))
     return response.json()

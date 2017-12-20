@@ -2,15 +2,16 @@
 
 This is a fork of Vitalik Buterin's original pybitcointools which is no longer maintained. Short-term roadmap:
 
+Still in a very early development stage...some stuff not working.
 
 Currently working on:
 
 * Adding additional coins
 
 Done:
-Better Python3 support
-Replace bci.py with blockcypher's own Python library
-Class-based api for different coins, making it easier to add new coins with a common interface
+* Better Python3 support
+* Replace bci.py with blockcypher's own Python library
+* Class-based api for different coins, making it easier to add new coins with a common interface
 
 Currently working on:
 * Additional coins. Already added api endpoints for gathering unspents and pushing transactions for various coins (see the cryptos directory). The main complexity comes from creating and signing raw transactions. For example, Bitcoin Cash implements replay protection using SIGHASH_FORKID. Appreciate any help with this.
