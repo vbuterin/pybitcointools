@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import re
 from blockcypher import api
 

@@ -1,4 +1,4 @@
-from bitcoin.explorers import sochainapi
+from bitcoin.explorers import sochain
 from ..transaction import SIGHASH_ALL, select, mksend
 from .. import main, transaction
 from .base import BaseCoin
@@ -33,13 +33,13 @@ class Bitcoin(BaseCoin):
         return transaction.signall(tx, privkey, magicbyte=self.magicbyte, hashcode=self.hashcode)
 
     def unspent(self, *addrs, **kwargs):
-        return sochainapi.unspent(*addrs, coin_symbol=self.coin_symbol, **kwargs)
+        return sochain.unspent(*addrs, coin_symbol=self.coin_symbol, **kwargs)
 
     def history(self, *addrs, **kwargs):
-        return sochainapi.history(*addrs, coin_symbol=self.coin_symbol, **kwargs)
+        return sochain.history(*addrs, coin_symbol=self.coin_symbol, **kwargs)
 
     def pushtx(self, tx):
-        return sochainapi.pushtx(tx, coin_symbol=self.coin_symbol)
+        return sochain.pushtx(tx, coin_symbol=self.coin_symbol)
 
     def mktx(self, *args):
         return transaction.mktx(*args)

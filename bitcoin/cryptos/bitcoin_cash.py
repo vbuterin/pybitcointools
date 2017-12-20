@@ -1,11 +1,11 @@
 from .bitcoin import Bitcoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
-from ..explorers import insightapi
+from ..explorers import blockdozer
 
 
 class BitcoinCash(Bitcoin):
     display_name = "Bitcoin Cash"
-    coin_symbol = "BCH"
+    coin_symbol = "bcc"
     magicbyte = 0
     hashcode = SIGHASH_ALL + SIGHASH_FORKID
 
@@ -13,15 +13,18 @@ class BitcoinCash(Bitcoin):
         super(BitcoinCash, self).__init__(testnet, **kwargs)
         if self.is_testnet:
             self.display_name = "Bitcoin Cash Testnet"
-            self.coin_symbol = "BCHTEST"
+            self.coin_symbol = "tbcc"
             self.magicbyte = 111
-            raise NotImplementedError("Testnet support for this coin has not been implemented yet!")
+            #raise NotImplementedError("Testnet support for this coin has not been implemented yet!")
 
     def unspent(self, *addrs):
-        return insightapi.unspent(*addrs)
+        return blockdozer.unspent(*addrs, coin_symbol=self.coin_symbol)
 
     def history(self, *addrs):
-        return insightapi.history(*addrs)
+        return blockdozer.history(*addrs, coin_symbol=self.coin_symbol)
 
     def pushtx(self, tx):
-        return insightapi.pushtx(tx)
+        return blockdozer.pushtx(tx, coin_symbol=self.coin_symbol)
+
+    def sign(self, *args):
+        raise NotImplementedError("Signing transations for Bitcoin cash implemented")

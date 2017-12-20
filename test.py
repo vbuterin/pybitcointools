@@ -2,6 +2,7 @@ from unittest import skip
 import datetime
 from dateutil.tz import tzutc
 import unittest
+from bitcoin import explorers
 import blockcypher
 from operator import itemgetter
 import bitcoin.ripemd as ripemd
@@ -522,13 +523,13 @@ class BaseCoinCase(unittest.TestCase):
         self.assertUnorderedListEqual(unspent_outputs, self.unspent, 'output')
 
     def assertParseArgsOK(self):
-        addr_args = parse_addr_args(self.unspent_address)
+        addr_args = explorers.blockcypher.parse_addr_args(self.unspent_address)
         self.assertListEqual(addr_args, [self.unspent_address])
 
-        addr_args = parse_addr_args(*self.unspent_address_multiple)
+        addr_args = explorers.blockcypher.parse_addr_args(*self.unspent_address_multiple)
         self.assertListEqual(addr_args, self.unspent_address_multiple)
 
-        addr_args = parse_addr_args(self.unspent_address_multiple)
+        addr_args = explorers.blockcypher.parse_addr_args(self.unspent_address_multiple)
         self.assertListEqual(addr_args, self.unspent_address_multiple)
 
     def assertTransactionOK(self):
@@ -550,6 +551,16 @@ class BaseCoinCase(unittest.TestCase):
                 from_addr_i = i
                 unspents = addr_unspents
 
+        #For dash and doge testnet, unspents are returned empty, need to add manually
+        if max_value == 0:
+            print(self.addresses)
+            from_addr_i = int(input("Which address? " ))
+            sender = self.addresses[from_addr_i]
+            input_tx = input("Enter txid for input unspent: ").strip()
+            input_n = input("Enter tx n for input unspent: ").strip()
+            max_value = int(input("Enter input value: ").strip())
+            unspents = [{'output': "%s:%s" % (input_tx, input_n), 'value': max_value}]
+        print(unspents)
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
@@ -593,6 +604,7 @@ class BaseCoinCase(unittest.TestCase):
             signed_tx_decoded = self.decodetx(tx)
 
         #Push the transaction to the network
+        print(tx)
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
@@ -610,7 +622,6 @@ class BaseCoinCase(unittest.TestCase):
         return blockcypher.decodetx(tx, coin_symbol=self.blockcypher_coin_symbol, api_key=self.blockcypher_api_key)
 
 
-@skip("very high fees")
 class TestBitcoin(BaseCoinCase):
     name = "Bitcoin"
     coin = cryptos.Bitcoin
@@ -620,29 +631,21 @@ class TestBitcoin(BaseCoinCase):
     testnet = False
 
     unspent_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
-    unspent = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'block_height': 1238008,
-                'tx_input_n': -1, 'tx_output_n': 0, 'value': 180000000, 'ref_balance': 180000000, 'spent': False,
-                'confirmations': 17439, 'confirmed': datetime.datetime(2017, 11, 25, 16, 52, 50, tzinfo=tzutc()),
-                'double_spend': False}]
-    unspent_address_multiple = ["12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR", "1HuuxuHPxMvt9JfTc5LKDnbLYr5h9epfQS"]
-    unspent_multiple = [
-        {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000},
-        {'output': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34:1', 'value': 5000000},
-        {'output': '1bcb2f731b3a46898857b762b6a237e9221578cdc6d0144b1fd9ffe5ba5aa895:1', 'value': 18750000000}]
+    unspent = [
+        {'output': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34:1', 'value': 5000000,
+         'time': 'Wed Mar 23 23:38:20 2011'},
+        {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000,
+         'time': 'Tue Apr  5 03:45:36 2011'}]
 
     def test_parse_args(self):
         self.assertParseArgsOK()
 
+    @skip("very high fees")
     def test_transaction(self):
         self.assertTransactionOK()
 
     def test_unspent(self):
         self.assertUnspentOK()
-
-    def test_unspent_multiple(self):
-        c = self.coin(testnet=self.testnet)
-        unspent_outputs = c.unspent(self.unspent_address_multiple)
-        self.assertUnorderedListEqual(unspent_outputs, self.unspent_multiple, 'output')
 
 
 class TestBitcoinTestnet(BaseCoinCase):
@@ -658,7 +661,7 @@ class TestBitcoinTestnet(BaseCoinCase):
 
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
     unspent = [{'output': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c:0', 'value': 180000000,
-               'time': 'Thu Sep 13 07:22:50 2012'}]         #For verifying unspent data is correct
+               'time': 'Sat Nov 25 16:52:50 2017'}]         #For verifying unspent data is correct
 
     def test_parse_args(self):
         self.assertParseArgsOK()
@@ -669,14 +672,75 @@ class TestBitcoinTestnet(BaseCoinCase):
     def test_unspent(self):
         self.assertUnspentOK()
 
-skip("Not fully implemented yet")
+
+class TestLitecoinTestnet(BaseCoinCase):
+    name = "Litecoin Testnet"
+    coin = cryptos.Litecoin
+    addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
+    privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
+                   "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+    fee = 54400
+    blockcypher_coin_symbol = None
+    testnet = True
+
+    unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
+    unspent = [{'output': '3f7a5460983cdfdf8118a1ab6bc84c28e536e83971532d4910c26bd21153de19:1', 'value': 100000000,
+               'time': 'Wed Dec 20 14:21:21 2017'}]         #For verifying unspent data is correct
+
+    def test_parse_args(self):
+        self.assertParseArgsOK()
+
+    def test_transaction(self):
+        self.assertTransactionOK()
+
+    def test_unspent(self):
+        self.assertUnspentOK()
+
+class TestDashTestnet(BaseCoinCase):
+    name = "Dash Testnet"
+    coin = cryptos.Dash
+    addresses = ["ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz", "yTXgT2aA32Y35VQ6N9KpFqKJKKdbidgKeZ", "ySPomQ35mpKiV89LDdAM3URFSibNiXEC4J"]
+    privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
+                   "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+    fee = 54400
+    blockcypher_coin_symbol = None
+    testnet = True
+
+    unspent_address = "yV1AhJ3N3Dh4LeiN1ECYpWuLEgmfcA1y5G"
+    unspent = [{'output': '3f7a5460983cdfdf8118a1ab6bc84c28e536e83971532d4910c26bd21153de19:1', 'value': 100000000,
+               'time': 'Thu Sep 13 07:22:50 2012'}]         #For verifying unspent data is correct
+
+    def test_transaction(self):
+        self.assertTransactionOK()
+
+@skip("Explorer not working")
+class TestDogeTestnet(BaseCoinCase):
+    name = "Doge Testnet"
+    coin = cryptos.Doge
+    addresses = ['nn1xreE17QZVwuxxVY3N497SygcBPsm15j', 'nbQPs6XNsA2NzndkhpLDASy4Khg8ZfhUfj', 'naGXBTzJbwp4QRNzZJAjx651T6duZy2kgV']
+    privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
+                   "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+    fee = 54400
+    blockcypher_coin_symbol = None
+    testnet = True
+
+    unspent_address = "ncst7MzasMBQFwx2LuCwj8Z6F4pCRppzBP"
+    unspent = [{'output': '3f7a5460983cdfdf8118a1ab6bc84c28e536e83971532d4910c26bd21153de19:1', 'value': 100000000,
+               'time': 'Thu Sep 13 07:22:50 2012'}]         #For verifying unspent data is correct
+
+    def test_transaction(self):
+        self.assertTransactionOK()
+
 class TestBitcoinCash(TestBitcoin):
     name = "Bitcoin Cash"
     coin = cryptos.BitcoinCash
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     blockcypher_coin_symbol = "btc"
     fee = 54400
-    tesnet = False
+    testnet = False
 
     unspent_address = "1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS"
     unspent = [
@@ -685,6 +749,31 @@ class TestBitcoinCash(TestBitcoin):
     def test_parse_args(self):
         self.assertParseArgsOK()
 
+    @skip("Signing not yet working for Bitcoin Cash")
+    def test_transaction(self):
+        self.assertTransactionOK()
+
+    def test_unspent(self):
+        self.assertUnspentOK()
+
+class TestBitcoinCashTestnet(BaseCoinCase):
+    name = "Bitcoin Cash Testnet"
+    coin = cryptos.BitcoinCash
+    addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
+    privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
+                   "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+    fee = 54400
+    blockcypher_coin_symbol = None
+    testnet = True
+
+    unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
+    unspent = [{'output': '80700e6d1125deafa22b307f6c7c99e75771f9fc05517fc795a1344eca7c8472:0', 'value': 550000000}]         #For verifying unspent data is correct
+
+    def test_parse_args(self):
+        self.assertParseArgsOK()
+
+    @skip("Signing not yet working for bitcoin cash")
     def test_transaction(self):
         self.assertTransactionOK()
 

@@ -12,4 +12,4 @@ class Doge(Bitcoin):
             self.display_name = "Dogecoin Testnet"
             self.coin_symbol = "DOGETEST"
             self.magicbyte = 113
-            raise NotImplementedError("Testnet support for this coin has not been implemented yet!")
+            raise NotImplementedError("Due to explorer limitations, testnet support for this coin has not been implemented yet!")

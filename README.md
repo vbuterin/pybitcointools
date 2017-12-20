@@ -8,22 +8,28 @@ Done:
 * Better Python3 support
 * Replace bci.py with other explorers
 * Class-based api for different coins, making it easier to add new coins with a common interface
+* Unspents and broadcast transaction tested for the following testnets: Bitcoin, Litecoin and Dash (Dogecoin does not seem to have a working testnet explorer)
 
-Currently working on:
-* Additional coins. Already added api endpoints for gathering unspents and pushing transactions for various coins (see the cryptos directory). The main complexity comes from creating and signing raw transactions. For example, Bitcoin Cash implements replay protection using SIGHASH_FORKID. Appreciate any help with this.
+Needs to be tested:
+* Live network transactions for Bitcoin, Litecoin, Dash and Dogecoin
+
+If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
+
+Short term roadmap:
 * More test cases for key fuctionality
 * Possible renaming (pycryptotools?)
 * Release on pip
 
+
 Longer-term roadmap:
-* Support of more coins (Bitcoin Cash, Bitcoin Gold, Dogecoin, Litecoin, Dash, etc.)
 * Integrate pull requests from pybitcointools, e.g. Segwit support
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
+* Easily gather unspents and broadcast transactions based on a mnemonic
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
 * Seed-based multi-crypto wallet
 
-The rest of this readme is pretty much taken directly from the original pybitcointools library.
+The rest of this readme is pretty much taken directly from the original pybitcointools library and needs to be updated.
 ### Advantages:
 
 * Functions have a simple interface, inputting and outputting in standard formats

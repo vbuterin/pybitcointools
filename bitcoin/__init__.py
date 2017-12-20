@@ -1,7 +1,6 @@
 from bitcoin.blocks import *
 from bitcoin.composite import *
 from bitcoin.deterministic import *
-from bitcoin.explorers.blockcypherapi import *
 from bitcoin.main import *
 from bitcoin.mnemonic import *
 from bitcoin.py2specials import *

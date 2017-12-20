@@ -40,13 +40,13 @@ class BaseCoin(object):
 
     def sign(self, tx, i, privkey):
         """
-        Sign a transaction with index using a priavte key
+        Sign a transaction with index using a private key
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
     def signall(self, tx, privkey):
         """
-        Sign all transactions with index using a priavte key
+        Sign all transactions with index using a private key
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 

@@ -12,4 +12,3 @@ class Litecoin(Bitcoin):
             self.display_name = "Litecoin Testnet"
             self.coin_symbol = "LTCTEST"
             self.magicbyte = 111
-            raise NotImplementedError("Testnet support for this coin has not been implemented yet!")
