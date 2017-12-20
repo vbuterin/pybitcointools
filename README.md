@@ -16,7 +16,7 @@ Needs to be tested:
 If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
 
 Short term roadmap:
-* More test cases for key fuctionality
+* More test cases for key functionality
 * Possible renaming (pycryptotools?)
 * Release on pip
 
