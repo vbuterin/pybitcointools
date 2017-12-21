@@ -129,7 +129,7 @@ To use the testnet you can add --testnet:
     ": 82211600, "time": "Thu Dec 21 09:52:00 2017"}, {"output": "80acca12cf4b3b562b583f1dc7e43fff936e432a7ed4b16ac3cd10024820d027:0", "value": 192470000, "time": "Thu Dec 21 09:52:00 20
     17"}, {"output": "3e5a3fa342c767d524b653aec51f3efe2122644c57340fbf5f79c75d1911ad35:0", "value": 10000000, "time": "Thu Dec 21 10:18:48 2017"}]
 
-Or the --coin option to use a different coin (bch, btc, dash, doge or ltc)
+Or the --coin option to use coin other than bitcoin (bch, btc, dash, doge or ltc)
 
     python pybtctool unspent LV3VLesnCi3p3zf26Y86kH2FZxfQq2RjrA --coin ltc
     [{"output": "42bfe7376410696e260b2198f484f5df4aa6c744465940f9922ac9f8589670a4:0", "value": 14282660, "time": "Thu Dec 21 10:36:08 2017"}]
