@@ -560,7 +560,7 @@ class BaseCoinCase(unittest.TestCase):
             input_n = input("Enter tx n for input unspent: ").strip()
             max_value = int(input("Enter input value: ").strip())
             unspents = [{'output': "%s:%s" % (input_tx, input_n), 'value': max_value}]
-        print(unspents)
+
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
@@ -610,13 +610,17 @@ class BaseCoinCase(unittest.TestCase):
 
     def assertPushTxOK(self, result):
         #For chain.so. Override for other explorers.
-        try:
-            self.assertEqual(result['status'], "success")
-            print("Txid %s successfully broadcast on %s network" % (result['data']['txid'], result['data']['network']))
-        except AssertionError:
-            raise AssertionError("Push tx failed. Status: %s" % result['status'])
-        except KeyError:
-            raise AssertionError("Push tx failed. Response: %s" % result)
+        if isinstance(result, dict):
+            try:
+                self.assertEqual(result['status'], "success")
+                print("Txid %s successfully broadcast on %s network" % (result['data']['txid'], result['data']['network']))
+            except AssertionError:
+                raise AssertionError("Push tx failed. Status: %s" % result['status'])
+            except KeyError:
+                raise AssertionError("Push tx failed. Response: %s" % result)
+        else:
+            if not result.status_code == 200:
+                raise AssertionError(result.text)
 
     def decodetx(self, tx):
         return blockcypher.decodetx(tx, coin_symbol=self.blockcypher_coin_symbol, api_key=self.blockcypher_api_key)
@@ -668,6 +672,76 @@ class TestBitcoinTestnet(BaseCoinCase):
 
     def test_transaction(self):
         self.assertTransactionOK()
+
+    def test_send(self):
+
+        c = self.coin(testnet=self.testnet)
+
+        #Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        sender = self.addresses[0]
+        from_addr_i = 0
+
+        for i, addr in enumerate(self.addresses):
+            addr_unspents = c.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = addr
+                from_addr_i = i
+
+        privkey = self.privkeys[from_addr_i]
+
+        #Arbitrarily set send value, change value, receiver and change address
+        outputs_value = max_value - self.fee
+        send_value = int(outputs_value * 0.1)
+
+        if sender == self.addresses[0]:
+            receiver = self.addresses[1]
+        elif sender == self.addresses[1]:
+            receiver = self.addresses[2]
+        else:
+            receiver = self.addresses[0]
+
+        result = c.send(privkey, receiver, send_value, fee=self.fee)
+        self.assertPushTxOK(result)
+
+    def test_sendmultitx(self):
+
+        c = self.coin(testnet=self.testnet)
+
+        #Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        sender = self.addresses[0]
+        from_addr_i = 0
+
+        for i, addr in enumerate(self.addresses):
+            addr_unspents = c.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = addr
+                from_addr_i = i
+
+        privkey = self.privkeys[from_addr_i]
+
+        #Arbitrarily set send value, change value, receiver and change address
+        outputs_value = max_value - self.fee
+        send_value1 = int(outputs_value * 0.1)
+        send_value2 = int(outputs_value * 0.5)
+
+        if sender == self.addresses[0]:
+            receiver1 = self.addresses[1]
+            receiver2 = self.addresses[2]
+        elif sender == self.addresses[1]:
+            receiver1 = self.addresses[2]
+            receiver2 = self.addresses[0]
+        else:
+            receiver1 = self.addresses[0]
+            receiver2 = self.addresses[1]
+
+        result = c.sendmultitx(privkey, "%s:%s" % (receiver1, send_value1), "%s:%s" % (receiver2, send_value2), self.fee)
+        self.assertPushTxOK(result)
 
     def test_unspent(self):
         self.assertUnspentOK()
@@ -773,7 +847,6 @@ class TestBitcoinCashTestnet(BaseCoinCase):
     def test_parse_args(self):
         self.assertParseArgsOK()
 
-    @skip("Signing not yet working for bitcoin cash")
     def test_transaction(self):
         self.assertTransactionOK()
 

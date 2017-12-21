@@ -13,7 +13,10 @@ transaction_html_url = ""
 def unspent(addr, coin_symbol="BTC"):
     url = utxo_url % (coin_symbol, addr)
     response = requests.get(url)
-    txs = response.json()['data']['txs']
+    try:
+        txs = response.json()['data']['txs']
+    except:
+        raise Exception(response.text)
     for i, tx in enumerate(txs):
         txs[i] = {
             'output': "%s:%s" % (tx['txid'], tx['output_no']),

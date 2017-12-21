@@ -74,27 +74,27 @@ class BaseCoin(object):
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
-    def send(self, privkey, to, value, fee=10000, **kwargs):
+    def send(self, privkey, to, value, fee=10000):
         """
         Send an amount from wallet.
         Requires private key, target address, value and fee
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
-    def sendmultitx(self, privkey, *args, **kwargs):
+    def sendmultitx(self, privkey, *args):
         """
         Send multiple transactions/amounts at once
         Requires private key, address:value pairs and fee
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
-    def preparetx(self, frm, to, value, fee=10000, **kwargs):
+    def preparetx(self, frm, to, value, fee=10000):
         """
         Prepare a transaction using from and to address, value and a fee
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
-    def preparemultitx(self, frm, *args, **kwargs):
+    def preparemultitx(self, frm, *args):
         """
         Prepare multiple transactions at once.
         Requires from address, to_address:value pairs and fees

@@ -24,6 +24,3 @@ class BitcoinCash(Bitcoin):
 
     def pushtx(self, tx):
         return blockdozer.pushtx(tx, coin_symbol=self.coin_symbol)
-
-    def sign(self, *args):
-        raise NotImplementedError("Signing transations for Bitcoin cash not implemented")

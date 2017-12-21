@@ -45,32 +45,23 @@ class Bitcoin(BaseCoin):
         return transaction.mktx(*args)
 
     # Takes privkey, address, value (satoshis), fee (satoshis)
-    def send(self, privkey, to, value, fee=10000, **kwargs):
-        return self.sendmultitx(privkey, to + ":" + str(value), fee, **kwargs)
+    def send(self, privkey, to, value, fee=10000):
+        return self.sendmultitx(privkey, to + ":" + str(value), fee)
 
     # Takes privkey, address1:value1,address2:value2 (satoshis), fee (satoshis)
-    def sendmultitx(self, privkey, *args, **kwargs):
-        tv, fee = args[:-1], int(args[-1])
-        outs = []
-        outvalue = 0
-        for a in tv:
-            outs.append(a)
-            outvalue += int(a.split(":")[1])
-
-        u = self.unspent(self.privtoaddr(privkey))
-        u2 = select(u, int(outvalue) + int(fee))
-        argz = u2 + outs + [self.privtoaddr(privkey), fee]
-        tx = mksend(*argz)
+    def sendmultitx(self, privkey, *args):
+        frm = self.privtoaddr(privkey)
+        tx = self.preparemultitx(frm, *args)
         tx2 = self.signall(tx, privkey)
         return self.pushtx(tx2)
 
     # Takes address, address, value (satoshis), fee(satoshis)
-    def preparetx(self, frm, to, value, fee=10000, **kwargs):
+    def preparetx(self, frm, to, value, fee=10000):
         tovalues = to + ":" + str(value)
-        return self.preparemultitx(frm, tovalues, fee, **kwargs)
+        return self.preparemultitx(frm, tovalues, fee)
 
     # Takes address, address:value, address:value ... (satoshis), fee(satoshis)
-    def preparemultitx(self, frm, *args, **kwargs):
+    def preparemultitx(self, frm, *args):
         tv, fee = args[:-1], int(args[-1])
         outs = []
         outvalue = 0

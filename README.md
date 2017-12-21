@@ -8,15 +8,14 @@ Done:
 * Better Python3 support
 * Replace bci.py with other explorers
 * Class-based api for different coins, making it easier to add new coins with a common interface
-* Unspents and broadcast transaction tested for the following testnets: Bitcoin, Litecoin and Dash (Dogecoin does not seem to have a working testnet explorer)
+* Unspents and broadcast transaction tested for live Bitcoin and for the following testnets: Bitcoin, Litecoin and Dash (Dogecoin does not seem to have a working testnet explorer)
 
 Needs to be tested:
-* Live network transactions for Bitcoin, Litecoin, Dash and Dogecoin
+* Live network transactions for Litecoin, Dash and Dogecoin
 
 If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
 
 Short term roadmap:
-* More test cases for key functionality
 * Possible renaming (pycryptotools?)
 * Release on pip
 
@@ -33,46 +32,49 @@ The rest of this readme is pretty much taken directly from the original pybitcoi
 ### Advantages:
 
 * Functions have a simple interface, inputting and outputting in standard formats
-* No classes
+* Classes for different coins with a common interface
 * Many functions can be taken out and used individually
 * Supports binary, hex and base58
 * Transaction deserialization format almost compatible with BitcoinJS
 * Electrum and BIP0032 support
-* Make and publish a transaction all in a single command line instruction
+* Make and publish a transaction all in a single command line instruction with full control
 * Includes non-bitcoin-specific conversion and JSON utilities
 
 ### Disadvantages:
 
 * Not a full node, has no idea what blocks are
-* Relies on centralized service (blockchain.info) for blockchain operations, although operations do have backups (eligius, blockr.io)
+* Relies on centralized explorers for blockchain operations
 
 ### Example usage (best way to learn :) ):
 
     > from bitcoin import *
-    > priv = sha256('some big long brainwallet password')
+    > c = Bitcoin(testnet=True)
+    > priv = sha256('a big long brainwallet password')
     > priv
-    '57c617d9b4e1f7af6ec97ca2ff57e94a28279a7eedd4d12a99fa11170e94f5a4'
-    > pub = privtopub(priv)
+    '89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678'
+    > pub = c.privtopub(priv)
     > pub
-    '0420f34c2786b4bae593e22596631b025f3ff46e200fc1d4b52ef49bbdc2ed00b26c584b7e32523fb01be2294a1f8a5eb0cf71a203cc034ced46ea92a8df16c6e9'
-    > addr = pubtoaddr(pub)
+    '041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f'
+    > addr = c.pubtoaddr(pub)
     > addr
-    '1CQLd3bhw4EzaURHbKCwM5YZbUQfA4ReY6'
-    > inputs = unspent(addr)
+    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
+    > inputs = c.unspent(addr)
     > inputs
-    [{'output': u'97f7c7d8ac85e40c255f8a763b6cd9a68f3a94d2e93e8bfa08f977b92e55465e:0', 'value': 50000}, {'output': u'4cc806bb04f730c445c60b3e0f4f44b54769a1c196ca37d8d4002135e4abd171:1', 'value': 50000}]
-    > outs = [{'value': 90000, 'address': '16iw1MQ1sy1DtRPYw3ao1bCamoyBJtRB4t'}]
-    > tx = mktx(inputs,outs)
+    [{'output': '350c0292939bf581c847b95b3f864c8c50d51bda68201530b4c23c0e91818988:0', 'value': 55000000, 'time': 'Thu Dec 21 09:43:34 2017'}, {'output': '93b1fe01f0f581d06fce2206c4e0ac0420f5ebc262af31a467ed11ad2b8d884c:0', 'value': 27500000, 'time': 'Thu Dec 21 09:43:34 2017'}]
+    > outs = [{'value': 82211600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 90000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
+    > tx = c.mktx(inputs,outs)
     > tx
-    '01000000025e46552eb977f908fa8b3ee9d2943a8fa6d96c3b768a5f250ce485acd8c7f7970000000000ffffffff71d1abe4352100d4d837ca96c1a16947b5444f0f3e0bc645c430f704bb06c84c0100000000ffffffff01905f0100000000001976a9143ec6c3ed8dfc3ceabcc1cbdb0c5aef4e2d02873c88ac00000000'
-    > tx2 = sign(tx,0,priv)
+    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c350000000000ffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb1930000000000ffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    > tx2 = c.sign(tx,0,priv)
     > tx2
-    '01000000025e46552eb977f908fa8b3ee9d2943a8fa6d96c3b768a5f250ce485acd8c7f797000000008b483045022100dd29d89a28451febb990fb1dafa21245b105140083ced315ebcdea187572b3990220713f2e554f384d29d7abfedf39f0eb92afba0ef46f374e49d43a728a0ff6046e01410420f34c2786b4bae593e22596631b025f3ff46e200fc1d4b52ef49bbdc2ed00b26c584b7e32523fb01be2294a1f8a5eb0cf71a203cc034ced46ea92a8df16c6e9ffffffff71d1abe4352100d4d837ca96c1a16947b5444f0f3e0bc645c430f704bb06c84c0100000000ffffffff01905f0100000000001976a9143ec6c3ed8dfc3ceabcc1cbdb0c5aef4e2d02873c88ac00000000'
-    > tx3 = sign(tx2,1,priv)
+    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c35000000008a47304402201ed9652b392b6e6418d94fbacb730c36d65052fc358d6f25d633e0de9687734502207081ad4008cf173bd463733961f2f0ee2b3ce33251d5059f35b651fd97142ed10141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb1930000000000ffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    > tx3 = c.sign(tx2,1,priv)
     > tx3
-    '01000000025e46552eb977f908fa8b3ee9d2943a8fa6d96c3b768a5f250ce485acd8c7f797000000008b483045022100dd29d89a28451febb990fb1dafa21245b105140083ced315ebcdea187572b3990220713f2e554f384d29d7abfedf39f0eb92afba0ef46f374e49d43a728a0ff6046e01410420f34c2786b4bae593e22596631b025f3ff46e200fc1d4b52ef49bbdc2ed00b26c584b7e32523fb01be2294a1f8a5eb0cf71a203cc034ced46ea92a8df16c6e9ffffffff71d1abe4352100d4d837ca96c1a16947b5444f0f3e0bc645c430f704bb06c84c010000008c4930460221008bbaaaf172adfefc3a1315dc7312c88645832ff76d52e0029d127e65bbeeabe1022100fdeb89658d503cf2737cedb4049e5070f689c50a9b6c85997d49e0787938f93901410420f34c2786b4bae593e22596631b025f3ff46e200fc1d4b52ef49bbdc2ed00b26c584b7e32523fb01be2294a1f8a5eb0cf71a203cc034ced46ea92a8df16c6e9ffffffff01905f0100000000001976a9143ec6c3ed8dfc3ceabcc1cbdb0c5aef4e2d02873c88ac00000000'
-    > pushtx(tx3)
-    'Transaction Submitted'
+    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c35000000008a47304402201ed9652b392b6e6418d94fbacb730c36d65052fc358d6f25d633e0de9687734502207081ad4008cf173bd463733961f2f0ee2b3ce33251d5059f35b651fd97142ed10141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb193000000008a473044022062c5bc96ba01b7e178d19df6bf5731ad03f61055367a0d598c97d3d359cee8c202202f274d806dc9b3b35142b63a10a52795de69e22cc7671b737422abb3a2418a4f0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    > deserialize(tx)
+    {'ins': [{'outpoint': {'hash': '350c0292939bf581c847b95b3f864c8c50d51bda68201530b4c23c0e91818988', 'index': 0}, 'script': '', 'sequence': 4294967295}, {'outpoint': {'hash': '93b1fe01f0f581d06fce2206c4e0ac0420f5ebc262af31a467ed11ad2b8d884c', 'index': 0}, 'script': '', 'sequence': 4294967295}], 'outs': [{'value': 82211600, 'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87'}, {'value': 90000, 'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac'}], 'version': 1, 'locktime': 0}
+    > c.pushtx(tx3)
+    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '99d88509d5f0e298bdb6883161c64c7f54444519ce28a0ef3d5942ff4ff7a924'}}
 
 Or using the pybtctool command line interface:
 
