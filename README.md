@@ -144,7 +144,7 @@ Make and broadcast a transaction on the Dash testnet:
     python pybtctool send cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz 44907516684 --fee 20000 --coin dash --testnet
     {"status": "success", "data": {"txid": "725ff2599700462905aafe658a082c0545c2749f779a7c9114421b4ca65183d0", "network": "DASHTEST"}}
 
-The arguments are the private key of the sender, the receiver and fee. Change will be returned to the sender. 
+The arguments are the private key of the sender, the receiver's address and the fee (default 10000). Change will be returned to the sender. 
 ### Listing of main coin-specific commands:
 
 * privkey_to_pubkey    : (privkey) -> pubkey
