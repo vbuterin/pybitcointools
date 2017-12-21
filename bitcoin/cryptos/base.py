@@ -68,12 +68,6 @@ class BaseCoin(object):
         """
         raise NotImplementedError("This method is not implemeted for this coin")
 
-    def mktx(self, *args):
-        """
-        Make a transaction to the blockchain
-        """
-        raise NotImplementedError("This method is not implemeted for this coin")
-
     def send(self, privkey, to, value, fee=10000):
         """
         Send an amount from wallet.

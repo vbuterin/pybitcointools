@@ -580,7 +580,7 @@ class BaseCoinCase(unittest.TestCase):
                 {'value': change_value, 'address': change_address}]
 
         #Create the transaction using all available unspents as inputs
-        tx = c.mktx(unspents, outs)
+        tx = mktx(unspents, outs)
 
         #3rd party check that transaction is ok, not really necessary. Blockcypher requires an API key for this request
         if self.blockcypher_api_key:

@@ -13,17 +13,18 @@ transaction_html_url = ""
 def unspent(addr, coin_symbol="BTC"):
     url = utxo_url % (coin_symbol, addr)
     response = requests.get(url)
-    try:
+    result = response.json()
+    if 'data' in result.keys() and 'txs' in result['data'].keys():
         txs = response.json()['data']['txs']
-    except:
+        for i, tx in enumerate(txs):
+            txs[i] = {
+                'output': "%s:%s" % (tx['txid'], tx['output_no']),
+                'value': int(tx['value'].replace('.', '')),
+                'time': datetime.datetime.fromtimestamp(tx['time']).strftime('%c')
+            }
+        return txs
+    else:
         raise Exception(response.text)
-    for i, tx in enumerate(txs):
-        txs[i] = {
-            'output': "%s:%s" % (tx['txid'], tx['output_no']),
-            'value': int(tx['value'].replace('.', '')),
-            'time': datetime.datetime.fromtimestamp(tx['time']).strftime('%c')
-        }
-    return txs
 
 def pushtx(tx, coin_symbol="BTC"):
     if not re.match('^[0-9a-fA-F]*$', tx):

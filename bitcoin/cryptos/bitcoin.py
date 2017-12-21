@@ -41,9 +41,6 @@ class Bitcoin(BaseCoin):
     def pushtx(self, tx):
         return sochain.pushtx(tx, coin_symbol=self.coin_symbol)
 
-    def mktx(self, *args):
-        return transaction.mktx(*args)
-
     # Takes privkey, address, value (satoshis), fee (satoshis)
     def send(self, privkey, to, value, fee=10000):
         return self.sendmultitx(privkey, to + ":" + str(value), fee)
