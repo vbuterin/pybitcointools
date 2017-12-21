@@ -123,7 +123,7 @@ Fun stuff with json:
 
 To use the testnet you can add --testnet:
 
-    python pybtctool unspent 2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF --testnet
+    pybtctool unspent 2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF --testnet
     [{"output": "209e5caf8997a3caed4dce0399804ad7fa50c70f866bb7118a42c79de1b76efc:1", "value": 120000000, "time": "Thu Dec 21 08:33:05 2017"}, {"output": "79f38b3e730eea0e44b5a2e645f0979
     2d9f8732a823079ba4778110657cbe7b2:0", "value": 100000000, "time": "Thu Dec 21 09:31:55 2017"}, {"output": "99d88509d5f0e298bdb6883161c64c7f54444519ce28a0ef3d5942ff4ff7a924:0", "value
     ": 82211600, "time": "Thu Dec 21 09:52:00 2017"}, {"output": "80acca12cf4b3b562b583f1dc7e43fff936e432a7ed4b16ac3cd10024820d027:0", "value": 192470000, "time": "Thu Dec 21 09:52:00 20
@@ -131,17 +131,17 @@ To use the testnet you can add --testnet:
 
 Or the --coin option to use a coin other than bitcoin (bch, btc, dash, doge or ltc)
 
-    python pybtctool unspent LV3VLesnCi3p3zf26Y86kH2FZxfQq2RjrA --coin ltc
+    pybtctool unspent LV3VLesnCi3p3zf26Y86kH2FZxfQq2RjrA --coin ltc
     [{"output": "42bfe7376410696e260b2198f484f5df4aa6c744465940f9922ac9f8589670a4:0", "value": 14282660, "time": "Thu Dec 21 10:36:08 2017"}]
 
-    python pybtctool unspent myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW --coin ltc --testnet
+    pybtctool unspent myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW --coin ltc --testnet
     [{"output": "f27a53b9433eeb9d011a8c77439edb7a582a01166756e00ea1076699bfa58371:0", "value": 1993472, "time": "Wed Dec 20 14:38:07 2017"}, {"output": "2a288547460ebe410e98fe63a1900b645
     2d95ec318efb0d58a5584ac67f27d93:1", "value": 177961076, "time": "Wed Dec 20 17:01:32 2017"}, {"output": "da0e900e4ed8e3661bef6f6fa5beed78fec3f7b9e4cc87c7120108eba66f270f:0", "value":
      1971905, "time": "Wed Dec 20 17:01:32 2017"}]
 
 Make and broadcast a transaction on the Dash testnet:
 
-    python pybtctool send cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz 44907516684 --fee 20000 --coin dash --testnet
+    pybtctool send cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz 44907516684 --fee 20000 --coin dash --testnet
     {"status": "success", "data": {"txid": "725ff2599700462905aafe658a082c0545c2749f779a7c9114421b4ca65183d0", "network": "DASHTEST"}}
 
 The arguments are the private key of the sender, the receiver's address and the fee (default 10000). Change will be returned to the sender. 
