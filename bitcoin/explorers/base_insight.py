@@ -8,6 +8,7 @@ from .blockcypher import parse_addr_args
 sendtx_url = "%s/tx/send"
 address_url = "%s/addrs/%s/txs"
 utxo_url = "%s/addrs/%s/utxo"
+fetchtx_url = "%s/tx/%s"
 
 def unspent(base_url, *args):
 
@@ -33,6 +34,17 @@ def unspent(base_url, *args):
                 'time': datetime.datetime.fromtimestamp(tx['ts']).strftime('%c')
             }
     return txs
+
+def fetchtx(base_url, tx):
+    url = fetchtx_url % (base_url, tx)
+    response = requests.get(url)
+    return response.json()
+
+def txinputs(base_url, tx):
+    result = fetchtx(base_url, tx)
+    inputs = result['vin']
+    unspents = [{'output': "%s:%s" % (i['txid'], i['n']), 'value': i['valueSat']} for i in inputs]
+    return unspents
 
 def pushtx(base_url, network, tx):
     if not re.match('^[0-9a-fA-F]*$', tx):

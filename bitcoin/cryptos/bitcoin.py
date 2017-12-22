@@ -38,6 +38,12 @@ class Bitcoin(BaseCoin):
     def history(self, *addrs, **kwargs):
         return sochain.history(*addrs, coin_symbol=self.coin_symbol, **kwargs)
 
+    def fetchtx(self, tx):
+        return sochain.fetchtx(tx, coin_symbol=self.coin_symbol)
+
+    def txinputs(self, tx):
+        return sochain.txinputs(tx, coin_symbol=self.coin_symbol)
+
     def pushtx(self, tx):
         return sochain.pushtx(tx, coin_symbol=self.coin_symbol)
 

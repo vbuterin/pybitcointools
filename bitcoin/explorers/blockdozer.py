@@ -10,6 +10,14 @@ def pushtx(tx,  coin_symbol="bcc"):
     base_url_for_coin = base_url % coin_symbol
     return insight.pushtx(base_url_for_coin, coin_symbol, tx)
 
+def fetchtx(tx, coin_symbol="bcc"):
+    base_url_for_coin = base_url % coin_symbol
+    return insight.fetchtx(base_url_for_coin, tx)
+
+def txinputs(tx, coin_symbol="bcc"):
+    base_url_for_coin = base_url % coin_symbol
+    return insight.txinputs(base_url_for_coin, tx)
+
 def history(*args,  coin_symbol="bcc"):
     base_url_for_coin = base_url % coin_symbol
     return insight.history(base_url_for_coin, *args)

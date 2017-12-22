@@ -8,6 +8,8 @@ base_url = "https://chain.so/api/v2/"
 sendtx_url = base_url + "send_tx/%s"
 address_url = base_url + "address/%s/%s"
 utxo_url = base_url + "get_tx_unspent/%s/%s"
+tx_url = base_url + "get_tx/%s/%s"
+tx_inputs_url = base_url + "get_tx_inputs/%s/%s"
 transaction_html_url = ""
 
 def unspent(addr, coin_symbol="BTC"):
@@ -25,6 +27,20 @@ def unspent(addr, coin_symbol="BTC"):
         return txs
     else:
         raise Exception(response.text)
+
+def fetchtx(tx, coin_symbol="BTC"):
+    url = tx_url % (coin_symbol, tx)
+    response = requests.get(url)
+    result = response.json()
+    return result['data']
+
+def txinputs(tx, coin_symbol="BTC"):
+    url = tx_inputs_url % (coin_symbol, tx)
+    response = requests.get(url)
+    result = response.json()
+    inputs = result['data']['inputs']
+    unspents = [{'output': (i['from_output']['txid'] + ":" + str(i['from_output']['output_no'])), 'value': int(float(i['value']) * 100000000)} for i in inputs]
+    return unspents
 
 def pushtx(tx, coin_symbol="BTC"):
     if not re.match('^[0-9a-fA-F]*$', tx):

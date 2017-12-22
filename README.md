@@ -2,19 +2,6 @@
 
 This is a fork of Vitalik Buterin's original pybitcointools which is no longer maintained.
 
-Still in a very early development stage...some stuff not working.
-
-Done:
-* Better Python3 support
-* Replace bci.py with other explorers
-* Class-based api for different coins, making it easier to add new coins with a common interface
-* Unspents and broadcast transaction tested for live Bitcoin and for the following testnets: Bitcoin, Litecoin and Dash (Dogecoin does not seem to have a working testnet explorer)
-
-Needs to be tested:
-* Live network transactions for Litecoin, Dash and Dogecoin
-
-If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
-
 Short term roadmap:
 * Possible renaming (pycryptotools?)
 * Release on pip
@@ -28,7 +15,11 @@ Longer-term roadmap:
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
 * Seed-based multi-crypto wallet
 
-The rest of this readme is pretty much taken directly from the original pybitcointools library and needs to be updated.
+Contributions:
+* Needs to be tested: Live network transactions for Litecoin, Dash and Dogecoin
+* If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
+* Anyone know a working Dogecoin testnet explorer?
+
 ### Advantages:
 
 * Functions have a simple interface, inputting and outputting in standard formats
@@ -158,6 +149,8 @@ The arguments are the private key of the sender, the receiver's address and the 
 * history              : (address) -> tx history of an address
 * unspent              : (address, etc) -> unspent outputs for an addresses
 * pushtx               : (hex or bin tx) -> push a transaction to the blockchain
+* fetchtx              : (txhash) -> fetch a tx from the blockchain
+* txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
 * send                 : (privkey, to, value, fee) -> create and a push a simple transaction to send coins to an address and return change to the sender
 
 ### Listing of main non-coin specific commands:

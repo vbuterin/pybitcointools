@@ -22,5 +22,11 @@ class BitcoinCash(Bitcoin):
     def history(self, *addrs):
         return blockdozer.history(*addrs, coin_symbol=self.coin_symbol)
 
+    def fetchtx(self, tx):
+        return blockdozer.fetchtx(tx, coin_symbol=self.coin_symbol)
+
+    def txinputs(self, tx):
+        return blockdozer.txinputs(tx, coin_symbol=self.coin_symbol)
+
     def pushtx(self, tx):
         return blockdozer.pushtx(tx, coin_symbol=self.coin_symbol)
