@@ -1,6 +1,6 @@
 # Pycryptotools, Python library for Bitcoin signatures and transactions
 
-This is a fork of Vitalik Buterin's original pybitcointools library.
+This is a fork of Vitalik Buterin's original[pybitcointools](https://github.com/vbuterin/pybitcointools)library.
 
 Library now supports:
 
