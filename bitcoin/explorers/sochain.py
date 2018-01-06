@@ -1,6 +1,7 @@
 import re
 import requests
 import datetime
+import json
 
 #Docs: https://chain.so/api
 
@@ -15,18 +16,21 @@ transaction_html_url = ""
 def unspent(addr, coin_symbol="BTC"):
     url = utxo_url % (coin_symbol, addr)
     response = requests.get(url)
-    result = response.json()
-    if 'data' in result.keys() and 'txs' in result['data'].keys():
-        txs = response.json()['data']['txs']
-        for i, tx in enumerate(txs):
-            txs[i] = {
-                'output': "%s:%s" % (tx['txid'], tx['output_no']),
-                'value': int(tx['value'].replace('.', '')),
-                'time': datetime.datetime.fromtimestamp(tx['time']).strftime('%c')
-            }
-        return txs
-    else:
-        raise Exception(response.text)
+    try:
+        result = response.json()
+        if 'data' in result.keys() and 'txs' in result['data'].keys():
+            txs = response.json()['data']['txs']
+            for i, tx in enumerate(txs):
+                txs[i] = {
+                    'output': "%s:%s" % (tx['txid'], tx['output_no']),
+                    'value': int(tx['value'].replace('.', '')),
+                    'time': datetime.datetime.fromtimestamp(tx['time']).strftime('%c')
+                }
+            return txs
+        else:
+            raise Exception(response.text)
+    except ValueError:
+        raise Exception("Unable to decode JSON from result: %s" % response.text)
 
 def fetchtx(tx, coin_symbol="BTC"):
     url = tx_url % (coin_symbol, tx)

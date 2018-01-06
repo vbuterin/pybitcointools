@@ -51,21 +51,22 @@ Contributions:
     'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
     > inputs = c.unspent(addr)
     > inputs
-    [{'output': '350c0292939bf581c847b95b3f864c8c50d51bda68201530b4c23c0e91818988:0', 'value': 55000000, 'time': 'Thu Dec 21 09:43:34 2017'}, {'output': '93b1fe01f0f581d06fce2206c4e0ac0420f5ebc262af31a467ed11ad2b8d884c:0', 'value': 27500000, 'time': 'Thu Dec 21 09:43:34 2017'}]  #Time not needed for use as input
-    > outs = [{'value': 82211600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 90000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
-    > tx = c.mktx(inputs,outs)
+    [{'output': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508:0', 'value': 180000000, 'time': 'Sat Jan  6 22:43:15 2018'}, {'output': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38:0', 'value': 90000000, 'time': 'Sat Jan  6 22:43:15 2018'}]
+    > outs = [{'value': 269845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
+    > tx = mktx(inputs,outs)
     > tx
-    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c350000000000ffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb1930000000000ffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
     > tx2 = c.sign(tx,0,priv)
     > tx2
-    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c35000000008a47304402201ed9652b392b6e6418d94fbacb730c36d65052fc358d6f25d633e0de9687734502207081ad4008cf173bd463733961f2f0ee2b3ce33251d5059f35b651fd97142ed10141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb1930000000000ffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
     > tx3 = c.sign(tx2,1,priv)
     > tx3
-    '0100000002888981910e3cc2b430152068da1bd5508c4c863f5bb947c881f59b9392020c35000000008a47304402201ed9652b392b6e6418d94fbacb730c36d65052fc358d6f25d633e0de9687734502207081ad4008cf173bd463733961f2f0ee2b3ce33251d5059f35b651fd97142ed10141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff4c888d2bad11ed67a431af62c2ebf52004ace0c40622ce6fd081f5f001feb193000000008a473044022062c5bc96ba01b7e178d19df6bf5731ad03f61055367a0d598c97d3d359cee8c202202f274d806dc9b3b35142b63a10a52795de69e22cc7671b737422abb3a2418a4f0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff021073e6040000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87905f0100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
-    > deserialize(tx)
-    {'ins': [{'outpoint': {'hash': '350c0292939bf581c847b95b3f864c8c50d51bda68201530b4c23c0e91818988', 'index': 0}, 'script': '', 'sequence': 4294967295}, {'outpoint': {'hash': '93b1fe01f0f581d06fce2206c4e0ac0420f5ebc262af31a467ed11ad2b8d884c', 'index': 0}, 'script': '', 'sequence': 4294967295}], 'outs': [{'value': 82211600, 'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87'}, {'value': 90000, 'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac'}], 'version': 1, 'locktime': 0}
-    > c.pushtx(tx3)
-    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '99d88509d5f0e298bdb6883161c64c7f54444519ce28a0ef3d5942ff4ff7a924'}}
+    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
+    > tx4 = serialize(tx)
+    > tx4
+    '01000000020875f07948460160db60ac4a1dc648b8c5abfe4e4ffd71637608f1af0a0ae13b000000008b483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff38aa1ff4695d937db4677085d9fdd7fe30992b05b56e416730fda4e10498ce51000000008b483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02608415100000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a0860100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
+    > c.pushtx(tx4)
+    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '00af7b794355aa4ea5851a792713934b524b820cf7f20e2a0e01ab61910b5299'}}
 
 Or using the pybtctool command line interface:
 
@@ -144,8 +145,8 @@ The arguments are the private key of the sender, the receiver's address and the 
 * pubtoaddr            : (pubkey) -> address
 * privkey_to_address   : (privkey) -> address
 * privtoaddr           : (privkey) -> address
-* sign                 : (tx, i, privkey) -> create digital signature of tx with privkey and add to input i
-* signall              : (tx, privkey) -> create digital signature of tx with privkey for all inputs
+* sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
+* signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
 * history              : (address) -> tx history of an address
 * unspent              : (address, etc) -> unspent outputs for an addresses
 * pushtx               : (hex or bin tx) -> push a transaction to the blockchain
@@ -177,10 +178,10 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * deserialize          : (hex or bin transaction) -> JSON tx
 * serialize            : (JSON tx) -> hex or bin tx
-* mktx                 : (inputs, outputs) -> tx
-* mksend               : (inputs, outputs, change_addr, fee) -> tx
-* multisign            : (tx, i, script, privkey) -> signature
-* apply_multisignatures: (tx, i, script, sigs) -> tx with index i signed with sigs
+* mktx                 : (inputs, outputs) -> txobj
+* mksend               : (inputs, outputs, change_addr, fee) -> txobj
+* multisign            : (txobj, i, script, privkey) -> signature
+* apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
 * scriptaddr           : (script) -> P2SH address
 * mk_multisig_script   : (pubkeys, k, n) -> k-of-n multisig script from pubkeys
 * verify_tx_input      : (tx, i, script, sig, pub) -> True/False

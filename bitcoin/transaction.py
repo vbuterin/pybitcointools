@@ -39,14 +39,37 @@ def json_changebase(obj, changer):
         return [json_changebase(x, changer) for x in obj]
     return dict((x, json_changebase(obj[x], changer)) for x in obj)
 
+# Hashing transactions for signing
+
+SIGHASH_ALL = 1
+SIGHASH_NONE = 2
+SIGHASH_SINGLE = 3
+# this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
+# we fix the constant
+SIGHASH_ANYONECANPAY = 0x81
+SIGHASH_FORKID = 0x40
+
+def encode_4_bytes(val):
+    return encode(val, 256, 4)[::-1]
+
+def encode_8_bytes(val):
+    return encode(val, 256, 8)[::-1]
+
+def list_to_bytes(vals):
+    return ''.join(vals) if is_python2 else reduce(lambda x, y: x + y, vals, bytes())
+
+def dbl_sha256_list(vals):
+    return bin_dbl_sha256(list_to_bytes(vals))
+
+
 # Transaction serialization and deserialization
 
 
 def deserialize(tx):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
-        #tx = bytes(bytearray.fromhex(tx))
+        # tx = bytes(bytearray.fromhex(tx))
         return json_changebase(deserialize(binascii.unhexlify(tx)),
-                              lambda x: safe_hexlify(x))
+                               lambda x: safe_hexlify(x))
     # http://stackoverflow.com/questions/4851463/python-closure-write-to-variable-in-parent-scope
     # Python's scoping rules are demented, requiring me to make pos an object
     # so that it is call-by-reference
@@ -54,19 +77,19 @@ def deserialize(tx):
 
     def read_as_int(bytez):
         pos[0] += bytez
-        return decode(tx[pos[0]-bytez:pos[0]][::-1], 256)
+        return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
     def read_var_int():
         pos[0] += 1
-        
-        val = from_byte_to_int(tx[pos[0]-1])
+
+        val = from_byte_to_int(tx[pos[0] - 1])
         if val < 253:
             return val
         return read_as_int(pow(2, val - 252))
 
     def read_bytes(bytez):
         pos[0] += bytez
-        return tx[pos[0]-bytez:pos[0]]
+        return tx[pos[0] - bytez:pos[0]]
 
     def read_var_string():
         size = read_var_int()
@@ -93,44 +116,71 @@ def deserialize(tx):
     obj["locktime"] = read_as_int(4)
     return obj
 
+
 def serialize(txobj):
-    #if isinstance(txobj, bytes):
-    #    txobj = bytes_to_hex_string(txobj)
+    if isinstance(txobj, bytes):
+        txobj = bytes_to_hex_string(txobj)
     o = []
     if json_is_base(txobj, 16):
         json_changedbase = json_changebase(txobj, lambda x: binascii.unhexlify(x))
         hexlified = safe_hexlify(serialize(json_changedbase))
         return hexlified
-    o.append(encode(txobj["version"], 256, 4)[::-1])
+    o.append(encode_4_bytes(txobj["version"]))
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
         o.append(inp["outpoint"]["hash"][::-1])
-        o.append(encode(inp["outpoint"]["index"], 256, 4)[::-1])
-        o.append(num_to_var_int(len(inp["script"]))+(inp["script"] if inp["script"] or is_python2 else bytes()))
-        o.append(encode(inp["sequence"], 256, 4)[::-1])
+        o.append(encode_4_bytes(inp["outpoint"]["index"]))
+        o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
+        o.append(encode_4_bytes(inp["sequence"]))
     o.append(num_to_var_int(len(txobj["outs"])))
     for out in txobj["outs"]:
-        o.append(encode(out["value"], 256, 8)[::-1])
-        o.append(num_to_var_int(len(out["script"]))+out["script"])
-    o.append(encode(txobj["locktime"], 256, 4)[::-1])
+        o.append(encode_8_bytes(out["value"]))
+        o.append(num_to_var_int(len(out["script"])) + out["script"])
+    o.append(encode_4_bytes(txobj["locktime"]))
+    return list_to_bytes(o)
 
-    return ''.join(o) if is_python2 else reduce(lambda x,y: x+y, o, bytes())
+# https://github.com/Bitcoin-UAHF/spec/blob/master/replay-protected-sighash.md#OP_CHECKSIG
+def uahf_digest(txobj, i):
+    if isinstance(txobj, bytes):
+        txobj = bytes_to_hex_string(txobj)
+    o = []
 
-# Hashing transactions for signing
+    if json_is_base(txobj, 16):
+        txobj = json_changebase(txobj, lambda x: binascii.unhexlify(x))
+    o.append(encode(txobj["version"], 256, 4)[::-1])
 
-SIGHASH_ALL = 1
-SIGHASH_NONE = 2
-SIGHASH_SINGLE = 3
-# this works like SIGHASH_ANYONECANPAY | SIGHASH_ALL, might as well make it explicit while
-# we fix the constant
-SIGHASH_ANYONECANPAY = 0x81
-SIGHASH_FORKID = 0x40
+    serialized_ins = []
+    for inp in txobj["ins"]:
+        serialized_ins.append(inp["outpoint"]["hash"][::-1])
+        serialized_ins.append(encode_4_bytes(inp["outpoint"]["index"]))
+    inputs_hashed = dbl_sha256_list(serialized_ins)
+    o.append(inputs_hashed)
 
+    sequences = dbl_sha256_list([encode_4_bytes(inp["sequence"]) for inp in txobj['ins']])
+    o.append(sequences)
+
+    inp = txobj['ins'][i]
+    o.append(inp["outpoint"]["hash"][::-1])
+    o.append(encode_4_bytes(inp["outpoint"]["index"]))
+    o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
+    o.append(encode_8_bytes(inp['amount']))
+    o.append(encode_4_bytes(inp['sequence']))
+
+    serialized_outs = []
+    for out in txobj["outs"]:
+        serialized_outs.append(encode_8_bytes(out["value"]))
+        serialized_outs.append(num_to_var_int(len(out["script"])) + out["script"])
+    outputs_hashed = dbl_sha256_list(serialized_outs)
+    o.append(outputs_hashed)
+
+    o.append(encode_4_bytes(txobj["locktime"]))
+
+    return list_to_bytes(o)
 
 def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
-        return serialize(signature_form(deserialize(tx), i, script, hashcode))
+        tx = deserialize(tx)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
@@ -144,9 +194,11 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
             out['script'] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
         newtx["ins"] = [newtx["ins"][i]]
+    elif hashcode == SIGHASH_ALL + SIGHASH_FORKID:
+        return uahf_digest(newtx, i)
     else:
         pass
-    return newtx
+    return serialize(newtx)
 
 # Making the actual signatures
 
@@ -358,33 +410,34 @@ def verify_tx_input(tx, i, script, sig, pub):
     modtx = signature_form(tx, int(i), script, hashcode)
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
-
-def sign(tx, i, priv, magicbyte=0, hashcode=SIGHASH_ALL):
+def sign(txobj, i, priv, magicbyte=0, hashcode=SIGHASH_ALL):
     i = int(i)
-    if (not is_python2 and isinstance(re, bytes)) or not re.match('^[0-9a-fA-F]*$', tx):
-        return binascii.unhexlify(sign(safe_hexlify(tx), i, priv))
+    if not isinstance(txobj, dict):
+        txobj = deserialize(txobj)
     if len(priv) <= 33:
         priv = safe_hexlify(priv)
     pub = privkey_to_pubkey(priv)
     address = pubkey_to_address(pub, magicbyte=magicbyte)
-    signing_tx = signature_form(tx, i, mk_pubkey_script(address), hashcode)
+    signing_tx = signature_form(txobj, i, mk_pubkey_script(address), hashcode)
     sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
-    txobj = deserialize(tx)
     txobj["ins"][i]["script"] = serialize_script([sig, pub])
-    return serialize(txobj)
+    return txobj
 
 
-def signall(tx, priv, magicbyte=0, hashcode=SIGHASH_ALL):
+def signall(txobj, priv, magicbyte=0, hashcode=SIGHASH_ALL):
     # if priv is a dictionary, assume format is
     # { 'txinhash:txinidx' : privkey }
+    if not isinstance(txobj, dict):
+        txobj = deserialize(txobj)
     if isinstance(priv, dict):
-        for e, i in enumerate(deserialize(tx)["ins"]):
+        for e, i in enumerate(txobj["ins"]):
             k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
-            tx = sign(tx, e, k, magicbyte=magicbyte, hashcode=hashcode)
+            txobj = sign(txobj, e, k, magicbyte=magicbyte, hashcode=hashcode)
     else:
-        for i in range(len(deserialize(tx)["ins"])):
-            tx = sign(tx, i, priv, magicbyte=magicbyte, hashcode=hashcode)
-    return tx
+        for i in range(len(txobj["ins"])):
+            txobj = sign(txobj, i, priv, magicbyte=magicbyte, hashcode=hashcode)
+    return serialize(txobj)
+
 
 
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
@@ -421,7 +474,12 @@ def is_inp(arg):
 
 
 def mktx(*args):
-    # [in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
+    """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
+    For Bitcoin Cash and other hard forks using SIGHASH_FORKID,
+    ins must be a list of dicts with each containing the outpoint and value of the input.
+    Otherwise, it can be a list of dicts containing outpoints or list of strings in the outpoint format.
+    Outpoint format: txhash:index
+    """
     ins, outs = [], []
     for arg in args:
         if isinstance(arg, list):
@@ -431,16 +489,17 @@ def mktx(*args):
 
     txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
     for i in ins:
-        if isinstance(i, dict) and "outpoint" in i:
-            txobj["ins"].append(i)
+        if isinstance(i, dict) and "output" in i:
+            value = i.get("value", None)
+            i = i["output"]
         else:
-            if isinstance(i, dict) and "output" in i:
-                i = i["output"]
-            txobj["ins"].append({
-                "outpoint": {"hash": i[:64], "index": int(i[65:])},
-                "script": "",
-                "sequence": 4294967295
-            })
+            value = None
+        txobj["ins"].append({
+            "outpoint": {"hash": i[:64], "index": int(i[65:])},
+            "amount": value,
+            "script": "",
+            "sequence": 4294967295
+        })
     for o in outs:
         if isinstance(o, string_or_bytes_types):
             addr = o[:o.find(':')]
@@ -461,8 +520,7 @@ def mktx(*args):
             raise Exception("Could not find 'address' or 'script' in output.")
         outobj["value"] = o["value"]
         txobj["outs"].append(outobj)
-
-    return serialize(txobj)
+    return txobj
 
 
 def select(unspent, value):

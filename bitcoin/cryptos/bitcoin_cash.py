@@ -2,7 +2,6 @@ from .bitcoin import Bitcoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 from ..explorers import blockdozer
 
-
 class BitcoinCash(Bitcoin):
     display_name = "Bitcoin Cash"
     coin_symbol = "bcc"
