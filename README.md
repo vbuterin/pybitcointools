@@ -1,11 +1,22 @@
-# Pybitcointools, Python library for Bitcoin signatures and transactions
+# Pycryptotools, Python library for Bitcoin signatures and transactions
 
-This is a fork of Vitalik Buterin's original pybitcointools which is no longer maintained.
+This is a fork of Vitalik Buterin's original pybitcointools library.
 
-Short term roadmap:
-* Possible renaming (pycryptotools?)
-* Release on pip
+Library now supports:
 
+* Bitcoin mainnet
+* Bitcoin testnet 
+* Bitcoin cash mainnet**
+* Bitcoin cash testnet 
+* Litecoin mainnet**
+* Litecoin testnet
+* Dash mainnet**
+* Dash testnet
+* Dogecoin mainnet**
+
+** Transaction broadcast not tested
+
+A simple, class-based API makes switching between mainnet and testnet very easy.
 
 Longer-term roadmap:
 * Integrate pull requests from pybitcointools, e.g. Segwit support
@@ -16,8 +27,7 @@ Longer-term roadmap:
 * Seed-based multi-crypto wallet
 
 Contributions:
-* Needs to be tested: Live network transactions for Litecoin, Dash and Dogecoin
-* If anyone can help with getting the Bitcoin Cash replay protection signatures working, that would be a big help.
+* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin
 * Anyone know a working Dogecoin testnet explorer?
 
 ### Advantages:
