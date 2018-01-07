@@ -69,7 +69,7 @@ Contributions:
     > inputs
     [{'output': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508:0', 'value': 180000000, 'time': 'Sat Jan  6 22:43:15 2018'}, {'output': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38:0', 'value': 90000000, 'time': 'Sat Jan  6 22:43:15 2018'}]
     > outs = [{'value': 269845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
-    > tx = mktx(inputs,outs)
+    > tx = c.mktx(inputs,outs)
     > tx
     {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
     > tx2 = c.sign(tx,0,priv)
@@ -153,6 +153,7 @@ Make and broadcast a transaction on the Dash testnet:
     {"status": "success", "data": {"txid": "725ff2599700462905aafe658a082c0545c2749f779a7c9114421b4ca65183d0", "network": "DASHTEST"}}
 
 The arguments are the private key of the sender, the receiver's address and the fee (default 10000). Change will be returned to the sender. 
+
 ### Listing of main coin-specific commands:
 
 * privkey_to_pubkey    : (privkey) -> pubkey
@@ -169,6 +170,8 @@ The arguments are the private key of the sender, the receiver's address and the 
 * fetchtx              : (txhash) -> fetch a tx from the blockchain
 * txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
 * send                 : (privkey, to, value, fee) -> create and a push a simple transaction to send coins to an address and return change to the sender
+* mktx                 : (inputs, outputs) -> txobj
+* mksend               : (inputs, outputs, change_addr, fee) -> txobj
 
 ### Listing of main non-coin specific commands:
 
@@ -194,8 +197,6 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * deserialize          : (hex or bin transaction) -> JSON tx
 * serialize            : (JSON tx) -> hex or bin tx
-* mktx                 : (inputs, outputs) -> txobj
-* mksend               : (inputs, outputs, change_addr, fee) -> txobj
 * multisign            : (txobj, i, script, privkey) -> signature
 * apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
 * scriptaddr           : (script) -> P2SH address

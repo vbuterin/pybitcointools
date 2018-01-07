@@ -5,6 +5,7 @@ class Doge(Bitcoin):
     display_name = "Dogecoin"
     coin_symbol = "DOGE"
     magicbyte = 30
+    segwit_supported = False
 
     def __init__(self, testnet=False, **kwargs):
         super(Doge, self).__init__(testnet, **kwargs)

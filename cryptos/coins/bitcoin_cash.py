@@ -7,6 +7,7 @@ class BitcoinCash(Bitcoin):
     coin_symbol = "bcc"
     magicbyte = 0
     hashcode = SIGHASH_ALL + SIGHASH_FORKID
+    segwit_supported = False
 
     def __init__(self, testnet=False, **kwargs):
         super(BitcoinCash, self).__init__(testnet, **kwargs)

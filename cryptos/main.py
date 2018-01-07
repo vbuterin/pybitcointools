@@ -340,10 +340,11 @@ def bin_hash160(string):
         digest = RIPEMD160(intermed).digest()
     return digest
 
-
 def hash160(string):
     return safe_hexlify(bin_hash160(string))
 
+def hex_to_hash160(s_hex):
+    return hash160(binascii.unhexlify(s_hex))
 
 def bin_sha256(string):
     binary_data = string if isinstance(string, bytes) else bytes(string, 'utf-8')
@@ -444,14 +445,19 @@ def hex_to_b58check(inp, magicbyte=0):
 def b58check_to_hex(inp):
     return safe_hexlify(b58check_to_bin(inp))
 
-
-def pubkey_to_address(pubkey, magicbyte=0):
+def pubkey_to_hash(pubkey):
     if isinstance(pubkey, (list, tuple)):
         pubkey = encode_pubkey(pubkey, 'bin')
     if len(pubkey) in [66, 130]:
-        return bin_to_b58check(
-            bin_hash160(binascii.unhexlify(pubkey)), magicbyte)
-    return bin_to_b58check(bin_hash160(pubkey), magicbyte)
+        return bin_hash160(binascii.unhexlify(pubkey))
+    return bin_hash160(pubkey)
+
+def pubkey_to_hash_hex(pubkey):
+    return safe_hexlify(pubkey_to_hash(pubkey))
+
+def pubkey_to_address(pubkey, magicbyte=0):
+    pubkey_hash = pubkey_to_hash(pubkey)
+    return bin_to_b58check(pubkey_hash, magicbyte)
 
 pubtoaddr = pubkey_to_address
 

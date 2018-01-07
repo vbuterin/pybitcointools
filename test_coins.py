@@ -13,6 +13,7 @@ class BaseCoinCase(unittest.TestCase):
     unspent = []
     unspent_multiple = []
     addresses = []
+    script_addresses = []
     privkeys = []
     txid = None
     tx = None
@@ -47,6 +48,180 @@ class BaseCoinCase(unittest.TestCase):
         addr_args = explorers.blockcypher.parse_addr_args(self.unspent_address_multiple)
         self.assertListEqual(addr_args, self.unspent_address_multiple)
 
+    def assertMixedSegwitTransactionOK(self):
+
+        c = self.coin(testnet=self.testnet)
+
+        #Find which of the three addresses currently has the most coins and choose that as the sender
+        segwit_max_value = 0
+        segwit_sender = self.script_addresses[0]
+        segwit_from_addr_i = 0
+        segwit_unspents = []
+
+        for i, addr in enumerate(self.script_addresses):
+            addr_unspents = c.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > segwit_max_value:
+                segwit_max_value = value
+                segwit_sender = addr
+                segwit_from_addr_i = i
+                segwit_unspents = addr_unspents
+
+        for u in segwit_unspents:
+            u['segwit'] = True
+
+        regular_max_value = 0
+        regular_sender = None
+        regular_from_addr_i = 0
+        regular_unspents = []
+
+        time.sleep(3)
+
+        for i, addr in enumerate(self.addresses):
+            addr_unspents = c.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > regular_max_value:
+                regular_max_value = value
+                regular_sender = addr
+                regular_from_addr_i = i
+                regular_unspents = addr_unspents
+
+        unspents = segwit_unspents + regular_unspents
+
+        #Arbitrarily set send value, change value, receiver and change address
+        outputs_value = segwit_max_value + regular_max_value - self.fee
+        send_value = int(outputs_value * 0.5)
+        change_value = int(outputs_value - send_value)
+
+        if segwit_sender == self.script_addresses[0]:
+            receiver = self.script_addresses[1]
+        elif segwit_sender == self.script_addresses[1]:
+            receiver = self.script_addresses[2]
+        else:
+            receiver = self.script_addresses[0]
+
+        if regular_sender == self.addresses[0]:
+            change_address = self.addresses[1]
+        elif regular_sender == self.addresses[1]:
+            change_address = self.addresses[2]
+        else:
+            change_address = self.addresses[0]
+
+        outs = [{'value': send_value, 'address': receiver},
+                {'value': change_value, 'address': change_address}]
+
+        #Create the transaction using all available unspents as inputs
+        tx = c.mktx(unspents, outs)
+
+        #3rd party check that transaction is ok, not really necessary. Blockcypher requires an API key for this request
+        if self.blockcypher_api_key:
+            tx_decoded = self.decodetx(tx)
+
+        #For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
+        try:
+            segwit_privkey = self.privkeys[segwit_from_addr_i]
+        except IndexError:
+            segwit_privkey = input("Enter private key for script address %s: %s" % (segwit_from_addr_i, segwit_sender))
+        try:
+            regular_privkey = self.privkeys[regular_from_addr_i]
+        except IndexError:
+            regular_privkey = input("Enter private key for address %s: %s" % (regular_from_addr_i, regular_sender))
+
+        #Verify that the private key belongs to the sender address for this network
+        self.assertEqual(segwit_sender, c.privtop2wkh(segwit_privkey), msg="Private key does not belong to script %s on %s" % (segwit_sender, c.display_name))
+        self.assertEqual(regular_sender, c.privtoaddr(regular_privkey), msg="Private key does not belong to address %s on %s" % (regular_sender, c.display_name))
+
+        #Sign each input with the given private keys
+        for i in range(0, len(segwit_unspents)):
+            tx = c.sign(tx, i, segwit_privkey)
+        for i in range(len(segwit_unspents), len(unspents)):
+            tx = c.sign(tx, i, regular_privkey)
+
+        self.assertEqual(len(tx['witness']), len(unspents))
+        print(tx)
+        tx = serialize(tx)
+
+        #Check transaction format is still ok
+        if self.blockcypher_api_key:
+            signed_tx_decoded = self.decodetx(tx)
+        print(tx)
+        #Push the transaction to the network
+        result = c.pushtx(tx)
+        self.assertPushTxOK(result)
+        pass
+
+    def assertSegwitTransactionOK(self):
+
+        c = self.coin(testnet=self.testnet)
+
+        #Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        sender = self.script_addresses[0]
+        from_addr_i = 0
+        unspents = []
+
+        for i, addr in enumerate(self.script_addresses):
+            addr_unspents = c.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = addr
+                from_addr_i = i
+                unspents = addr_unspents
+
+        for u in unspents:
+            u['segwit'] = True
+
+        #Arbitrarily set send value, change value, receiver and change address
+        outputs_value = max_value - self.fee
+        send_value = int(outputs_value * 0.1)
+        change_value = int(outputs_value - send_value)
+
+        if sender == self.script_addresses[0]:
+            receiver = self.script_addresses[1]
+            change_address = self.script_addresses[2]
+        elif sender == self.script_addresses[1]:
+            receiver = self.script_addresses[2]
+            change_address = self.script_addresses[0]
+        else:
+            receiver = self.script_addresses[0]
+            change_address = self.script_addresses[1]
+
+        outs = [{'value': send_value, 'address': receiver},
+                {'value': change_value, 'address': change_address}]
+
+        #Create the transaction using all available unspents as inputs
+        tx = c.mktx(unspents, outs)
+
+        #3rd party check that transaction is ok, not really necessary. Blockcypher requires an API key for this request
+        if self.blockcypher_api_key:
+            tx_decoded = self.decodetx(tx)
+
+        #For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
+        try:
+            privkey = self.privkeys[from_addr_i]
+        except IndexError:
+            privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
+
+        #Verify that the private key belongs to the sender address for this network
+        self.assertEqual(sender, c.privtop2wkh(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+
+        #Sign each input with the given private key
+        for i in range(0, len(unspents)):
+            tx = c.sign(tx, i, privkey)
+
+        self.assertEqual(len(tx['witness']), len(unspents))
+        tx = serialize(tx)
+
+        #Check transaction format is still ok
+        if self.blockcypher_api_key:
+            signed_tx_decoded = self.decodetx(tx)
+        print(tx)
+        #Push the transaction to the network
+        result = c.pushtx(tx)
+        self.assertPushTxOK(result)
+
+
     def assertTransactionOK(self):
 
         c = self.coin(testnet=self.testnet)
@@ -66,15 +241,6 @@ class BaseCoinCase(unittest.TestCase):
                 from_addr_i = i
                 unspents = addr_unspents
 
-        #For dash and doge testnet, unspents are returned empty, need to add manually
-        if max_value == 0:
-            from_addr_i = int(input("Which address? " ))
-            sender = self.addresses[from_addr_i]
-            input_tx = input("Enter txid for input unspent: ").strip()
-            input_n = input("Enter tx n for input unspent: ").strip()
-            max_value = int(input("Enter input value: ").strip())
-            unspents = [{'output': "%s:%s" % (input_tx, input_n), 'value': max_value}]
-
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
@@ -82,7 +248,7 @@ class BaseCoinCase(unittest.TestCase):
 
         if sender == self.addresses[0]:
             receiver = self.addresses[1]
-            change_address = self.addresses[1]
+            change_address = self.addresses[2]
         elif sender == self.addresses[1]:
             receiver = self.addresses[2]
             change_address = self.addresses[0]
@@ -94,7 +260,7 @@ class BaseCoinCase(unittest.TestCase):
                 {'value': change_value, 'address': change_address}]
 
         #Create the transaction using all available unspents as inputs
-        tx = mktx(unspents, outs)
+        tx = c.mktx(unspents, outs)
 
         #3rd party check that transaction is ok, not really necessary. Blockcypher requires an API key for this request
         if self.blockcypher_api_key:
@@ -223,6 +389,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     name = "Bitcoin Testnet"
     coin = coins.Bitcoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
+    script_addresses = ["QWZiamp691VnEMLbwSmXj7Zx6aVsTF2Bkg", "QhAx5qBJphxMrSZfwzaf8KyP9T2DrAMbiC", "QMPRBmeVuqPf8KxYeF9ANdVKh6cNTePk7W"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
                    "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
@@ -261,6 +428,12 @@ class TestBitcoinTestnet(BaseCoinCase):
 
     def test_transaction(self):
         self.assertTransactionOK()
+
+    def test_transaction_mixed_segwit(self):
+        self.assertMixedSegwitTransactionOK()
+
+    def test_transaction_segwit(self):
+        self.assertSegwitTransactionOK()
 
     def test_sendmultitx(self):
 
@@ -341,6 +514,7 @@ class TestLitecoinTestnet(BaseCoinCase):
     name = "Litecoin Testnet"
     coin = coins.Litecoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
+    segwit_address = ["", "", ""]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
                    "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
@@ -394,6 +568,9 @@ class TestLitecoinTestnet(BaseCoinCase):
 
     def test_transaction(self):
         self.assertTransactionOK()
+
+    def test_transaction_segwit(self):
+        self.assertSegwitTransactionOK()
 
     def test_unspent(self):
         self.assertUnspentOK()

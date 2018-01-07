@@ -5,6 +5,7 @@ class Dash(Bitcoin):
     display_name = "Dash"
     coin_symbol = "DASH"
     magicbyte = 76
+    segwit_supported = False
 
     def __init__(self, testnet=False, **kwargs):
         super(Dash, self).__init__(testnet, **kwargs)
