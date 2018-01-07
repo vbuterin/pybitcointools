@@ -1,17 +1,25 @@
 #!/usr/bin/env python
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(name='cryptos',
-      version='0.0.9',
-      description='Python Crypto Tools',
+      version='1.1',
+      description='Python Crypto Coin Tools',
+      long_description=open('README.md').read(),
       author='Paul Martin',
       author_email='paulmartinforwork@gmail.com',
       url='http://github.com/primal100/pybitcointools',
-      packages=['cryptos'],
+      packages=find_packages(),
       scripts=['cryptotool'],
       include_package_data=True,
-      data_files=[("", ["LICENSE"]), ("cryptos", ["cryptos/english.txt"])],
+      classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Developers',
+            'Intended Audience :: Education',
+            'License :: OSI Approved :: MIT License',
+            'Operating System :: OS Independent',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 2',
+            'Programming Language :: Python :: 3',
+            'Topic :: Security :: Cryptography',
+      ],
       )

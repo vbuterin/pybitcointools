@@ -1,0 +1,3 @@
+include cryptos/english.txt
+include LICENSE
+include README.md
