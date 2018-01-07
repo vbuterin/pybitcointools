@@ -1,10 +1,10 @@
 from unittest import skip
 import unittest
-from bitcoin import explorers
 import blockcypher
 from operator import itemgetter
-from bitcoin import *
-from bitcoin import cryptos
+from cryptos import *
+from cryptos import coins
+from cryptos import explorers
 
 class BaseCoinCase(unittest.TestCase):
     name = ""
@@ -18,7 +18,7 @@ class BaseCoinCase(unittest.TestCase):
     tx = None
     txinputs = None
     fee = 0
-    coin = cryptos.Bitcoin
+    coin = coins.Bitcoin
     blockcypher_api_key = None
     blockcypher_coin_symbol = None
     testnet = True
@@ -168,7 +168,7 @@ class BaseCoinCase(unittest.TestCase):
 
 class TestBitcoin(BaseCoinCase):
     name = "Bitcoin"
-    coin = cryptos.Bitcoin
+    coin = coins.Bitcoin
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     fee = 54400
     blockcypher_coin_symbol = "btc"
@@ -221,7 +221,7 @@ class TestBitcoin(BaseCoinCase):
 
 class TestBitcoinTestnet(BaseCoinCase):
     name = "Bitcoin Testnet"
-    coin = cryptos.Bitcoin
+    coin = coins.Bitcoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
@@ -339,7 +339,7 @@ class TestBitcoinTestnet(BaseCoinCase):
 
 class TestLitecoinTestnet(BaseCoinCase):
     name = "Litecoin Testnet"
-    coin = cryptos.Litecoin
+    coin = coins.Litecoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
@@ -400,7 +400,7 @@ class TestLitecoinTestnet(BaseCoinCase):
 
 class TestDashTestnet(BaseCoinCase):
     name = "Dash Testnet"
-    coin = cryptos.Dash
+    coin = coins.Dash
     addresses = ["ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz", "yTXgT2aA32Y35VQ6N9KpFqKJKKdbidgKeZ", "ySPomQ35mpKiV89LDdAM3URFSibNiXEC4J"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
@@ -465,7 +465,7 @@ class TestDashTestnet(BaseCoinCase):
 @skip("Explorer not working")
 class TestDogeTestnet(BaseCoinCase):
     name = "Doge Testnet"
-    coin = cryptos.Doge
+    coin = coins.Doge
     addresses = ['nn1xreE17QZVwuxxVY3N497SygcBPsm15j', 'nbQPs6XNsA2NzndkhpLDASy4Khg8ZfhUfj', 'naGXBTzJbwp4QRNzZJAjx651T6duZy2kgV']
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
@@ -483,7 +483,7 @@ class TestDogeTestnet(BaseCoinCase):
 
 class TestBitcoinCash(BaseCoinCase):
     name = "Bitcoin Cash"
-    coin = cryptos.BitcoinCash
+    coin = coins.BitcoinCash
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     blockcypher_coin_symbol = "btc"
     fee = 54400
@@ -501,7 +501,7 @@ class TestBitcoinCash(BaseCoinCase):
 
 class TestBitcoinCashTestnet(BaseCoinCase):
     name = "Bitcoin Cash Testnet"
-    coin = cryptos.BitcoinCash
+    coin = coins.BitcoinCash
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",

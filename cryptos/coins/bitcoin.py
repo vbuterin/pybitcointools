@@ -1,4 +1,4 @@
-from bitcoin.explorers import sochain
+from ..explorers import sochain
 from ..transaction import SIGHASH_ALL, select, mksend
 from .. import main, transaction
 from .base import BaseCoin

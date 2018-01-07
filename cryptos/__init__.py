@@ -7,4 +7,4 @@ from .py2specials import *
 from .py3specials import *
 from .stealth import *
 from .transaction import *
-from .cryptos import *
+from .coins import *

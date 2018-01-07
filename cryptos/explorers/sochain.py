@@ -1,7 +1,6 @@
 import re
 import requests
 import datetime
-import json
 
 #Docs: https://chain.so/api
 

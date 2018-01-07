@@ -1,6 +1,5 @@
 #!/usr/bin/python
-import sys, json, re
-from bitcoin import *
+from cryptos import *
 
 coins = {
     'bch': BitcoinCash,
@@ -13,7 +12,7 @@ coins = {
 if len(sys.argv) == 1:
     print("pybtctool <command> <arg1> <arg2> ...")
 else:
-    coin = cryptos.Bitcoin
+    coin = Bitcoin
     testnet = False
     cmdargs, preargs, kwargs = [], [], {}
     i = 2

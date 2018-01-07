@@ -1,5 +1,6 @@
 from .deterministic import *
 from .transaction import *
+from .main import *
 
 
 # BIP32 hierarchical deterministic multisig script

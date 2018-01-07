@@ -1,11 +1,6 @@
-from unittest import skip
 import unittest
-from bitcoin import explorers
-import blockcypher
-from operator import itemgetter
-import bitcoin.ripemd as ripemd
-from bitcoin import *
-from bitcoin import cryptos
+import cryptos.ripemd as ripemd
+from cryptos import *
 
 
 class TestECCArithmetic(unittest.TestCase):

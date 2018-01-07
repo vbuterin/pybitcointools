@@ -4,13 +4,11 @@ from .py3specials import *
 import binascii
 import hashlib
 import re
-import sys
-import os
 import base64
 import time
 import random
 import hmac
-from bitcoin.ripemd import *
+from .ripemd import *
 
 # Elliptic curve parameters (secp256k1)
 

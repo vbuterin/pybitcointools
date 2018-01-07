@@ -1,7 +1,7 @@
 import re
 import requests
 import datetime
-from .blockcypher import parse_addr_args
+from .utils import parse_addr_args
 
 #Base module for all insight-based explorers
 

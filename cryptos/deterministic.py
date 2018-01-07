@@ -1,7 +1,7 @@
-from bitcoin.main import *
+from .main import *
 import hmac
 import hashlib
-from binascii import hexlify
+
 # Electrum wallets
 
 
