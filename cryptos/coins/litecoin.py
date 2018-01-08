@@ -1,19 +1,17 @@
-from .bitcoin import Bitcoin
+from .base import BaseCoin
+from ..explorers import sochain
 
-
-class Litecoin(Bitcoin):
-    display_name = "Litecoin"
+class Litecoin(BaseCoin):
     coin_symbol = "LTC"
+    display_name = "Litecoin"
+    segwit_supported = True
     magicbyte = 48
     script_magicbyte = 50
-    address_prefixes = ('L',)
-    segwit_supported = True
-
-    def __init__(self, testnet=False, **kwargs):
-        super(Litecoin, self).__init__(testnet, **kwargs)
-        if self.is_testnet:
-            self.display_name = "Litecoin Testnet"
-            self.coin_symbol = "LTCTEST"
-            self.magicbyte = 111
-            self.script_magicbyte = 58
-            self.address_prefixes = ('m', 'n')
+    explorer = sochain
+    testnet_overrides = {
+        'display_name': "Litecoin Testnet",
+        'coin_symbol': "LTCTEST",
+        'magicbyte': 111,
+        #script_magicbyte: 58   #Supposed to be new magicbyte
+        'script_magicbyte': 196 #Old magicbyte still recognised by explorers
+    }

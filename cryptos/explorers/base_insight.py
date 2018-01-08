@@ -31,7 +31,6 @@ def unspent(base_url, *args):
             txs[i] = {
                 'output': "%s:%s" % (tx['txid'], tx['vout']),
                 'value': int(tx['amount'] * 100000000),
-                'time': datetime.datetime.fromtimestamp(tx['ts']).strftime('%c')
             }
     return txs
 
@@ -43,7 +42,7 @@ def fetchtx(base_url, tx):
 def txinputs(base_url, tx):
     result = fetchtx(base_url, tx)
     inputs = result['vin']
-    unspents = [{'output': "%s:%s" % (i['txid'], i['n']), 'value': i['valueSat']} for i in inputs]
+    unspents = [{'output': "%s:%s" % (i['txid'], i['vout']), 'value': i['valueSat']} for i in inputs]
     return unspents
 
 def pushtx(base_url, network, tx):

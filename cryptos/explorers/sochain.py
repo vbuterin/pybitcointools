@@ -23,7 +23,6 @@ def unspent(addr, coin_symbol="BTC"):
                 txs[i] = {
                     'output': "%s:%s" % (tx['txid'], tx['output_no']),
                     'value': int(tx['value'].replace('.', '')),
-                    'time': datetime.datetime.fromtimestamp(tx['time']).strftime('%c')
                 }
             return txs
         else:
