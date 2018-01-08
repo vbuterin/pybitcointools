@@ -27,9 +27,6 @@ class BaseCoinCase(unittest.TestCase):
     def setUpClass(cls):
         print('Starting %s tests' % cls.name)
 
-    def tearDown(self):
-        time.sleep(5)
-
     def assertUnorderedListEqual(self, list1, list2, key):
         list1 = sorted(list1, key=itemgetter(key))
         list2 = sorted(list2, key=itemgetter(key))
@@ -68,7 +65,6 @@ class BaseCoinCase(unittest.TestCase):
                 segwit_sender = addr
                 segwit_from_addr_i = i
                 segwit_unspents = addr_unspents
-            time.sleep(3)
 
         for u in segwit_unspents:
             u['segwit'] = True
@@ -86,7 +82,6 @@ class BaseCoinCase(unittest.TestCase):
                 regular_sender = addr
                 regular_from_addr_i = i
                 regular_unspents = addr_unspents
-            time.sleep(3)
 
         unspents = segwit_unspents + regular_unspents
 
@@ -164,7 +159,6 @@ class BaseCoinCase(unittest.TestCase):
                 sender = addr
                 from_addr_i = i
                 unspents = addr_unspents
-            time.sleep(3)
 
         for u in unspents:
             u['segwit'] = True
@@ -211,6 +205,7 @@ class BaseCoinCase(unittest.TestCase):
         tx = serialize(tx)
 
         #Push the transaction to the network
+        print(tx)
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
@@ -233,7 +228,6 @@ class BaseCoinCase(unittest.TestCase):
                 sender = addr
                 from_addr_i = i
                 unspents = addr_unspents
-            time.sleep(3)
 
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
@@ -270,7 +264,8 @@ class BaseCoinCase(unittest.TestCase):
             tx = c.sign(tx, i, privkey)
 
         tx = serialize(tx)
-
+        print(tx)
+        print(txhash(tx, SIGHASH_ALL))
         #Push the transaction to the network
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
@@ -314,14 +309,13 @@ class BaseCoinCase(unittest.TestCase):
         tx = coin.fetchtx(self.txid)
         self.delete_key_by_name(tx, "confirmations")
         self.delete_key_by_name(self.tx, "confirmations")
-        self.assertEqual(tx['txid'], self.tx['txid'])
-        time.sleep(3)
+        txid = tx.get('txid', None) or tx.get('hash', None) or tx.get('txhash', None)
+        self.assertEqual(txid, self.tx['txid'])
 
     def assertTXInputsOK(self):
         coin = self.coin(testnet=self.testnet)
         inputs = coin.txinputs(self.txid)
         self.assertUnorderedListEqual(inputs, self.txinputs, key="output")
-        time.sleep(3)
 
 
 class TestBitcoin(BaseCoinCase):
@@ -339,24 +333,7 @@ class TestBitcoin(BaseCoinCase):
     txid = "fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690"
     txinputs = [{"output": "7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583:1", 'value': 1000000},
                 {"output": "da1ad82b777c51105d3a24cef253e0301dd08153115013a49e0edf69fd7cdadf:1", 'value': 100000}]
-    tx = {'network': 'BTC', 'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690',
-          'blockhash': '00000000000006b15ad1bd27555f9813137625bd24a3e5692c5a25ca74ad450a', 'confirmations': 365270,
-          'time': 1310086870, 'inputs': [
-            {'input_no': 0, 'value': '0.01000000', 'address': '1B55WSKjheXigBKTCyL4aQjKFmfaT6Ppev',
-             'type': 'pubkeyhash',
-             'script': '3045022076bf3b0edd6c9cdd35fb30d77d780f1d752e959242b2bbd58123617b8db350a6022100a602b91002b9c6c078a7513f72e1d7ccbfa3aa6f1261706b3110db00b1205ae401 04fafb576fcaf43a773ee1e34c5a76ab1f4fe1a7dc23256dd7a4525092537fc11686227d495dff710a291e7e9a6bf474a968158c56882b153e4b2e17bc584ec3cc',
-             'from_output': {'txid': '7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583',
-                             'output_no': 1}},
-            {'input_no': 1, 'value': '0.00100000', 'address': '19aoyNZJpszbV9QYK8eW3SnvXK31uHA9gw',
-             'type': 'pubkeyhash',
-             'script': '3046022100aecef1b98cf1cead7daadfb538c4808e71c9ef0c1ecec04af64fb1fdcffa7afb022100ec1070f8dea90f9ef6d86ebf251a63a01eae48ff840e0aacce899775b2dd16c601 04d2eeecdff2d0fd3d19f07928689f2aed33f1298f7493f2ca77b3607b545a8b2a91af48c27bc949da72f6ef38412c95bdcf6618486207bb92cd9aa75cae2c116d',
-             'from_output': {'txid': 'da1ad82b777c51105d3a24cef253e0301dd08153115013a49e0edf69fd7cdadf',
-                             'output_no': 1}}], 'outputs': [
-            {'output_no': 0, 'value': '0.00100000', 'address': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-             'type': 'pubkeyhash',
-             'script': 'OP_DUP OP_HASH160 62e907b15cbf27d5425399ebf6f0fb50ebb88f18 OP_EQUALVERIFY OP_CHECKSIG'}],
-          'tx_hex': '010000000283d5e599f8793ccad12bb9e71d19198133eea0b0416f3cc474e1f148a95d907a010000008b483045022076bf3b0edd6c9cdd35fb30d77d780f1d752e959242b2bbd58123617b8db350a6022100a602b91002b9c6c078a7513f72e1d7ccbfa3aa6f1261706b3110db00b1205ae4014104fafb576fcaf43a773ee1e34c5a76ab1f4fe1a7dc23256dd7a4525092537fc11686227d495dff710a291e7e9a6bf474a968158c56882b153e4b2e17bc584ec3ccffffffffdfda7cfd69df0e9ea41350115381d01d30e053f2ce243a5d10517c772bd81ada010000008c493046022100aecef1b98cf1cead7daadfb538c4808e71c9ef0c1ecec04af64fb1fdcffa7afb022100ec1070f8dea90f9ef6d86ebf251a63a01eae48ff840e0aacce899775b2dd16c6014104d2eeecdff2d0fd3d19f07928689f2aed33f1298f7493f2ca77b3607b545a8b2a91af48c27bc949da72f6ef38412c95bdcf6618486207bb92cd9aa75cae2c116dffffffff01a0860100000000001976a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac00000000',
-          'size': 405, 'version': 1, 'locktime': 0}
+    tx = {'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690'}
 
     def test_fetchtx(self):
         self.assertFetchTXOK()
@@ -427,7 +404,6 @@ class TestBitcoinTestnet(BaseCoinCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
-            time.sleep(3)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -447,7 +423,6 @@ class TestBitcoinTestnet(BaseCoinCase):
             receiver1 = self.addresses[0]
             receiver2 = self.addresses[1]
 
-        time.sleep(5)
         result = c.sendmultitx(privkey, "%s:%s" % (receiver1, send_value1), "%s:%s" % (receiver2, send_value2), self.fee)
         self.assertPushTxOK(result)
 
@@ -467,7 +442,6 @@ class TestBitcoinTestnet(BaseCoinCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
-            time.sleep(3)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -509,6 +483,9 @@ class TestLitecoinTestnet(BaseCoinCase):
                 {'output': '83a32eb466e6a4600011b18cb4d7679f05bae8df40572a37b7c08e8849a7c984:1', 'value': 161862912},
                 {'output': 'f27a53b9433eeb9d011a8c77439edb7a582a01166756e00ea1076699bfa58371:1', 'value': 17941248}]
     tx = {'txid': '2a288547460ebe410e98fe63a1900b6452d95ec318efb0d58a5584ac67f27d93'}
+
+    def tearDown(self):
+        time.sleep(5)
 
     def test_fetchtx(self):
         self.assertFetchTXOK()

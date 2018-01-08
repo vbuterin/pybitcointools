@@ -1,6 +1,5 @@
 import re
 import requests
-import datetime
 
 #Docs: https://chain.so/api
 
@@ -30,14 +29,14 @@ def unspent(addr, coin_symbol="BTC"):
     except ValueError:
         raise Exception("Unable to decode JSON from result: %s" % response.text)
 
-def fetchtx(tx, coin_symbol="BTC"):
-    url = tx_url % (coin_symbol, tx)
+def fetchtx(txhash, coin_symbol="BTC"):
+    url = tx_url % (coin_symbol, txhash)
     response = requests.get(url)
     result = response.json()
     return result['data']
 
-def txinputs(tx, coin_symbol="BTC"):
-    url = tx_inputs_url % (coin_symbol, tx)
+def txinputs(txhash, coin_symbol="BTC"):
+    url = tx_inputs_url % (coin_symbol, txhash)
     response = requests.get(url)
     result = response.json()
     inputs = result['data']['inputs']

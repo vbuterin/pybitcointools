@@ -81,6 +81,9 @@ def deserialize(tx):
         pos[0] += bytez
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
+    def get_int(bytez=1):
+        return decode(tx[pos[0] + bytez:pos[0]][::-1], 256)
+
     def read_var_int():
         pos[0] += 1
 
@@ -97,8 +100,19 @@ def deserialize(tx):
         size = read_var_int()
         return read_bytes(size)
 
+    def read_segwit_string():
+        size = read_var_int()
+        return num_to_var_int(size)+read_bytes(size)
+
     obj = {"ins": [], "outs": []}
     obj["version"] = read_as_int(4)
+    next = get_int()
+    if next == 0:
+        obj['marker'] = read_as_int(1)
+        obj['flag'] = read_as_int(1)
+        has_witness = True
+    else:
+        has_witness = False
     ins = read_var_int()
     for i in range(ins):
         obj["ins"].append({
@@ -115,6 +129,17 @@ def deserialize(tx):
             "value": read_as_int(8),
             "script": read_var_string()
         })
+    if has_witness:
+        obj['witness'] = []
+        for i in range(ins):
+            number = read_var_int()
+            scriptCode = []
+            for i in range(number):
+                scriptCode.append(read_segwit_string())
+            obj['witness'].append({
+                'number': number,
+                'scriptCode': list_to_bytes(scriptCode)
+            })
     obj["locktime"] = read_as_int(4)
     return obj
 
@@ -143,7 +168,8 @@ def serialize(txobj, include_witness=True):
         o.append(num_to_var_int(len(out["script"])) + out["script"])
     if include_witness and "witness" in txobj.keys():
         for witness in txobj["witness"]:
-            o.append(num_to_var_int(witness["number"]) + (witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes()))
+            o.append(num_to_var_int(witness["number"]))
+            o.append(witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes())
     o.append(encode_4_bytes(txobj["locktime"]))
     return list_to_bytes(o)
 

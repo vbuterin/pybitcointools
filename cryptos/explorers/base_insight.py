@@ -34,13 +34,13 @@ def unspent(base_url, *args):
             }
     return txs
 
-def fetchtx(base_url, tx):
-    url = fetchtx_url % (base_url, tx)
+def fetchtx(base_url, txhash):
+    url = fetchtx_url % (base_url, txhash)
     response = requests.get(url)
     return response.json()
 
-def txinputs(base_url, tx):
-    result = fetchtx(base_url, tx)
+def txinputs(base_url, txhash):
+    result = fetchtx(base_url, txhash)
     inputs = result['vin']
     unspents = [{'output': "%s:%s" % (i['txid'], i['vout']), 'value': i['valueSat']} for i in inputs]
     return unspents
