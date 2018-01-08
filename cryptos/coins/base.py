@@ -145,6 +145,15 @@ class BaseCoin(object):
         """
         return self.pubtop2w(privtopub(priv))
 
+    def is_segwit(self, priv, addr):
+        """
+        Check if addr was generated from priv using segwit script
+        """
+        if not self.segwit_supported:
+            return False
+        segwit_addr = self.privtop2w(priv)
+        return segwit_addr == addr
+
     def sign(self, txobj, i, priv):
         """
         Sign a transaction input with index using a private key
@@ -298,34 +307,47 @@ class BaseCoin(object):
 
         return self.mktx(ins, outputs2)
 
-    def send(self, privkey, to, value, fee=10000, segwit=False):
+    def send(self, privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None):
         """
-        Send an amount from wallet.
-        Requires private key, target address, value and fee
+        Send a specific amount from address belonging to private key to another address, returning change to the
+        from address or change address, if set.
+        Requires private key, target address, value and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
         """
-        return self.sendmultitx(privkey, to + ":" + str(value), fee, segwit=segwit)
+        return self.sendmultitx(privkey, to + ":" + str(value), fee, change_addr=change_addr, segwit=segwit, addr=addr)
 
-    def sendmultitx(self, privkey, *args, segwit=False):
+    def sendmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
         """
-        Send multiple transactions/amounts at once
-        Requires private key, address:value pairs and fee
+        Send transactions with multiple output, with change sent back to from addrss
+        Requires private key, address:value pairs and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
         """
-        if segwit:
+        if addr:
+            frm =  addr
+            if self.segwit_supported:
+                segwit = self.is_segwit(privkey, addr)
+        elif segwit:
             frm = self.privtop2w(privkey)
         else:
             frm = self.privtoaddr(privkey)
-        tx = self.preparemultitx(frm, *args, segwit=segwit)
+        tx = self.preparemultitx(frm, *args, change_addr=change_addr, segwit=segwit)
         tx2 = self.signall(tx, privkey)
         return self.pushtx(tx2)
 
-    def preparetx(self, frm, to, value, fee=10000, segwit=False):
+    def preparetx(self, frm, to, value, fee, change_addr=None, segwit=False):
         """
         Prepare a transaction using from and to addresses, value and a fee, with change sent back to from address
         """
         tovalues = to + ":" + str(value)
-        return self.preparemultitx(frm, tovalues, fee, segwit=segwit)
+        return self.preparemultitx(frm, tovalues, fee, change_addr=change_addr, segwit=segwit)
 
-    def preparemultitx(self, frm, *args, segwit=False):
+    def preparemultitx(self, frm, *args, change_addr=None, segwit=False):
         """
         Prepare transaction with multiple outputs, with change sent to from address
         Requires from address, to_address:value pairs and fees
@@ -339,5 +361,6 @@ class BaseCoin(object):
 
         u = self.unspent(frm)
         u2 = select(u, int(outvalue) + int(fee))
-        argz = u2 + outs + [frm, fee]
+        change_addr = change_addr or frm
+        argz = u2 + outs + [change_addr, fee]
         return self.mksend(*argz, segwit=segwit)

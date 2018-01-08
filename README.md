@@ -24,7 +24,7 @@ Segregrated Witness transactions also supported for:
 * Bitcoin mainnet **
 * Bitcoin testnet
 * Litecoin mainnet **
-* Litecoin testnet **
+* Litecoin testnet
 
 ** Transaction broadcast not tested
 
@@ -57,7 +57,7 @@ Contributions:
 * Not a full node, has no idea what blocks are
 * Relies on centralized explorers for blockchain operations
 
-### Example usage (best way to learn :) ):
+### Example usage - the long way (best way to learn :) ):
 
     > from cryptos import *
     > c = Bitcoin(testnet=True)
@@ -72,7 +72,7 @@ Contributions:
     'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
     > inputs = c.unspent(addr)
     > inputs
-    [{'output': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508:0', 'value': 180000000, 'time': 'Sat Jan  6 22:43:15 2018'}, {'output': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38:0', 'value': 90000000, 'time': 'Sat Jan  6 22:43:15 2018'}]
+    [{'output': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508:0', 'value': 180000000}, {'output': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38:0', 'value': 90000000}]
     > outs = [{'value': 269845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
     > tx = c.mktx(inputs,outs)
     > tx
@@ -88,6 +88,65 @@ Contributions:
     '01000000020875f07948460160db60ac4a1dc648b8c5abfe4e4ffd71637608f1af0a0ae13b000000008b483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff38aa1ff4695d937db4677085d9fdd7fe30992b05b56e416730fda4e10498ce51000000008b483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02608415100000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a0860100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
     > c.pushtx(tx4)
     {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '00af7b794355aa4ea5851a792713934b524b820cf7f20e2a0e01ab61910b5299'}}
+
+### Faster way
+
+To send 12 DASH from addr belonging to privkey 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 to address yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg, with change returned to the sender address.
+
+    > from cryptos import *
+    > d = Dash(testnet=True)
+    > d.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg", 1200000000)
+    {'status': 'success', 'data': {'txid': '6a510a129bf1e229e99c3eede516d3bde8bdccf859199937a98eaab2ce1cd7ab', 'network': 'DASHTEST'}}
+
+### Segregated Witness - the long way
+To create a segwit transaction, generate a pay to witness script hash (P2WPKH) address and mark all the Segwit UTXOs with segwit=True:
+
+    > from cryptos import *
+    > c = Litecoin(testnet=True)
+    > priv = sha256('a big long brainwallet password')
+    > priv
+    '89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678'
+    > addr = c.privtop2w(priv)
+    > addr
+    '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'
+    > inputs = c.unspent(addr)
+    > inputs
+    [{'output': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a:0', 'value': 100000000}]
+    > inputs[0]['segwit']=True
+    > inputs
+    [{'output': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a:0', 'value': 100000000, 'segwit': True}]
+    > outs = [{'value': 79956800, 'address': 'mxYcACPJWAMMkXu7S9SM8npicFWehpYCWx'}, {'value': 19989200, 'address': '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'}]
+    > tx = c.mktx(inputs,outs)
+    > tx
+    {'locktime': 0, 'version': 1, 'ins': [{'script': '', 'sequence': 4294967295, 'outpoint': {'hash': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a', 'index': 0}, 'amount': 100000000, 'segwit': True}], 'outs': [{'script': '76a914baca2979689786ba311edcfc04d9ad95d393679488ac', 'value': 79956800}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 19989200}], 'marker': 0, 'flag': 1, 'witness': []}
+    > tx2 = c.sign(tx,0,priv)
+    > tx2
+    {'locktime': 0, 'version': 1, 'ins': [{'script': '160014804aff26594cc36c0ac89e95895ab9bdd0c540ef', 'sequence': 4294967295, 'outpoint': {'hash': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a', 'index': 0}, 'amount': 100000000, 'segwit': True}], 'outs': [{'script': '76a914baca2979689786ba311edcfc04d9ad95d393679488ac', 'value': 79956800}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 19989200}], 'marker': 0, 'flag': 1, 'witness': [{'number': 2, 'scriptCode': '47304402201632cb84a0aed4934df83fbc3cd2682f920eef37f76aa64d477702dd59633c900220198cfe15c28b26247c8e49974b4fda825ae16441112f13e754322964a9f24ec80121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc'}]}
+    > tx3 = serialize(tx)
+    > tx3
+    '010000000001018ae8cbcc03151997368c95f4d5940bb8842f72b07660a1a5d3e7b154639d18630000000017160014804aff26594cc36c0ac89e95895ab9bdd0c540efffffffff02400bc404000000001976a914baca2979689786ba311edcfc04d9ad95d393679488acd00231010000000017a9141039471d8d44f3693cd34d1b9d69fd957799cf30870247304402201632cb84a0aed4934df83fbc3cd2682f920eef37f76aa64d477702dd59633c900220198cfe15c28b26247c8e49974b4fda825ae16441112f13e754322964a9f24ec80121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc00000000'
+    > c.pushtx(tx3)
+    {'status': 'success', 'data': {'network': 'LTCTEST', 'txid': '51d5be05d0a35ef5a8ff5f43855ea59e8361874aff1039d6cf5d9a1f93ae1042'}}
+
+
+It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit to create a segwit transaction.
+
+###Segregated Witness - Faster Way:
+
+Send 0.88036480 BTC to 2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF from segwit address 2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh, 
+returning change to 2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ
+ 
+    >from cryptos import *
+    >c = Bitcoin(testnet=True)
+    >c.send('89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678', '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF', 88036480, change_addr="2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", segwit=True)
+    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '1d3754e3b5460cd6957fcceb7f052b21b1003db32dd08e1aa3ed5fb8fb0f3908'}}
+    
+It's also possible to provide the send address in addition to the private key in which case segwit will be auto-detected, so no need to know in advance if the address is segwit or not:
+
+    >from cryptos import *
+    >c = Bitcoin(testnet=True)
+    >c.send('89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678', '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF', 44036800, change_addr="2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", addr="2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh")
+    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '6dedc0ea44a146878c1a08fde22ba8f640a9cce14dc327fb394db68f46243556'}}
 
 ### Other coins
 
@@ -121,36 +180,6 @@ Contributions:
     d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
     
-### Segwit
-To create a segwit transaction, generate a pay to script hash address and mark all the Segwit UTXOs with segwit=True:
-
-    > from cryptos import *
-    > c = Bitcoin(testnet=True)
-    > priv = sha256('a big long brainwallet password')
-    > priv
-    '89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678'
-    > addr = c.privtop2sh(priv)
-    > addr
-    '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'
-    > inputs = c.unspent(addr)
-    > inputs
-    [{'output': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a:0', 'value': 180000000, 'time': 'Mon Jan  8 00:03:40 2018'}]
-    > inputs[0]['segwit']=True
-    > outs = [{'value': 179845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'}]
-    > tx = c.mktx(inputs,outs)
-    > tx
-    {'locktime': 0, 'version': 1, 'ins': [{'script': '', 'sequence': 4294967295, 'outpoint': {'hash': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a', 'index': 0}, 'amount': 180000000, 'segwit': True}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 179845600}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 100000}], 'marker': 0, 'flag': 1, 'witness': []}
-    > tx2 = c.sign(tx,0,priv)
-    > tx2
-    {'locktime': 0, 'version': 1, 'ins': [{'script': '160014804aff26594cc36c0ac89e95895ab9bdd0c540ef', 'sequence': 4294967295, 'outpoint': {'hash': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a', 'index': 0}, 'amount': 180000000, 'segwit': True}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 179845600}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 100000}], 'marker': 0, 'flag': 1, 'witness': [{'number': 2, 'scriptCode': '473044022023613b33cb905557d3ed9c98152986646d51cc74cb84c7ea9b92c38a823b2e7002207209d3902126dd0ce6a66c9ea565441d152a522b4ea4d2de3e234027aff295030121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc'}]}
-    > tx3 = serialize(tx)
-    > tx3
-    '010000000001019ac2b8e959b227d84b8946144b261d1bfa82df9b24c78c7e158f793beaf413700000000017160014804aff26594cc36c0ac89e95895ab9bdd0c540efffffffff02e039b80a0000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a08601000000000017a9141039471d8d44f3693cd34d1b9d69fd957799cf308702473044022023613b33cb905557d3ed9c98152986646d51cc74cb84c7ea9b92c38a823b2e7002207209d3902126dd0ce6a66c9ea565441d152a522b4ea4d2de3e234027aff295030121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc00000000'
-    > c.pushtx(tx3)
-    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '787b0e861fe689ee9ff34665144ddcf4716ccb46c1f615c2259d50a9fe8222ce'}}
-
-It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit to create a segwit transaction.
-
 ### The cryptotool command line interface:
 
     cryptotool random_electrum_seed
@@ -199,46 +228,49 @@ Fun stuff with json:
 To use the testnet you can add --testnet:
 
     cryptotool unspent 2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF --testnet
-    [{"output": "209e5caf8997a3caed4dce0399804ad7fa50c70f866bb7118a42c79de1b76efc:1", "value": 120000000, "time": "Thu Dec 21 08:33:05 2017"}, {"output": "79f38b3e730eea0e44b5a2e645f0979
-    2d9f8732a823079ba4778110657cbe7b2:0", "value": 100000000, "time": "Thu Dec 21 09:31:55 2017"}, {"output": "99d88509d5f0e298bdb6883161c64c7f54444519ce28a0ef3d5942ff4ff7a924:0", "value
-    ": 82211600, "time": "Thu Dec 21 09:52:00 2017"}, {"output": "80acca12cf4b3b562b583f1dc7e43fff936e432a7ed4b16ac3cd10024820d027:0", "value": 192470000, "time": "Thu Dec 21 09:52:00 20
-    17"}, {"output": "3e5a3fa342c767d524b653aec51f3efe2122644c57340fbf5f79c75d1911ad35:0", "value": 10000000, "time": "Thu Dec 21 10:18:48 2017"}]
+    [{"output": "209e5caf8997a3caed4dce0399804ad7fa50c70f866bb7118a42c79de1b76efc:1", "value": 120000000}, {"output": "79f38b3e730eea0e44b5a2e645f0979
+    2d9f8732a823079ba4778110657cbe7b2:0", "value": 100000000}, {"output": "99d88509d5f0e298bdb6883161c64c7f54444519ce28a0ef3d5942ff4ff7a924:0", "value
+    ": 82211600}, {"output": "80acca12cf4b3b562b583f1dc7e43fff936e432a7ed4b16ac3cd10024820d027:0", "value": 192470000}, {"output": "3e5a3fa342c767d524b653aec51f3efe2122644c57340fbf5f79c75d1911ad35:0", "value": 10000000}]
 
 Or the --coin option to use a coin other than bitcoin (bch, btc, dash, doge or ltc)
 
     cryptotool unspent LV3VLesnCi3p3zf26Y86kH2FZxfQq2RjrA --coin ltc
-    [{"output": "42bfe7376410696e260b2198f484f5df4aa6c744465940f9922ac9f8589670a4:0", "value": 14282660, "time": "Thu Dec 21 10:36:08 2017"}]
+    [{"output": "42bfe7376410696e260b2198f484f5df4aa6c744465940f9922ac9f8589670a4:0", "value": 14282660}]
 
     cryptotool unspent myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW --coin ltc --testnet
-    [{"output": "f27a53b9433eeb9d011a8c77439edb7a582a01166756e00ea1076699bfa58371:0", "value": 1993472, "time": "Wed Dec 20 14:38:07 2017"}, {"output": "2a288547460ebe410e98fe63a1900b645
-    2d95ec318efb0d58a5584ac67f27d93:1", "value": 177961076, "time": "Wed Dec 20 17:01:32 2017"}, {"output": "da0e900e4ed8e3661bef6f6fa5beed78fec3f7b9e4cc87c7120108eba66f270f:0", "value":
-     1971905, "time": "Wed Dec 20 17:01:32 2017"}]
+    [{"output": "68f9c662503715a3baf29fe4b07c056b0bf6654dbdd9d5393f4d6a18225d0ff3:0", "value": 16333531}, {"output": "aa40041a1fcdb952d6a38594a27529f890d17d715fd54b6914cd6709fa94ca67:0", "value": 100000000}, {"output": "3b72bae956d27ab0ad309808ab76beaf203109f423e533fd7c40f1201672f598:1", "value": 164712303}]
 
-Make and broadcast a transaction on the Dash testnet:
+Make and broadcast a transaction on the Bitcoin Cash testnet:
 
-    cryptotool send cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz 44907516684 --fee 20000 --coin dash --testnet
-    {"status": "success", "data": {"txid": "725ff2599700462905aafe658a082c0545c2749f779a7c9114421b4ca65183d0", "network": "DASHTEST"}}
+    cryptotool send 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 mgRoeWs2CeCEuqQmNfhJjnpX8YvtPACmCX 999950000 --fee 50000 --coin bch --testnet
+    {"status": "success", "data": {"txid": "caae4c059ac07827047237560ff44f97c940600f8f0a1e3392f4bcaf91e38c5c", "network": "tbcc"}}
 
 The arguments are the private key of the sender, the receiver's address and the fee (default 10000). Change will be returned to the sender. 
 
-### Listing of main coin-specific commands:
+### Listing of main coin-specific methods:
 
-* privkey_to_pubkey    : (privkey) -> pubkey
 * privtopub            : (privkey) -> pubkey
-* pubkey_to_address    : (pubkey) -> address
 * pubtoaddr            : (pubkey) -> address
-* privkey_to_address   : (privkey) -> address
 * privtoaddr           : (privkey) -> address
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
 * signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
-* history              : (address) -> tx history of an address
-* unspent              : (address, etc) -> unspent outputs for an addresses
+* history              : (address) -> tx history and balance of an address
+* unspent              : (address) -> unspent outputs for an addresses
 * pushtx               : (hex or bin tx) -> push a transaction to the blockchain
 * fetchtx              : (txhash) -> fetch a tx from the blockchain
 * txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
-* send                 : (privkey, to, value, fee) -> create and a push a simple transaction to send coins to an address and return change to the sender
-* mktx                 : (inputs, outputs) -> txobj
-* mksend               : (inputs, outputs, change_addr, fee) -> txobj
+* send                 : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
+* sendmultitx          : (privkey, to:value pairs, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a transaction to send coins to mulitple addresses and return change to the change address or sender
+* preparetx            : (frm, to, value, fee, change_addr=None, segwit=False): -> create unsigned txobj
+* preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj
+* mktx                 : (inputs, outputs) -> create unsigned txobj
+* mksend               : (inputs, outputs, change_addr, fee, segwit) -> create unsigned txobj
+* pubtop2w             : (pub) -> pay to witness script hash (segwit address)
+* privtop2w            : (priv) -> pay to witness script hash (segwit address)
+* is_address           : (addr) -> true if addr is a valid address for this network
+* is_p2sh              : (addr) -> true if addr is a pay to script hash for this network
+* is_segwit            : (priv, addr) -> true if priv-addr pair represent a pay to witness script hash
+
 
 ### Listing of main non-coin specific commands:
 

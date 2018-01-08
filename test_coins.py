@@ -28,7 +28,7 @@ class BaseCoinCase(unittest.TestCase):
         print('Starting %s tests' % cls.name)
 
     def tearDown(self):
-        time.sleep(3)
+        time.sleep(5)
 
     def assertUnorderedListEqual(self, list1, list2, key):
         list1 = sorted(list1, key=itemgetter(key))
@@ -68,6 +68,7 @@ class BaseCoinCase(unittest.TestCase):
                 segwit_sender = addr
                 segwit_from_addr_i = i
                 segwit_unspents = addr_unspents
+            time.sleep(3)
 
         for u in segwit_unspents:
             u['segwit'] = True
@@ -77,8 +78,6 @@ class BaseCoinCase(unittest.TestCase):
         regular_from_addr_i = 0
         regular_unspents = []
 
-        time.sleep(3)
-
         for i, addr in enumerate(self.addresses):
             addr_unspents = c.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
@@ -87,8 +86,7 @@ class BaseCoinCase(unittest.TestCase):
                 regular_sender = addr
                 regular_from_addr_i = i
                 regular_unspents = addr_unspents
-
-        time.sleep(3)
+            time.sleep(3)
 
         unspents = segwit_unspents + regular_unspents
 
@@ -131,6 +129,9 @@ class BaseCoinCase(unittest.TestCase):
         self.assertEqual(segwit_sender, c.privtop2w(segwit_privkey), msg="Private key does not belong to script %s on %s" % (segwit_sender, c.display_name))
         self.assertEqual(regular_sender, c.privtoaddr(regular_privkey), msg="Private key does not belong to address %s on %s" % (regular_sender, c.display_name))
 
+        self.assertTrue(c.is_segwit(segwit_privkey, segwit_sender))
+        self.assertFalse(c.is_segwit(regular_privkey, regular_sender))
+
         #Sign each input with the given private keys
         for i in range(0, len(segwit_unspents)):
             tx = c.sign(tx, i, segwit_privkey)
@@ -163,8 +164,7 @@ class BaseCoinCase(unittest.TestCase):
                 sender = addr
                 from_addr_i = i
                 unspents = addr_unspents
-
-        time.sleep(3)
+            time.sleep(3)
 
         for u in unspents:
             u['segwit'] = True
@@ -233,8 +233,7 @@ class BaseCoinCase(unittest.TestCase):
                 sender = addr
                 from_addr_i = i
                 unspents = addr_unspents
-
-        time.sleep(3)
+            time.sleep(3)
 
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
@@ -428,8 +427,7 @@ class TestBitcoinTestnet(BaseCoinCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
-
-        time.sleep(3)
+            time.sleep(3)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -449,6 +447,7 @@ class TestBitcoinTestnet(BaseCoinCase):
             receiver1 = self.addresses[0]
             receiver2 = self.addresses[1]
 
+        time.sleep(5)
         result = c.sendmultitx(privkey, "%s:%s" % (receiver1, send_value1), "%s:%s" % (receiver2, send_value2), self.fee)
         self.assertPushTxOK(result)
 
@@ -468,8 +467,7 @@ class TestBitcoinTestnet(BaseCoinCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
-
-        time.sleep(3)
+            time.sleep(3)
 
         privkey = self.privkeys[from_addr_i]
 
