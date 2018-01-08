@@ -123,7 +123,7 @@ class Bitcoin(BaseCoin):
     # Takes privkey, address1:value1,address2:value2 (satoshis), fee (satoshis)
     def sendmultitx(self, privkey, *args, segwit=False):
         if segwit:
-            frm = self.privtop2sh(priv)
+            frm = self.privtop2sh(privkey)
         else:
             frm = self.privtoaddr(privkey)
         tx = self.preparemultitx(frm, *args, segwit=segwit)

@@ -28,10 +28,9 @@ Segregrated Witness transactions also supported for:
 
 ** Transaction broadcast not tested
 
-Aim is to provide  simple, class-based API makes switching between different coins and mainnet and testnet very easy.
+Aim is to provide a simple, class-based API makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Longer-term roadmap:
-* Integrate pull requests from pybitcointools, e.g. Segwit support
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
 * Easily gather unspents and broadcast transactions based on a mnemonic
@@ -39,12 +38,12 @@ Longer-term roadmap:
 * Seed-based multi-crypto wallet
 
 Contributions:
-* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin
+* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin, Segwit transactions for Litecoin.
 * Anyone know a working Dogecoin testnet explorer?
 
 ### Advantages:
 
-* Functions have a simple interface, inputting and outputting in standard formats
+* Methods have a simple interface, inputting and outputting in standard formats
 * Classes for different coins with a common interface
 * Many functions can be taken out and used individually
 * Supports binary, hex and base58
@@ -122,7 +121,8 @@ Contributions:
     d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
     
-### To create a segwit transaction, generate a pay to script hash address and mark all the inputs for segwit addresses with segwit=True:
+### Segwit
+To create a segwit transaction, generate a pay to script hash address and mark all the Segwit UTXOs with segwit=True:
 
     > from cryptos import *
     > c = Bitcoin(testnet=True)
@@ -151,7 +151,7 @@ Contributions:
 
 It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit to create a segwit transaction.
 
-Using the cryptotool command line interface:
+### The cryptotool command line interface:
 
     cryptotool random_electrum_seed
     484ccb566edb66c65dd0fd2e4d90ef65
