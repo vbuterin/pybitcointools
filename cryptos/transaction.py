@@ -66,6 +66,8 @@ def dbl_sha256_list(vals):
 
 # Transaction serialization and deserialization
 
+def is_segwit(tx):
+    return tx[4] == 0
 
 def deserialize(tx):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
@@ -82,7 +84,7 @@ def deserialize(tx):
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
     def get_int(bytez=1):
-        return decode(tx[pos[0] + bytez:pos[0]][::-1], 256)
+        return tx[pos[0]]
 
     def read_var_int():
         pos[0] += 1
@@ -106,13 +108,10 @@ def deserialize(tx):
 
     obj = {"ins": [], "outs": []}
     obj["version"] = read_as_int(4)
-    next = get_int()
-    if next == 0:
+    has_witness = is_segwit(tx)
+    if has_witness == 0:
         obj['marker'] = read_as_int(1)
         obj['flag'] = read_as_int(1)
-        has_witness = True
-    else:
-        has_witness = False
     ins = read_var_int()
     for i in range(ins):
         obj["ins"].append({
@@ -133,6 +132,7 @@ def deserialize(tx):
         obj['witness'] = []
         for i in range(ins):
             number = read_var_int()
+            print(number)
             scriptCode = []
             for i in range(number):
                 scriptCode.append(read_segwit_string())
@@ -142,7 +142,6 @@ def deserialize(tx):
             })
     obj["locktime"] = read_as_int(4)
     return obj
-
 
 def serialize(txobj, include_witness=True):
     if isinstance(txobj, bytes):
@@ -168,8 +167,7 @@ def serialize(txobj, include_witness=True):
         o.append(num_to_var_int(len(out["script"])) + out["script"])
     if include_witness and "witness" in txobj.keys():
         for witness in txobj["witness"]:
-            o.append(num_to_var_int(witness["number"]))
-            o.append(witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes())
+            o.append(num_to_var_int(witness["number"]) + (witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes()))
     o.append(encode_4_bytes(txobj["locktime"]))
     return list_to_bytes(o)
 
@@ -283,9 +281,11 @@ def is_bip66(sig):
         return False
     return True
 
-def txhash(tx, hashcode=None):
+def txhash(tx, wtxid=False, hashcode=None):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
+    if not wtxid and is_segwit(tx):
+        tx = serialize(deserialize(tx), include_witness=False)
     if hashcode:
         return dbl_sha256(from_string_to_bytes(tx) + encode(int(hashcode), 256, 4)[::-1])
     else:
