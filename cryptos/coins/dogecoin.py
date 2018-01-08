@@ -2,14 +2,13 @@ from .bitcoin import Bitcoin
 
 
 class Doge(Bitcoin):
-    display_name = "Dogecoin"
     coin_symbol = "DOGE"
+    display_name = "Dogecoin"
+    segwit_supported = False
     magicbyte = 30
-
-    def __init__(self, testnet=False, **kwargs):
-        super(Doge, self).__init__(testnet, **kwargs)
-        if self.is_testnet:
-            self.display_name = "Dogecoin Testnet"
-            self.coin_symbol = "DOGETEST"
-            self.magicbyte = 113
-            raise NotImplementedError("Due to explorer limitations, testnet support for this coin has not been implemented yet!")
+    testnet_overrides = {
+        'display_name': "Dogecoin Testnet",
+        'coin_symbol': "Dogecoin",
+        'magicbyte': 113,
+        'enabled': False
+    }

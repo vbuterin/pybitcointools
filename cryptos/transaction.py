@@ -29,7 +29,6 @@ def json_is_base(obj, base):
                 return False
         return True
 
-
 def json_changebase(obj, changer):
     if isinstance(obj, string_or_bytes_types):
         return changer(obj)
@@ -48,6 +47,9 @@ SIGHASH_SINGLE = 3
 # we fix the constant
 SIGHASH_ANYONECANPAY = 0x81
 SIGHASH_FORKID = 0x40
+
+def encode_1_byte(val):
+    return encode(val, 256, 1)[::-1]
 
 def encode_4_bytes(val):
     return encode(val, 256, 4)[::-1]
@@ -117,15 +119,18 @@ def deserialize(tx):
     return obj
 
 
-def serialize(txobj):
+def serialize(txobj, include_witness=True):
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []
     if json_is_base(txobj, 16):
         json_changedbase = json_changebase(txobj, lambda x: binascii.unhexlify(x))
-        hexlified = safe_hexlify(serialize(json_changedbase))
+        hexlified = safe_hexlify(serialize(json_changedbase, include_witness=include_witness))
         return hexlified
     o.append(encode_4_bytes(txobj["version"]))
+    if include_witness and all(k in txobj.keys() for k in ['marker', 'flag']):
+        o.append(encode_1_byte(txobj["marker"]))
+        o.append(encode_1_byte(txobj["flag"]))
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
         o.append(inp["outpoint"]["hash"][::-1])
@@ -136,6 +141,9 @@ def serialize(txobj):
     for out in txobj["outs"]:
         o.append(encode_8_bytes(out["value"]))
         o.append(num_to_var_int(len(out["script"])) + out["script"])
+    if include_witness and "witness" in txobj.keys():
+        for witness in txobj["witness"]:
+            o.append(num_to_var_int(witness["number"]) + (witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes()))
     o.append(encode_4_bytes(txobj["locktime"]))
     return list_to_bytes(o)
 
@@ -181,11 +189,15 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
+    #is_segwit = 'witness' in tx.keys()
+    is_segwit = tx['ins'][i].get('segwit', False)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
-    if hashcode == SIGHASH_NONE:
+    if is_segwit or hashcode == SIGHASH_ALL + SIGHASH_FORKID:
+        return uahf_digest(newtx, i)
+    elif hashcode == SIGHASH_NONE:
         newtx["outs"] = []
     elif hashcode == SIGHASH_SINGLE:
         newtx["outs"] = newtx["outs"][:len(newtx["ins"])]
@@ -194,11 +206,9 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
             out['script'] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
         newtx["ins"] = [newtx["ins"][i]]
-    elif hashcode == SIGHASH_ALL + SIGHASH_FORKID:
-        return uahf_digest(newtx, i)
     else:
         pass
-    return serialize(newtx)
+    return serialize(newtx, include_witness=False)
 
 # Making the actual signatures
 
@@ -278,50 +288,24 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
+def mk_p2wpkh_redeemscript(pubkey):
+    return '160014' + pubkey_to_hash_hex(pubkey)
 
 def mk_pubkey_script(addr):
     # Keep the auxiliary functions around for altcoins' sake
     return '76a914' + b58check_to_hex(addr) + '88ac'
 
-
 def mk_scripthash_script(addr):
     return 'a914' + b58check_to_hex(addr) + '87'
 
-# Address representation to output script
+def mk_p2wpkh_script(pubkey):
+    script = mk_p2wpkh_redeemscript(pubkey)[2:]
+    return 'a914'+ hex_to_hash160(script) + '87'
 
-
-def address_to_script(addr):
-    if addr[0] == '3' or addr[0] == '2':
-        return mk_scripthash_script(addr)
-    else:
-        return mk_pubkey_script(addr)
+def mk_p2wpkh_scriptcode(pubkey):
+    return '76a914' + pubkey_to_hash_hex(pubkey) + '88ac'
 
 # Output script to address representation
-
-
-def script_to_address(script, vbyte=0):
-    if re.match('^[0-9a-fA-F]*$', script):
-        script = binascii.unhexlify(script)
-    if script[:3] == b'\x76\xa9\x14' and script[-2:] == b'\x88\xac' and len(script) == 25:
-        return bin_to_b58check(script[3:-2], vbyte)  # pubkey hash addresses
-    else:
-        if vbyte in [111, 196]:
-            # Testnet
-            scripthash_byte = 196
-        elif vbyte == 0:
-            # Mainnet
-            scripthash_byte = 5
-        else:
-            scripthash_byte = vbyte
-        # BIP0016 scripthash addresses
-        return bin_to_b58check(script[2:-1], scripthash_byte)
-
-
-def p2sh_scriptaddr(script, magicbyte=5):
-    if re.match('^[0-9a-fA-F]*$', script):
-        script = binascii.unhexlify(script)
-    return hex_to_b58check(hash160(script), magicbyte)
-scriptaddr = p2sh_scriptaddr
 
 
 def deserialize_script(script):
@@ -410,36 +394,6 @@ def verify_tx_input(tx, i, script, sig, pub):
     modtx = signature_form(tx, int(i), script, hashcode)
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
-def sign(txobj, i, priv, magicbyte=0, hashcode=SIGHASH_ALL):
-    i = int(i)
-    if not isinstance(txobj, dict):
-        txobj = deserialize(txobj)
-    if len(priv) <= 33:
-        priv = safe_hexlify(priv)
-    pub = privkey_to_pubkey(priv)
-    address = pubkey_to_address(pub, magicbyte=magicbyte)
-    signing_tx = signature_form(txobj, i, mk_pubkey_script(address), hashcode)
-    sig = ecdsa_tx_sign(signing_tx, priv, hashcode)
-    txobj["ins"][i]["script"] = serialize_script([sig, pub])
-    return txobj
-
-
-def signall(txobj, priv, magicbyte=0, hashcode=SIGHASH_ALL):
-    # if priv is a dictionary, assume format is
-    # { 'txinhash:txinidx' : privkey }
-    if not isinstance(txobj, dict):
-        txobj = deserialize(txobj)
-    if isinstance(priv, dict):
-        for e, i in enumerate(txobj["ins"]):
-            k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
-            txobj = sign(txobj, e, k, magicbyte=magicbyte, hashcode=hashcode)
-    else:
-        for i in range(len(txobj["ins"])):
-            txobj = sign(txobj, i, priv, magicbyte=magicbyte, hashcode=hashcode)
-    return serialize(txobj)
-
-
-
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     if re.match('^[0-9a-fA-F]*$', tx):
         tx = binascii.unhexlify(tx)
@@ -472,57 +426,6 @@ def apply_multisignatures(*args):
 def is_inp(arg):
     return len(arg) > 64 or "output" in arg or "outpoint" in arg
 
-
-def mktx(*args):
-    """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
-    For Bitcoin Cash and other hard forks using SIGHASH_FORKID,
-    ins must be a list of dicts with each containing the outpoint and value of the input.
-    Otherwise, it can be a list of dicts containing outpoints or list of strings in the outpoint format.
-    Outpoint format: txhash:index
-    """
-    ins, outs = [], []
-    for arg in args:
-        if isinstance(arg, list):
-            for a in arg: (ins if is_inp(a) else outs).append(a)
-        else:
-            (ins if is_inp(arg) else outs).append(arg)
-
-    txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
-    for i in ins:
-        if isinstance(i, dict) and "output" in i:
-            value = i.get("value", None)
-            i = i["output"]
-        else:
-            value = None
-        txobj["ins"].append({
-            "outpoint": {"hash": i[:64], "index": int(i[65:])},
-            "amount": value,
-            "script": "",
-            "sequence": 4294967295
-        })
-    for o in outs:
-        if isinstance(o, string_or_bytes_types):
-            addr = o[:o.find(':')]
-            val = int(o[o.find(':')+1:])
-            o = {}
-            if re.match('^[0-9a-fA-F]*$', addr):
-                o["script"] = addr
-            else:
-                o["address"] = addr
-            o["value"] = val
-
-        outobj = {}
-        if "address" in o:
-            outobj["script"] = address_to_script(o["address"])
-        elif "script" in o:
-            outobj["script"] = o["script"]
-        else:
-            raise Exception("Could not find 'address' or 'script' in output.")
-        outobj["value"] = o["value"]
-        txobj["outs"].append(outobj)
-    return txobj
-
-
 def select(unspent, value):
     value = int(value)
     high = [u for u in unspent if u["value"] >= value]
@@ -538,33 +441,3 @@ def select(unspent, value):
     if tv < value:
         raise Exception("Not enough funds")
     return low[:i]
-
-def mksend(*args):
-    argz, change, fee = args[:-2], args[-2], int(args[-1])
-    ins, outs = [], []
-    for arg in argz:
-        if isinstance(arg, list):
-            for a in arg:
-                (ins if is_inp(a) else outs).append(a)
-        else:
-            (ins if is_inp(arg) else outs).append(arg)
-
-    isum = sum([i["value"] for i in ins])
-    osum, outputs2 = 0, []
-    for o in outs:
-        if isinstance(o, string_types):
-            o2 = {
-                "address": o[:o.find(':')],
-                "value": int(o[o.find(':')+1:])
-            }
-        else:
-            o2 = o
-        outputs2.append(o2)
-        osum += o2["value"]
-
-    if isum < osum+fee:
-        raise Exception("Not enough money")
-    elif isum > osum+fee+5430:
-        outputs2 += [{"address": change, "value": isum-osum-fee}]
-
-    return mktx(ins, outputs2)

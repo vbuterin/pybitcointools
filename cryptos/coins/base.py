@@ -1,4 +1,5 @@
 from ..transaction import SIGHASH_ALL
+from ..main import magicbyte_to_prefix
 
 
 class BaseCoin(object):
@@ -9,16 +10,31 @@ class BaseCoin(object):
 
     coin_symbol = None
     display_name = None
+    enabled = True
+    segwit_supported = None
     magicbyte = None
-    is_testnet = None
+    script_magicbyte = None
+    is_testnet = False
+    address_prefixes = ()
+    testnet_overrides = {}
+
     hashcode = SIGHASH_ALL
 
     def __init__(self, testnet=False, **kwargs):
-        self.is_testnet = testnet
-
+        if testnet:
+            self.is_testnet = True
+            for k, v in self.testnet_overrides.items():
+                setattr(self, k, v)
         # override default attributes from kwargs
         for key, value in kwargs.items():
             setattr(self, key, value)
+        if not self.enabled:
+            if self.is_testnet:
+                raise NotImplementedError("Due to explorer limitations, testnet support for this coin has not been implemented yet!")
+            else:
+                raise NotImplementedError("Support for this coin has not been implemented yet!")
+        self.address_prefixes = magicbyte_to_prefix(magicbyte=self.magicbyte)
+        self.script_prefixes = magicbyte_to_prefix(magicbyte=self.script_magicbyte)
 
     def privtopub(self, privkey):
         """

@@ -163,14 +163,15 @@ class TestTransaction(unittest.TestCase):
     # FIXME: I don't know how to write this as a unit test.
     # What should be asserted?
     def test_all(self):
+        c = Bitcoin()
         privs = [sha256(str(random.randrange(2**256))) for x in range(4)]
         pubs = [privtopub(priv) for priv in privs]
         addresses = [pubtoaddr(pub) for pub in pubs]
         mscript = mk_multisig_script(pubs[1:], 2, 3)
-        msigaddr = p2sh_scriptaddr(mscript)
-        tx = mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
+        msigaddr = c.p2sh_scriptaddr(mscript)
+        tx = c.mktx(['01'*32+':1', '23'*32+':2'], [msigaddr+':20202', addresses[0]+':40404'])
         tx = serialize(tx)
-        tx1 = serialize(sign(tx, 1, privs[0]))
+        tx1 = serialize(c.sign(tx, 1, privs[0]))
 
         sig1 = multisign(tx, 0, mscript, privs[1])
         self.assertTrue(verify_tx_input(tx1, 0, mscript, sig1, pubs[1]), "Verification Error")
@@ -183,17 +184,15 @@ class TestTransaction(unittest.TestCase):
 
     # https://github.com/vbuterin/pybitcointools/issues/71
     def test_multisig(self):
+        c = Bitcoin()
+        t = Bitcoin(testnet=True)
         script = mk_multisig_script(["0254236f7d1124fc07600ad3eec5ac47393bf963fbf0608bcce255e685580d16d9",
                                      "03560cad89031c412ad8619398bd43b3d673cb5bdcdac1afc46449382c6a8e0b2b"],
                                      2)
 
-        self.assertEqual(p2sh_scriptaddr(script), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
+        self.assertEqual(c.p2sh_scriptaddr(script), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
 
-        self.assertEqual(p2sh_scriptaddr(script, 0x05), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
-        self.assertEqual(p2sh_scriptaddr(script, 5), "33byJBaS5N45RHFcatTSt9ZjiGb6nK4iV3")
-
-        self.assertEqual(p2sh_scriptaddr(script, 0xc4), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
-        self.assertEqual(p2sh_scriptaddr(script, 196), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
+        self.assertEqual(t.p2sh_scriptaddr(script), "2MuABMvWTgpZRd4tAG25KW6YzvcoGVZDZYP")
 
 
 class TestDeterministicGenerate(unittest.TestCase):
@@ -342,30 +341,18 @@ class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
         print("Starting address and script generation consistency tests")
 
     def test_all(self):
+        c = Bitcoin()
+        t = Bitcoin(testnet=True)
         for i in range(5):
-            a = privtoaddr(random_key())
-            self.assertEqual(a, script_to_address(address_to_script(a)))
-            self.assertEqual(a, script_to_address(address_to_script(a), 0))
-            self.assertEqual(a, script_to_address(address_to_script(a), 0x00))
+            ca = c.privtoaddr(random_key())
+            ta = t.privtoaddr(random_key())
+            self.assertEqual(ca, c.scripttoaddr(c.addrtoscript(ca)))
+            self.assertEqual(ta, t.scripttoaddr(t.addrtoscript(ta)))
 
-            b = privtoaddr(random_key(), 5)
-            self.assertEqual(b, script_to_address(address_to_script(b)))
-            self.assertEqual(b, script_to_address(address_to_script(b), 0))
-            self.assertEqual(b, script_to_address(address_to_script(b), 0x00))
-            self.assertEqual(b, script_to_address(address_to_script(b), 5))
-            self.assertEqual(b, script_to_address(address_to_script(b), 0x05))
-
-
-        for i in range(5):
-            a = privtoaddr(random_key(), 0x6f)
-            self.assertEqual(a, script_to_address(address_to_script(a), 111))
-            self.assertEqual(a, script_to_address(address_to_script(a), 0x6f))
-
-            b = privtoaddr(random_key(), 0xc4)
-            self.assertEqual(b, script_to_address(address_to_script(b), 111))
-            self.assertEqual(b, script_to_address(address_to_script(b), 0x6f))
-            self.assertEqual(b, script_to_address(address_to_script(b), 196))
-            self.assertEqual(b, script_to_address(address_to_script(b), 0xc4))
+            cb = c.privtop2sh(random_key())
+            db = t.privtop2sh(random_key())
+            self.assertEqual(cb, c.scripttoaddr(c.addrtoscript(cb)))
+            self.assertEqual(db, t.scripttoaddr(t.addrtoscript(db)))
 
 
 class TestRipeMD160PythonBackup(unittest.TestCase):
@@ -412,6 +399,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
         print('Testing script vs address outputs')
 
     def test_all(self):
+        c = Bitcoin()
         addr0 = '1Lqgj1ThNfwLgHMp5qJUerYsuUEm8vHmVG'
         script0 = '76a914d99f84267d1f90f3e870a5e9d2399918140be61d88ac'
         addr1 = '31oSGBBNrpCiENH3XMZpiP6GTC4tad4bMy'
@@ -434,7 +422,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
         ]
 
         for outs in outputs:
-            tx_struct = mktx(inputs, outs)
+            tx_struct = c.mktx(inputs, outs)
             self.assertEqual(tx_struct['outs'], outputs[3])
 
 

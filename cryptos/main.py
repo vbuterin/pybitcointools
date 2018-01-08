@@ -340,10 +340,11 @@ def bin_hash160(string):
         digest = RIPEMD160(intermed).digest()
     return digest
 
-
 def hash160(string):
     return safe_hexlify(bin_hash160(string))
 
+def hex_to_hash160(s_hex):
+    return hash160(binascii.unhexlify(s_hex))
 
 def bin_sha256(string):
     binary_data = string if isinstance(string, bytes) else bytes(string, 'utf-8')
@@ -444,14 +445,19 @@ def hex_to_b58check(inp, magicbyte=0):
 def b58check_to_hex(inp):
     return safe_hexlify(b58check_to_bin(inp))
 
-
-def pubkey_to_address(pubkey, magicbyte=0):
+def pubkey_to_hash(pubkey):
     if isinstance(pubkey, (list, tuple)):
         pubkey = encode_pubkey(pubkey, 'bin')
     if len(pubkey) in [66, 130]:
-        return bin_to_b58check(
-            bin_hash160(binascii.unhexlify(pubkey)), magicbyte)
-    return bin_to_b58check(bin_hash160(pubkey), magicbyte)
+        return bin_hash160(binascii.unhexlify(pubkey))
+    return bin_hash160(pubkey)
+
+def pubkey_to_hash_hex(pubkey):
+    return safe_hexlify(pubkey_to_hash(pubkey))
+
+def pubkey_to_address(pubkey, magicbyte=0):
+    pubkey_hash = pubkey_to_hash(pubkey)
+    return bin_to_b58check(pubkey_hash, magicbyte)
 
 pubtoaddr = pubkey_to_address
 
@@ -469,10 +475,6 @@ def is_pubkey(pubkey):
         return True
     except:
         return False
-
-def is_address(addr):
-    ADDR_RE = re.compile("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$")
-    return bool(ADDR_RE.match(addr))
 
 
 # EDCSA
@@ -528,8 +530,6 @@ def ecdsa_sign(msg, priv):
 
 def ecdsa_raw_verify(msghash, vrs, pub):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        return False
 
     w = inv(s, N)
     z = hash_to_int(msghash)
@@ -555,8 +555,6 @@ def ecdsa_verify(msg, sig, pub):
 
 def ecdsa_raw_recover(msghash, vrs):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        raise ValueError("%d must in range 27-31" % v)
     x = r
     xcubedaxb = (x*x*x+A*x+B) % P
     beta = pow(xcubedaxb, (P+1)//4, P)
@@ -596,3 +594,13 @@ def subtract(p1,p2):
         return subtract_privkeys(p1, p2)
     else:
         return subtract_pubkeys(p1, p2)
+
+hash160Low = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+hash160High = b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
+
+def magicbyte_to_prefix(magicbyte):
+    first = bin_to_b58check(hash160Low, magicbyte=magicbyte)[0]
+    last = bin_to_b58check(hash160High, magicbyte=magicbyte)[0]
+    if first == last:
+        return (first,)
+    return (first, last)
