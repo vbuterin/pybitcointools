@@ -476,10 +476,6 @@ def is_pubkey(pubkey):
     except:
         return False
 
-def is_address(addr):
-    ADDR_RE = re.compile("^[123mn][a-km-zA-HJ-NP-Z0-9]{26,33}$")
-    return bool(ADDR_RE.match(addr))
-
 
 # EDCSA
 
@@ -534,8 +530,6 @@ def ecdsa_sign(msg, priv):
 
 def ecdsa_raw_verify(msghash, vrs, pub):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        return False
 
     w = inv(s, N)
     z = hash_to_int(msghash)
@@ -561,8 +555,6 @@ def ecdsa_verify(msg, sig, pub):
 
 def ecdsa_raw_recover(msghash, vrs):
     v, r, s = vrs
-    if not (27 <= v <= 34):
-        raise ValueError("%d must in range 27-31" % v)
     x = r
     xcubedaxb = (x*x*x+A*x+B) % P
     beta = pow(xcubedaxb, (P+1)//4, P)
@@ -602,3 +594,13 @@ def subtract(p1,p2):
         return subtract_privkeys(p1, p2)
     else:
         return subtract_pubkeys(p1, p2)
+
+hash160Low = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+hash160High = b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
+
+def magicbyte_to_prefix(magicbyte):
+    first = bin_to_b58check(hash160Low, magicbyte=magicbyte)[0]
+    last = bin_to_b58check(hash160High, magicbyte=magicbyte)[0]
+    if first == last:
+        return (first,)
+    return (first, last)

@@ -1,4 +1,4 @@
-# Pycryptotools, Python library for Bitcoin signatures and transactions
+# Pycryptotools, Python library for Crypto coins signatures and transactions
 
 This is a fork of Vitalik Buterin's original [pybitcointools](https://github.com/vbuterin/pybitcointools) library.
 
@@ -12,17 +12,23 @@ Library now supports making and pushing raw transactions for:
 
 * Bitcoin mainnet
 * Bitcoin testnet 
-* Bitcoin Cash mainnet**
-* Bitcoin Cash testnet 
+* Bitcoin Cash mainnet** (with replay protection)
+* Bitcoin Cash testnet (with replay protection)
 * Litecoin mainnet**
 * Litecoin testnet
 * Dash mainnet**
 * Dash testnet
 * Dogecoin mainnet**
 
+Segregrated Witness transactions also supported for:
+* Bitcoin mainnet **
+* Bitcoin testnet
+* Litecoin mainnet **
+* Litecoin testnet **
+
 ** Transaction broadcast not tested
 
-A simple, class-based API makes switching between mainnet and testnet very easy.
+Aim is to provide  simple, class-based API makes switching between different coins and mainnet and testnet very easy.
 
 Longer-term roadmap:
 * Integrate pull requests from pybitcointools, e.g. Segwit support
@@ -84,7 +90,68 @@ Contributions:
     > c.pushtx(tx4)
     {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '00af7b794355aa4ea5851a792713934b524b820cf7f20e2a0e01ab61910b5299'}}
 
-Or using the cryptotool command line interface:
+### Other coins
+
+    > from cryptos import *
+    > priv = sha256('a big long brainwallet password')
+    > b = Bitcoin()
+    > b.privtoaddr(priv)
+    '1GnX7YYimkWPzkPoHYqbJ4waxG6MN2cdSg'
+    > b = Bitcoin(testnet=True)
+    > b.privtoaddr(priv)
+    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
+    > l = Litecoin()
+    > l.privtoaddr(priv)
+    'Lb1UNkrYrQkTFZ5xTgpta61MAUTdUq7iJ1'
+    > l = Litecoin(testnet=True)
+    > l.privtoaddr(priv)
+    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
+    > c = BitcoinCash()
+    > c.privtoaddr(priv)
+    '1GnX7YYimkWPzkPoHYqbJ4waxG6MN2cdSg'
+    > c = BitcoinCash(testnet=True)
+    > c.privtoaddr(priv)
+    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
+    > d = Dash()
+    > d.privtoaddr(priv)
+    'XrUMwoCcjTiz9gzP9S9p9bdNnbg3MvAB1F'
+    > d = Dash(testnet=True)
+    > d.privtoaddr(priv)
+    'yc6xxkH4B1P4VRuviHUDBd3j4tAQpy4fzn'
+    d = Doge()
+    d.privtoaddr(priv)
+    'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
+    
+### To create a segwit transaction, generate a pay to script hash address and mark all the inputs for segwit addresses with segwit=True:
+
+    > from cryptos import *
+    > c = Bitcoin(testnet=True)
+    > priv = sha256('a big long brainwallet password')
+    > priv
+    '89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678'
+    > addr = c.privtop2sh(priv)
+    > addr
+    '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'
+    > inputs = c.unspent(addr)
+    > inputs
+    [{'output': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a:0', 'value': 180000000, 'time': 'Mon Jan  8 00:03:40 2018'}]
+    > inputs[0]['segwit']=True
+    > outs = [{'value': 179845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'}]
+    > tx = c.mktx(inputs,outs)
+    > tx
+    {'locktime': 0, 'version': 1, 'ins': [{'script': '', 'sequence': 4294967295, 'outpoint': {'hash': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a', 'index': 0}, 'amount': 180000000, 'segwit': True}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 179845600}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 100000}], 'marker': 0, 'flag': 1, 'witness': []}
+    > tx2 = c.sign(tx,0,priv)
+    > tx2
+    {'locktime': 0, 'version': 1, 'ins': [{'script': '160014804aff26594cc36c0ac89e95895ab9bdd0c540ef', 'sequence': 4294967295, 'outpoint': {'hash': '7013f4ea3b798f157e8cc7249bdf82fa1b1d264b1446894bd827b259e9b8c29a', 'index': 0}, 'amount': 180000000, 'segwit': True}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 179845600}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 100000}], 'marker': 0, 'flag': 1, 'witness': [{'number': 2, 'scriptCode': '473044022023613b33cb905557d3ed9c98152986646d51cc74cb84c7ea9b92c38a823b2e7002207209d3902126dd0ce6a66c9ea565441d152a522b4ea4d2de3e234027aff295030121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc'}]}
+    > tx3 = serialize(tx)
+    > tx3
+    '010000000001019ac2b8e959b227d84b8946144b261d1bfa82df9b24c78c7e158f793beaf413700000000017160014804aff26594cc36c0ac89e95895ab9bdd0c540efffffffff02e039b80a0000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a08601000000000017a9141039471d8d44f3693cd34d1b9d69fd957799cf308702473044022023613b33cb905557d3ed9c98152986646d51cc74cb84c7ea9b92c38a823b2e7002207209d3902126dd0ce6a66c9ea565441d152a522b4ea4d2de3e234027aff295030121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc00000000'
+    > c.pushtx(tx3)
+    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '787b0e861fe689ee9ff34665144ddcf4716ccb46c1f615c2259d50a9fe8222ce'}}
+
+It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit to create a segwit transaction.
+
+Using the cryptotool command line interface:
 
     cryptotool random_electrum_seed
     484ccb566edb66c65dd0fd2e4d90ef65

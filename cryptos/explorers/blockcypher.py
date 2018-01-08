@@ -1,5 +1,5 @@
 import re
-from blockcypher import api
+#from blockcypher import api
 from .utils import parse_addr_args
 
 def unspent(*addrs, coin_symbol=None, api_key=None, **kwargs):

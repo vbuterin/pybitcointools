@@ -7,20 +7,16 @@ from .base import BaseCoin
 class Bitcoin(BaseCoin):
     coin_symbol = "BTC"
     display_name = "Bitcoin"
-    magicbyte = 0
-    script_magicbyte = 5
-    script_prefix = 3
     segwit_supported = True
     hashcode = SIGHASH_ALL
-
-    def __init__(self, testnet=False, **kwargs):
-        super(Bitcoin, self).__init__(testnet, **kwargs)
-        if self.is_testnet:
-            self.display_name = "Bitcoin Testnet"
-            self.coin_symbol = "BTCTEST"
-            self.magicbyte = 111
-            self.script_magicbyte = 196
-            self.script_prefix = 2
+    magicbyte = 0
+    script_magicbyte = 5
+    testnet_overrides = {
+        'display_name': "Bitcoin Testnet",
+        'coin_symbol': "BTCTEST",
+        'magicbyte': 111,
+        'script_magicbyte': 196
+    }
 
     def privtopub(self, privkey):
         return privtopub(privkey)
@@ -45,15 +41,19 @@ class Bitcoin(BaseCoin):
             script = binascii.unhexlify(script)
         return hex_to_b58check(hash160(script), self.script_magicbyte)
 
-    def pubtop2wkh(self, pub):
+    def pubtop2sh(self, pub):
         compressed_pub = compress(pub)
         return self.scripttoaddr(mk_p2wpkh_script(compressed_pub))
 
-    def privtop2wkh(self, priv):
-        return self.pubtop2wkh(privtopub(priv))
+    def privtop2sh(self, priv):
+        return self.pubtop2sh(privtopub(priv))
+
+    def is_address(self, addr):
+        all_prefixes = ''.join(list(self.address_prefixes) + list(self.script_prefixes))
+        return any(str(i) == addr[0] for i in all_prefixes)
 
     def is_p2sh(self, addr):
-        return addr[0] == str(self.script_prefix)
+        return not any(str(i) == addr[0] for i in self.address_prefixes)
 
     def addrtoscript(self, addr):
         if self.is_p2sh(addr):
@@ -117,20 +117,23 @@ class Bitcoin(BaseCoin):
         return sochain.pushtx(tx, coin_symbol=self.coin_symbol)
 
     # Takes privkey, address, value (satoshis), fee (satoshis)
-    def send(self, privkey, to, value, fee=10000):
-        return self.sendmultitx(privkey, to + ":" + str(value), fee)
+    def send(self, privkey, to, value, fee=10000, segwit=False):
+        return self.sendmultitx(privkey, to + ":" + str(value), fee, segwit=segwit)
 
     # Takes privkey, address1:value1,address2:value2 (satoshis), fee (satoshis)
     def sendmultitx(self, privkey, *args, segwit=False):
-        frm = self.privtoaddr(privkey)
-        tx = self.preparemultitx(frm, *args)
+        if segwit:
+            frm = self.privtop2sh(priv)
+        else:
+            frm = self.privtoaddr(privkey)
+        tx = self.preparemultitx(frm, *args, segwit=segwit)
         tx2 = self.signall(tx, privkey)
         return self.pushtx(tx2)
 
     # Takes address, address, value (satoshis), fee(satoshis)
-    def preparetx(self, frm, to, value, fee=10000):
+    def preparetx(self, frm, to, value, fee=10000, segwit=False):
         tovalues = to + ":" + str(value)
-        return self.preparemultitx(frm, tovalues, fee)
+        return self.preparemultitx(frm, tovalues, fee, segwit=segwit)
 
     # Takes address, address:value, address:value ... (satoshis), fee(satoshis)
     def preparemultitx(self, frm, *args, segwit=False):
@@ -144,7 +147,7 @@ class Bitcoin(BaseCoin):
         u = self.unspent(frm)
         u2 = select(u, int(outvalue) + int(fee))
         argz = u2 + outs + [frm, fee]
-        return self.mksend(*argz)
+        return self.mksend(*argz, segwit=segwit)
 
     def mktx(self, *args):
         """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
@@ -165,7 +168,7 @@ class Bitcoin(BaseCoin):
                 (ins if is_inp(arg) else outs).append(arg)
 
         txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
-        if any([isinstance(i, dict) and i.get("segwit", False) for i in ins]):
+        if any(isinstance(i, dict) and i.get("segwit", False) for i in ins):
             segwit = True
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
@@ -207,7 +210,7 @@ class Bitcoin(BaseCoin):
             txobj["outs"].append(outobj)
         return txobj
 
-    def mksend(self, *args):
+    def mksend(self, *args, segwit=False):
         argz, change, fee = args[:-2], args[-2], int(args[-1])
         ins, outs = [], []
         for arg in argz:
@@ -216,7 +219,9 @@ class Bitcoin(BaseCoin):
                     (ins if is_inp(a) else outs).append(a)
             else:
                 (ins if is_inp(arg) else outs).append(arg)
-
+            if segwit:
+                for i in ins:
+                    i['segwit'] = True
         isum = sum([i["value"] for i in ins])
         osum, outputs2 = 0, []
         for o in outs:

@@ -6,6 +6,7 @@ class Litecoin(Bitcoin):
     coin_symbol = "LTC"
     magicbyte = 48
     script_magicbyte = 50
+    address_prefixes = ('L',)
     segwit_supported = True
 
     def __init__(self, testnet=False, **kwargs):
@@ -15,3 +16,4 @@ class Litecoin(Bitcoin):
             self.coin_symbol = "LTCTEST"
             self.magicbyte = 111
             self.script_magicbyte = 58
+            self.address_prefixes = ('m', 'n')
