@@ -39,7 +39,7 @@ Longer-term roadmap:
 * Seed-based multi-crypto wallet
 
 Contributions:
-* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin, Segwit transactions for Litecoin.
+* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin.
 * Anyone know a working Dogecoin testnet explorer?
 
 ### Advantages:
