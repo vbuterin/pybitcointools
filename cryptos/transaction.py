@@ -109,7 +109,7 @@ def deserialize(tx):
     obj = {"ins": [], "outs": []}
     obj["version"] = read_as_int(4)
     has_witness = is_segwit(tx)
-    if has_witness == 0:
+    if has_witness:
         obj['marker'] = read_as_int(1)
         obj['flag'] = read_as_int(1)
     ins = read_var_int()

@@ -65,7 +65,6 @@ def pushtx(tx, coin_symbol="BTC"):
     base_url = get_url(coin_symbol)
     url = sendtx_url % base_url
     hash = public_txhash(tx)
-    print(hash)
     response = requests.post(url, {'tx': tx})
     if response.status_code == 200:
         return {'status': 'success',
