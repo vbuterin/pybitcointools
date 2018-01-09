@@ -125,7 +125,8 @@ Or if you prepare to verify the tx (for example, with Blockcypher) you can break
     {'status': 'success', 'data': {'txid': 'd8b130183824d0001d3bc669b31e798e2654868a7fda743aaf35d757d89db0eb', 'network': 'tbcc'}}
     
 ### Segregated Witness - the long way
-The same warning applies as the long way for regular transactions listed above.
+The same warnings about fees as the long way for regular transactions listed above applies here
+
 To create a segwit transaction, generate a pay to witness script hash (P2WPKH) 
 address and mark all the Segwit UTXOs with segwit=True.
 
