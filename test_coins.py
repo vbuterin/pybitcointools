@@ -458,6 +458,30 @@ class TestBitcoinTestnet(BaseCoinCase):
     def test_unspent(self):
         self.assertUnspentOK()
 
+class TestLitecoin(BaseCoinCase):
+    name = "Litecoin"
+    coin = coins.Litecoin
+    fee = 54400
+    testnet = False
+
+    txid = "0c2d49e00dd1372a7219fbc4378611b39f54790bbd597b4c29517f0d93c9faa2"
+    txinputs = [{'output': 'b3105972beef05e88cf112fd9718d32c270773462d62e4659dc9b4a2baafc038:0', 'value': 1157763509}]
+    tx = {'txid': txid}
+    unspent_address = "LcHdcvAs71DAnkEPLSEuqMGcCWu3zG4Dw5"
+    unspent = [
+            {'output': '0c2d49e00dd1372a7219fbc4378611b39f54790bbd597b4c29517f0d93c9faa2:0', 'value': 1107944447}]
+
+    def test_parse_args(self):
+        self.assertParseArgsOK()
+
+    def test_txinputs(self):
+        self.assertTXInputsOK()
+
+    def test_fetchtx(self):
+        self.assertFetchTXOK()
+
+    def test_unspent(self):
+        self.assertUnspentOK()
 
 class TestLitecoinTestnet(BaseCoinCase):
     name = "Litecoin Testnet"
@@ -501,6 +525,31 @@ class TestLitecoinTestnet(BaseCoinCase):
     def test_unspent(self):
         self.assertUnspentOK()
 
+class TestDash(BaseCoinCase):
+    name = "Dash"
+    coin = coins.Dash
+    fee = 54400
+    testnet = False
+
+    txid = "e7a607c5152863209f33cec4cc0baed973f7cfd75ae28130e623c099fde7072c"
+    txinputs = [{'output': 'ac7312d63f2817d4d2823dae107e601b52c08a52779c237bd06359e6189af9b8:0', 'value': 493488869}]
+    tx = {'txid': txid}
+    unspent_address = "XiY7UHfBCBkMCZR3L96kuCQ5HHEEuPZRXk"
+    unspent = [
+            {'output': 'e7a607c5152863209f33cec4cc0baed973f7cfd75ae28130e623c099fde7072c:1', 'value': 220000000}]
+
+    def test_parse_args(self):
+        self.assertParseArgsOK()
+
+    def test_txinputs(self):
+        self.assertTXInputsOK()
+
+    def test_fetchtx(self):
+        self.assertFetchTXOK()
+
+    def test_unspent(self):
+        self.assertUnspentOK()
+
 class TestDashTestnet(BaseCoinCase):
     name = "Dash Testnet"
     coin = coins.Dash
@@ -530,6 +579,31 @@ class TestDashTestnet(BaseCoinCase):
 
     def test_transaction(self):
         self.assertTransactionOK()
+
+class TestDoge(BaseCoinCase):
+    name = "Dogecoin"
+    coin = coins.Doge
+    fee = 54400
+    testnet = False
+
+    txid = "345c28885d265edbf8565f553f9491c511b6549d3923a1d63fe158b8000bbee2"
+    txinputs = [{'output': '72ee1f1f41d7613db02e89a58104a4c0cb0b3e9e5d46bfe4b14c80b80a9c2285:0', 'value': 3661230900743}]
+    tx = {'txid': txid}
+    unspent_address = "DTXcEMwdwx6ZNjPdfVTSMFYABqqDqZQCVJ"
+    unspent = [
+            {'output': '345c28885d265edbf8565f553f9491c511b6549d3923a1d63fe158b8000bbee2:1', 'value': 3485074167413}]
+
+    def test_parse_args(self):
+        self.assertParseArgsOK()
+
+    def test_txinputs(self):
+        self.assertTXInputsOK()
+
+    def test_fetchtx(self):
+        self.assertFetchTXOK()
+
+    def test_unspent(self):
+        self.assertUnspentOK()
 
 @skip("Explorer not working")
 class TestDogeTestnet(BaseCoinCase):
