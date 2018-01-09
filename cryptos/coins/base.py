@@ -371,11 +371,12 @@ class BaseCoin(object):
     def current_block_height(self):
         return self.explorer.current_block_height(coin_symbol=self.coin_symbol)
 
-    def inspect(self, tx_hex):
-        d = deserialize(tx_hex)
+    def inspect(self, tx):
+        if not isinstance(tx, dict):
+            tx = deserialize(tx)
         isum = 0
         ins = {}
-        for _in in d['ins']:
+        for _in in tx['ins']:
             h = _in['outpoint']['hash']
             i = _in['outpoint']['index']
             prevout = deserialize(self.fetchtx(h))['outs'][i]
@@ -384,7 +385,7 @@ class BaseCoin(object):
             ins[a] = ins.get(a, 0) + prevout['value']
         outs = []
         osum = 0
-        for _out in d['outs']:
+        for _out in tx['outs']:
             outs.append({'address': self.scripttoaddr(_out['script']),
                          'value': _out['value']})
             osum += _out['value']
