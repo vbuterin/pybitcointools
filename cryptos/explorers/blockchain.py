@@ -12,6 +12,8 @@ sendtx_url = "%s/pushtx"
 address_url = "%s/address/%s?format=json"
 utxo_url = "%s/unspent?active=%s&limit=1000&format=json"
 fetchtx_url = "%s/rawtx/%s?format=json"
+block_height_url = "%s/block-height/%s?format=json"
+latest_block_url = "%s/latestblock"
 
 def unspent(*args, coin_symbol="BTC"):
 
@@ -90,3 +92,13 @@ def history(*args, coin_symbol="BTC"):
     url = address_url % (base_url, '|'.join(addrs))
     response = requests.get(url)
     return response.json()
+
+def block_height(txhash, coin_symbol="BTC"):
+    tx = fetchtx(txhash,coin_symbol=coin_symbol)
+    return tx['block_height']
+
+def current_block_height(coin_symbol="BTC"):
+    base_url = get_url(coin_symbol)
+    url = latest_block_url % base_url
+    response = requests.get(url)
+    return response.json()["height"]

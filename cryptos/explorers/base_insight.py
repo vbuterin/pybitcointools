@@ -9,6 +9,7 @@ sendtx_url = "%s/tx/send"
 address_url = "%s/addrs/%s/txs"
 utxo_url = "%s/addrs/%s/utxo"
 fetchtx_url = "%s/tx/%s"
+current_block_height_url = "%s/status?q=getInfo"
 
 def unspent(base_url, *args):
 
@@ -75,3 +76,13 @@ def history(base_url, *args):
     url = address_url % (base_url, ','.join(addrs))
     response = requests.get(url)
     return response.json()
+
+def block_height(base_url, txhash):
+    tx = fetchtx(base_url, txhash)
+    return tx.get('blockheight', None) or tx.get('height', None)
+
+def current_block_height(base_url):
+    url = current_block_height_url % base_url
+    response = requests.get(url)
+    result = response.json()
+    return result['info']['blocks']

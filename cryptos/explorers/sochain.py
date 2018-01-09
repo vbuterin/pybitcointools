@@ -8,10 +8,11 @@ sendtx_url = base_url + "send_tx/%s"
 address_url = base_url + "address/%s/%s"
 utxo_url = base_url + "get_tx_unspent/%s/%s"
 tx_url = base_url + "get_tx/%s/%s"
+tx_details_url = base_url + "tx/%s/%s"
 tx_inputs_url = base_url + "get_tx_inputs/%s/%s"
-transaction_html_url = ""
+network_url = base_url + "get_info/%s"
 
-def unspent(addr, coin_symbol="BTC"):
+def unspent(addr, coin_symbol="LTC"):
     url = utxo_url % (coin_symbol, addr)
     response = requests.get(url)
     try:
@@ -29,13 +30,19 @@ def unspent(addr, coin_symbol="BTC"):
     except ValueError:
         raise Exception("Unable to decode JSON from result: %s" % response.text)
 
-def fetchtx(txhash, coin_symbol="BTC"):
+def fetchtx(txhash, coin_symbol="LTC"):
     url = tx_url % (coin_symbol, txhash)
     response = requests.get(url)
     result = response.json()
     return result['data']
 
-def txinputs(txhash, coin_symbol="BTC"):
+def gettxdetails(txhash, coin_symbol="LTC"):
+    url = tx_details_url % (coin_symbol, txhash)
+    response = requests.get(url)
+    result = response.json()
+    return result['data']
+
+def txinputs(txhash, coin_symbol="LTC"):
     url = tx_inputs_url % (coin_symbol, txhash)
     response = requests.get(url)
     result = response.json()
@@ -43,14 +50,23 @@ def txinputs(txhash, coin_symbol="BTC"):
     unspents = [{'output': (i['from_output']['txid'] + ":" + str(i['from_output']['output_no'])), 'value': int(float(i['value']) * 100000000)} for i in inputs]
     return unspents
 
-def pushtx(tx, coin_symbol="BTC"):
+def pushtx(tx, coin_symbol="LTC"):
     if not re.match('^[0-9a-fA-F]*$', tx):
         tx = tx.encode('hex')
     url = sendtx_url % coin_symbol
     response = requests.post(url, {'tx_hex': tx})
     return response.json()
 
-def history(addr, coin_symbol="BTC"):
+def history(addr, coin_symbol="LTC"):
     url = address_url % (coin_symbol, addr)
     response = requests.get(url)
     return response.json()
+
+def block_height(txhash, coin_symbol="LTC"):
+    tx = gettxdetails(txhash,coin_symbol=coin_symbol)
+    return tx['block_no']
+
+def current_block_height(coin_symbol="LTC"):
+    url = network_url % coin_symbol
+    response = requests.get(url)
+    return response.json()['data']['blocks']

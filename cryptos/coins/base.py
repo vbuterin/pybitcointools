@@ -1,6 +1,6 @@
 from ..transaction import *
 from ..main import *
-from ..explorers import blockdozer
+from ..explorers import blockchain
 from ..py3specials import *
 from ..py2specials import *
 
@@ -17,7 +17,7 @@ class BaseCoin(object):
     segwit_supported = None
     magicbyte = None
     script_magicbyte = None
-    explorer = blockdozer
+    explorer = blockchain
     is_testnet = False
     address_prefixes = ()
     testnet_overrides = {}
@@ -364,3 +364,32 @@ class BaseCoin(object):
         change_addr = change_addr or frm
         argz = u2 + outs + [change_addr, fee]
         return self.mksend(*argz, segwit=segwit)
+
+    def block_height(self, txhash):
+        return self.explorer.block_height(txhash, coin_symbol=self.coin_symbol)
+
+    def current_block_height(self):
+        return self.explorer.current_block_height(coin_symbol=self.coin_symbol)
+
+    def inspect(self, tx_hex):
+        d = deserialize(tx_hex)
+        isum = 0
+        ins = {}
+        for _in in d['ins']:
+            h = _in['outpoint']['hash']
+            i = _in['outpoint']['index']
+            prevout = deserialize(self.fetchtx(h))['outs'][i]
+            isum += prevout['value']
+            a = self.scripttoaddr(prevout['script'])
+            ins[a] = ins.get(a, 0) + prevout['value']
+        outs = []
+        osum = 0
+        for _out in d['outs']:
+            outs.append({'address': self.scripttoaddr(_out['script']),
+                         'value': _out['value']})
+            osum += _out['value']
+        return {
+            'fee': isum - osum,
+            'outs': outs,
+            'ins': ins
+        }

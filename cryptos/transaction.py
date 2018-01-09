@@ -315,15 +315,14 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
-def mk_p2wpkh_redeemscript(pubkey):
-    return '160014' + pubkey_to_hash_hex(pubkey)
-
 def mk_pubkey_script(addr):
-    # Keep the auxiliary functions around for altcoins' sake
     return '76a914' + b58check_to_hex(addr) + '88ac'
 
 def mk_scripthash_script(addr):
     return 'a914' + b58check_to_hex(addr) + '87'
+
+def mk_p2wpkh_redeemscript(pubkey):
+    return '160014' + pubkey_to_hash_hex(pubkey)
 
 def mk_p2wpkh_script(pubkey):
     script = mk_p2wpkh_redeemscript(pubkey)[2:]
@@ -333,7 +332,6 @@ def mk_p2wpkh_scriptcode(pubkey):
     return '76a914' + pubkey_to_hash_hex(pubkey) + '88ac'
 
 # Output script to address representation
-
 
 def deserialize_script(script):
     if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):

@@ -24,3 +24,11 @@ def pushtx(tx, coin_symbol="DASH"):
 def history(*args,  coin_symbol="DASH"):
     base_url = get_url(coin_symbol)
     return insight.history(base_url, *args)
+
+def block_height(tx, coin_symbol="DASH"):
+    base_url = get_url(coin_symbol)
+    return insight.block_height(base_url, tx)
+
+def current_block_height(coin_symbol="DASH"):
+    base_url = get_url(coin_symbol)
+    return insight.current_block_height(base_url)

@@ -49,32 +49,8 @@ def sign_coinvault_tx(tx, priv):
         txobj['ins'][j]['script'] = serialize_script(scr)
     return serialize(txobj)
 
-""" The following methods need integration with blockcypher API
-# Inspects a transaction
-def inspect(tx, **kwargs):
-    d = deserialize(tx)
-    isum = 0
-    ins = {}
-    for _in in d['ins']:
-        h = _in['outpoint']['hash']
-        i = _in['outpoint']['index']
-        prevout = deserialize(fetchtx(h, **kwargs))['outs'][i]
-        isum += prevout['value']
-        a = script_to_address(prevout['script'])
-        ins[a] = ins.get(a, 0) + prevout['value']
-    outs = []
-    osum = 0
-    for _out in d['outs']:
-        outs.append({'address': script_to_address(_out['script']),
-                     'value': _out['value']})
-        osum += _out['value']
-    return {
-        'fee': isum - osum,
-        'outs': outs,
-        'ins': ins
-    }
-
-
+# Will be added again after required explorer requests done (1/3 so far)
+"""
 def merkle_prove(txhash):
     blocknum = str(get_block_height(txhash))
     header = get_block_header_data(blocknum)
