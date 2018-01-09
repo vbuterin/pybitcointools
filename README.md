@@ -74,7 +74,6 @@ of "correct fee" detection algorithm will be implemented soon but for now it is 
 appropriate fee when making transactions. There are many different ways of making a transaction. Whichever method you
 choose, make sure you understand how to set the correct fee.
 
- h There are other methods explained later ()
     > from cryptos import *
     > c = Bitcoin(testnet=True)
     > priv = sha256('a big long brainwallet password')
