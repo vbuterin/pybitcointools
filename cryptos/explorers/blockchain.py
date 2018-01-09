@@ -1,6 +1,6 @@
 import re
 import requests
-from cryptos.transaction import txhash
+from cryptos.transaction import public_txhash
 from .utils import parse_addr_args
 
 def get_url(coin_symbol):
@@ -64,7 +64,7 @@ def pushtx(tx, coin_symbol="BTC"):
 
     base_url = get_url(coin_symbol)
     url = sendtx_url % base_url
-    hash = txhash(tx)
+    hash = public_txhash(tx)
     print(hash)
     response = requests.post(url, {'tx': tx})
     if response.status_code == 200:

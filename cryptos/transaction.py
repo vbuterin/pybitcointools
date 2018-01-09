@@ -281,7 +281,7 @@ def is_bip66(sig):
         return False
     return True
 
-def txhash(tx, wtxid=False, hashcode=None):
+def txhash(tx, hashcode=None, wtxid=True):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
     if not wtxid and is_segwit(tx):
@@ -291,6 +291,8 @@ def txhash(tx, wtxid=False, hashcode=None):
     else:
         return safe_hexlify(bin_dbl_sha256(tx)[::-1])
 
+def public_txhash(tx, hashcode=None):
+    return txhash(tx, hashcode=hashcode, wtxid=False)
 
 def bin_txhash(tx, hashcode=None):
     return binascii.unhexlify(txhash(tx, hashcode))
