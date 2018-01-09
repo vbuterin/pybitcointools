@@ -84,7 +84,7 @@ Contributions:
     > tx3 = c.sign(tx2,1,priv)
     > tx3
     {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
-    > tx4 = serialize(tx)
+    > tx4 = c.serialize(tx)
     > tx4
     '01000000020875f07948460160db60ac4a1dc648b8c5abfe4e4ffd71637608f1af0a0ae13b000000008b483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff38aa1ff4695d937db4677085d9fdd7fe30992b05b56e416730fda4e10498ce51000000008b483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02608415100000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a0860100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
     > c.pushtx(tx4)
@@ -148,6 +148,26 @@ It's also possible to provide the send address in addition to the private key in
     >c = Bitcoin(testnet=True)
     >c.send('89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678', '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF', 44036800, change_addr="2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", addr="2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh")
     {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '6dedc0ea44a146878c1a08fde22ba8f640a9cce14dc327fb394db68f46243556'}}
+
+### 2-of-3 MultiSig Transaction example:
+    > from cryptos import *
+    > coin = Bitcoin(testnet=True)
+    > publickeys = ['02e5c473c051dae31043c335266d0ef89c1daab2f34d885cc7706b267f3269c609', '0391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0', '0415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb']
+    > script, address = coin.mk_multsig_address(publickeys, 2)
+    > script
+    '522102e5c473c051dae31043c335266d0ef89c1daab2f34d885cc7706b267f3269c609210391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0410415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb53ae'
+    > address
+    '2ND6ptW19yaFEmBa5LtEDzjKc2rSsYyUvqA'
+    > tx = coin.preparetx(address, "myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", 1100000, 50000)
+    > for i in range(0, len(tx['ins'])):
+        sig1 = coin.multisign(tx, i, script, "cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk")
+        sig3 = coin.multisign(tx, i, script, "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f")
+        tx = apply_multisignatures(tx, i, script, sig1, sig3)
+    > tx
+    '0100000001e62c0b5434108607f52856bfbcf5093363fbd4789141a661a4c6c8042769ed2001000000fd1d0100483045022100dfc75916f6bb5c5b72a45dea44dbc45b47ba90912efb84680a373acadb3b1212022022dbbd66e4871624609d875bdb592d11335eb4ec49c7b87bb0b8bc76f72f80f30147304402204c38cab196ec0e82a9f65ecba70a0dbf73f49e5886e1000b9bc52894e28fa5c9022007bff3f90bcece19036625806d4d1951a03c256627163f1ac4e76a6ee8eae072014c89522102e5c473c051dae31043c335266d0ef89c1daab2f34d885cc7706b267f3269c609210391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0410415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb53aeffffffff02e0c81000000000001976a914c384950342cb6f8df55175b48586838b03130fad88ac301224030000000017a914d9cbe7c2c507c306f4872cf965cbb4fe51b621998700000000'
+    > coin.pushtx(tx)
+    {'status': 'success', 'data': {'txid': 'b64e19311e3aa197063e03657679e2974e04c02c5b651c4e8d55f428490ab75f', 'network': 'BTCTEST'}}
+
 
 ### Other coins
 
@@ -266,6 +286,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 * preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj
 * mktx                 : (inputs, outputs) -> create unsigned txobj
 * mksend               : (inputs, outputs, change_addr, fee, segwit) -> create unsigned txobj
+* mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multsig script and address pubkeys
 * pubtop2w             : (pub) -> pay to witness script hash (segwit address)
 * privtop2w            : (priv) -> pay to witness script hash (segwit address)
 * is_address           : (addr) -> true if addr is a valid address for this network
@@ -303,7 +324,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 * multisign            : (txobj, i, script, privkey) -> signature
 * apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
 * scriptaddr           : (script) -> P2SH address
-* mk_multisig_script   : (pubkeys, k, n) -> k-of-n multisig script from pubkeys
+* mk_multisig_script   : (pubkeys, M) -> M-of-N multisig script from pubkeys
 * verify_tx_input      : (tx, i, script, sig, pub) -> True/False
 * tx_hash              : (hex or bin tx) -> hash
 
@@ -312,3 +333,5 @@ The arguments are the private key of the sender, the receiver's address and the 
 * slice                : (json list, start, end) -> given slice of the list
 * count                : (json list) -> number of elements
 * sum                  : (json list) -> sum of all values
+
+* select               : (unspent, value) -> returns list of unspents which are enough to cover the value

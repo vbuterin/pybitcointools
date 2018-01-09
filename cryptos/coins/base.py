@@ -117,7 +117,7 @@ class BaseCoin(object):
 
     def p2sh_scriptaddr(self, script):
         """
-        Convert an output script to an address
+        Convert an output p2sh script to an address
         """
         if re.match('^[0-9a-fA-F]*$', script):
             script = binascii.unhexlify(script)
@@ -144,6 +144,15 @@ class BaseCoin(object):
         Convert a private key to a pay to witness public key hash address (P2WPKH, required for segwit)
         """
         return self.pubtop2w(privtopub(priv))
+
+    def mk_multsig_address(self, *args):
+        """
+        :param args: List of public keys to used to create multisig and M, the number of signatures required to spend
+        :return: multisig script
+        """
+        script = mk_multisig_script(*args)
+        address = self.p2sh_scriptaddr(script)
+        return script, address
 
     def is_segwit(self, priv, addr):
         """
@@ -198,6 +207,9 @@ class BaseCoin(object):
             for i in range(len(txobj["ins"])):
                 txobj = self.sign(txobj, i, priv)
         return serialize(txobj)
+
+    def multisign(self, tx, i, script, pk):
+        return multisign(tx, i, script, pk, self.hashcode)
 
     def mktx(self, *args):
         """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...

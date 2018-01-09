@@ -396,14 +396,18 @@ else:
             result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
         return result
 
-
-def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],k
+def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],M
+    """
+    :param args: List of public keys to used to create multisig and M, the number of signatures required to spend
+    :return: multisig script
+    """
     if isinstance(args[0], list):
-        pubs, k = args[0], int(args[1])
+        pubs, M = args[0], int(args[1])
     else:
         pubs = list(filter(lambda x: len(str(x)) >= 32, args))
-        k = int(args[len(pubs)])
-    return serialize_script([k]+pubs+[len(pubs)]+[0xae])
+        M = int(args[len(pubs)])
+    N = len(pubs)
+    return serialize_script([M]+pubs+[N]+[0xae])
 
 # Signing and verifying
 
@@ -420,6 +424,8 @@ def verify_tx_input(tx, i, script, sig, pub):
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
 def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
+    if isinstance(tx, dict):
+        tx = serialize(tx)
     if re.match('^[0-9a-fA-F]*$', tx):
         tx = binascii.unhexlify(tx)
     if re.match('^[0-9a-fA-F]*$', script):
@@ -428,23 +434,23 @@ def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
 
-def apply_multisignatures(*args):
+def apply_multisignatures(txobj, i, script, *args):
     # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
-    tx, i, script = args[0], int(args[1]), args[2]
-    sigs = args[3] if isinstance(args[3], list) else list(args[3:])
+    sigs = args[0] if isinstance(args[0], list) else list(args)
 
     if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
         script = binascii.unhexlify(script)
     sigs = [binascii.unhexlify(x) if x[:2] == '30' else x for x in sigs]
-    if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
-        return safe_hexlify(apply_multisignatures(binascii.unhexlify(tx), i, script, sigs))
+    if not isinstance(txobj, dict):
+        txobj = deserialize(txobj)
+    if isinstance(txobj, str) and re.match('^[0-9a-fA-F]*$', txobj):
+        return safe_hexlify(apply_multisignatures(binascii.unhexlify(txobj), i, script, sigs))
 
     # Not pushing empty elements on the top of the stack if passing no
     # script (in case of bare multisig inputs there is no script)
     script_blob = [] if script.__len__() == 0 else [script]
 
-    txobj = deserialize(tx)
-    txobj["ins"][i]["script"] = serialize_script([None]+sigs+script_blob)
+    txobj["ins"][i]["script"] = safe_hexlify(serialize_script([None]+sigs+script_blob))
     return serialize(txobj)
 
 
@@ -465,4 +471,7 @@ def select(unspent, value):
         i += 1
     if tv < value:
         raise Exception("Not enough funds")
+    unspents = low[:i]
+    actual_value = sum(unspent['value'] for unspent in unspents)
+    change = actual_value - value
     return low[:i]

@@ -13,6 +13,7 @@ class BaseCoinCase(unittest.TestCase):
     unspent_multiple = []
     addresses = []
     segwit_addresses = []
+    multisig_address = ""
     privkeys = []
     txid = None
     txheight = None
@@ -325,6 +326,22 @@ class BaseCoinCase(unittest.TestCase):
         inputs = coin.txinputs(self.txid)
         self.assertUnorderedListEqual(inputs, self.txinputs, key="output")
 
+    def assertMultiSigTransactionOK(self):
+        c = self.coin(testnet=True)
+        pubs = [privtopub(priv) for priv in self.privkeys]
+        script, sender = c.mk_multsig_address(pubs, 2)
+        self.assertEqual(sender, self.multisig_address)
+        receiver = self.addresses[0]
+        value = 1100000
+        tx = c.preparetx(sender, receiver, value, self.fee)
+        for i in range(0, len(tx['ins'])):
+            sig1 = c.multisign(tx, i, script, self.privkeys[0])
+            sig3 = c.multisign(tx, i, script, self.privkeys[2])
+            tx = apply_multisignatures(tx, i, script, sig1, sig3)
+        #Push the transaction to the network
+        result = c.pushtx(tx)
+        self.assertPushTxOK(result)
+
 
 class TestBitcoin(BaseCoinCase):
     name = "Bitcoin"
@@ -379,6 +396,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     testnet = True
 
     min_latest_height = 1258030
+    multisig_address = "2ND6ptW19yaFEmBa5LtEDzjKc2rSsYyUvqA"
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
     unspent = [{'output': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c:0', 'value': 180000000}]
     txid = "1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c"
@@ -407,6 +425,9 @@ class TestBitcoinTestnet(BaseCoinCase):
 
     def test_transaction_segwit(self):
         self.assertSegwitTransactionOK()
+
+    def test_transaction_multisig(self):
+        self.assertMultiSigTransactionOK()
 
     def test_sendmultitx(self):
 
@@ -510,6 +531,7 @@ class TestLitecoin(BaseCoinCase):
     def test_fetchtx(self):
         self.assertFetchTXOK()
 
+    @skip("Need to find stable transaction")
     def test_unspent(self):
         self.assertUnspentOK()
 
@@ -655,6 +677,7 @@ class TestDoge(BaseCoinCase):
     def test_fetchtx(self):
         self.assertFetchTXOK()
 
+    @skip("Need stable transaction")
     def test_unspent(self):
         self.assertUnspentOK()
 
