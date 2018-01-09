@@ -132,7 +132,6 @@ def deserialize(tx):
         obj['witness'] = []
         for i in range(ins):
             number = read_var_int()
-            print(number)
             scriptCode = []
             for i in range(number):
                 scriptCode.append(read_segwit_string())

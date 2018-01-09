@@ -134,7 +134,6 @@ class BaseCoinCase(unittest.TestCase):
             tx = c.sign(tx, i, regular_privkey)
 
         self.assertEqual(len(tx['witness']), len(unspents))
-        print(tx)
         tx = serialize(tx)
 
         #Push the transaction to the network
@@ -205,7 +204,6 @@ class BaseCoinCase(unittest.TestCase):
         tx = serialize(tx)
 
         #Push the transaction to the network
-        print(tx)
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
@@ -264,8 +262,6 @@ class BaseCoinCase(unittest.TestCase):
             tx = c.sign(tx, i, privkey)
 
         tx = serialize(tx)
-        print(tx)
-        print(txhash(tx, SIGHASH_ALL))
         #Push the transaction to the network
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
@@ -485,7 +481,7 @@ class TestLitecoinTestnet(BaseCoinCase):
     tx = {'txid': '2a288547460ebe410e98fe63a1900b6452d95ec318efb0d58a5584ac67f27d93'}
 
     def tearDown(self):
-        time.sleep(5)
+        time.sleep(8)
 
     def test_fetchtx(self):
         self.assertFetchTXOK()
