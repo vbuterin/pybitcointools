@@ -1,4 +1,4 @@
-from ..explorers import sochain
+from ..explorers import blockchain
 from .base import BaseCoin
 
 
@@ -8,7 +8,7 @@ class Bitcoin(BaseCoin):
     segwit_supported = True
     magicbyte = 0
     script_magicbyte = 5
-    explorer = sochain
+    explorer = blockchain
     testnet_overrides = {
         'display_name': "Bitcoin Testnet",
         'coin_symbol': "BTCTEST",

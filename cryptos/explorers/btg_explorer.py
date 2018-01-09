@@ -9,13 +9,13 @@ def unspent(*args, testnet=False):
     base_url = get_url(testnet)
     return insight.unspent(base_url, *args)
 
-def fetchtx(tx, testnet=False):
+def fetchtx(txhash, testnet=False):
     base_url = get_url(testnet)
-    return insight.fetchtx(base_url, tx)
+    return insight.fetchtx(base_url, txhash)
 
-def txinputs(tx, testnet=False):
+def txinputs(txhash, testnet=False):
     base_url = get_url(testnet)
-    return insight.txinputs(base_url, tx)
+    return insight.txinputs(base_url, txhash)
 
 def pushtx(tx, testnet=False):
     base_url = get_url(testnet)

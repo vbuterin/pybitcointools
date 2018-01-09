@@ -9,13 +9,13 @@ def unspent(*args, coin_symbol="DASH"):
     base_url = get_url(coin_symbol)
     return insight.unspent(base_url, *args)
 
-def fetchtx(tx, coin_symbol="DASH"):
+def fetchtx(txhash, coin_symbol="DASH"):
     base_url = get_url(coin_symbol)
-    return insight.fetchtx(base_url, tx)
+    return insight.fetchtx(base_url, txhash)
 
-def txinputs(tx, coin_symbol="DASH"):
+def txinputs(txhash, coin_symbol="DASH"):
     base_url = get_url(coin_symbol)
-    return insight.txinputs(base_url, tx)
+    return insight.txinputs(base_url, txhash)
 
 def pushtx(tx, coin_symbol="DASH"):
     base_url = get_url(coin_symbol)

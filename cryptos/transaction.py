@@ -66,6 +66,8 @@ def dbl_sha256_list(vals):
 
 # Transaction serialization and deserialization
 
+def is_segwit(tx):
+    return tx[4] == 0
 
 def deserialize(tx):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
@@ -80,6 +82,9 @@ def deserialize(tx):
     def read_as_int(bytez):
         pos[0] += bytez
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
+
+    def get_int(bytez=1):
+        return tx[pos[0]]
 
     def read_var_int():
         pos[0] += 1
@@ -97,8 +102,16 @@ def deserialize(tx):
         size = read_var_int()
         return read_bytes(size)
 
+    def read_segwit_string():
+        size = read_var_int()
+        return num_to_var_int(size)+read_bytes(size)
+
     obj = {"ins": [], "outs": []}
     obj["version"] = read_as_int(4)
+    has_witness = is_segwit(tx)
+    if has_witness:
+        obj['marker'] = read_as_int(1)
+        obj['flag'] = read_as_int(1)
     ins = read_var_int()
     for i in range(ins):
         obj["ins"].append({
@@ -115,9 +128,19 @@ def deserialize(tx):
             "value": read_as_int(8),
             "script": read_var_string()
         })
+    if has_witness:
+        obj['witness'] = []
+        for i in range(ins):
+            number = read_var_int()
+            scriptCode = []
+            for i in range(number):
+                scriptCode.append(read_segwit_string())
+            obj['witness'].append({
+                'number': number,
+                'scriptCode': list_to_bytes(scriptCode)
+            })
     obj["locktime"] = read_as_int(4)
     return obj
-
 
 def serialize(txobj, include_witness=True):
     if isinstance(txobj, bytes):
@@ -257,14 +280,18 @@ def is_bip66(sig):
         return False
     return True
 
-def txhash(tx, hashcode=None):
+def txhash(tx, hashcode=None, wtxid=True):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
+    if not wtxid and is_segwit(tx):
+        tx = serialize(deserialize(tx), include_witness=False)
     if hashcode:
         return dbl_sha256(from_string_to_bytes(tx) + encode(int(hashcode), 256, 4)[::-1])
     else:
         return safe_hexlify(bin_dbl_sha256(tx)[::-1])
 
+def public_txhash(tx, hashcode=None):
+    return txhash(tx, hashcode=hashcode, wtxid=False)
 
 def bin_txhash(tx, hashcode=None):
     return binascii.unhexlify(txhash(tx, hashcode))
