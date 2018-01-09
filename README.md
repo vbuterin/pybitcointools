@@ -31,6 +31,7 @@ Segregrated Witness transactions also supported for:
 Aim is to provide a simple, class-based API makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Longer-term roadmap:
+* Wallet class for private keys, elecrum mnemonic and addresses(read-only)
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
 * Easily gather unspents and broadcast transactions based on a mnemonic
@@ -270,6 +271,9 @@ The arguments are the private key of the sender, the receiver's address and the 
 * is_address           : (addr) -> true if addr is a valid address for this network
 * is_p2sh              : (addr) -> true if addr is a pay to script hash for this network
 * is_segwit            : (priv, addr) -> true if priv-addr pair represent a pay to witness script hash
+* current_block_height : () -> Latest block height
+* block_height         : (txhash) -> Block height containing the txhash
+* inspect              : (tx_hex) -> Deserialize a transaction and decode and ins and outs
 
 
 ### Listing of main non-coin specific commands:
