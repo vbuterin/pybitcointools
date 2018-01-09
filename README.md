@@ -60,6 +60,21 @@ Contributions:
 
 ### Example usage - the long way (best way to learn :) ):
 
+WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet 
+unless you really know what you are doing. Any value in the inputs not included in the ouputs will be lost.
+So if the total inputs value is 1 BTC, and the total outputs amount to 0.5 BTC, 0.5 BTC will be given to the 
+miners as a fee. The faster way, listed later in the README, ensures the difference between
+inputs and outputs is sent as change back to the sender (except for a small fee).
+If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
+and make sure it looks right.
+
+OTHER WARNING: Default fees for Bitcoin mainnet are way too low throughout this library. 
+This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
+of "correct fee" detection algorithm will be implemented soon but for now it is recommended to think about and set an 
+appropriate fee when making transactions. There are many different ways of making a transaction. Whichever method you
+choose, make sure you understand how to set the correct fee.
+
+ h There are other methods explained later ()
     > from cryptos import *
     > c = Bitcoin(testnet=True)
     > priv = sha256('a big long brainwallet password')
@@ -92,15 +107,28 @@ Contributions:
 
 ### Faster way
 
-To send 12 DASH from addr belonging to privkey 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 to address yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg, with change returned to the sender address.
+To send 12 DASH from addr belonging to privkey 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 
+to address yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg, with change returned to the sender address:
 
     > from cryptos import *
     > d = Dash(testnet=True)
     > d.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg", 1200000000)
     {'status': 'success', 'data': {'txid': '6a510a129bf1e229e99c3eede516d3bde8bdccf859199937a98eaab2ce1cd7ab', 'network': 'DASHTEST'}}
 
+Or if you prepare to verify the tx (for example, with Blockcypher) you can break it into two steps:
+
+    > from cryptos import *
+    > crypto = BitcoinCash(testnet=True)
+    > tx = crypto.preparesignedtx("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "mgRoeWs2CeCEuqQmNfhJjnpX8YvtPACmCX", 967916800)
+    > tx
+    '010000000144ea7b41df09cee54c43f817dc11fd4d88c9b721b4c13b588f6a764eab78f692000000008b4830450221008efa819db89f714dbe0a19a7eb605d03259f4755a0f12876e9dddf477e1867b8022072bc76d120e92668f4765b5d694aee4a3cafd6cd4aaa8d5ebf88c3f821c81d9c4141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02003db139000000001976a91409fed3e08e624b23dbbacc77f7b2a39998351a6888acf046df07000000001976a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac00000000'
+    > crypto.pushtx(tx)
+    {'status': 'success', 'data': {'txid': 'd8b130183824d0001d3bc669b31e798e2654868a7fda743aaf35d757d89db0eb', 'network': 'tbcc'}}
+    
 ### Segregated Witness - the long way
-To create a segwit transaction, generate a pay to witness script hash (P2WPKH) address and mark all the Segwit UTXOs with segwit=True:
+The same warning applies as the long way for regular transactions listed above.
+To create a segwit transaction, generate a pay to witness script hash (P2WPKH) 
+address and mark all the Segwit UTXOs with segwit=True.
 
     > from cryptos import *
     > c = Litecoin(testnet=True)
@@ -282,8 +310,10 @@ The arguments are the private key of the sender, the receiver's address and the 
 * txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
 * send                 : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
 * sendmultitx          : (privkey, to:value pairs, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a transaction to send coins to mulitple addresses and return change to the change address or sender
-* preparetx            : (frm, to, value, fee, change_addr=None, segwit=False): -> create unsigned txobj
-* preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj
+* preparetx            : (frm, to, value, fee, change_addr=None, segwit=False): -> create unsigned txobj with change output
+* preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj with multiple outputs and additional change output
+* preparesignedtx      : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create signed txobj with change output
+* preparesignedmultitx : (privkey, *args, change_addr=None, segwit=False, addr=None) -> create signed txobj with multiple outputs and additional change output
 * mktx                 : (inputs, outputs) -> create unsigned txobj
 * mksend               : (inputs, outputs, change_addr, fee, segwit) -> create unsigned txobj
 * mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multsig script and address pubkeys

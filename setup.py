@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(name='cryptos',
-      version='1.33',
+      version='1.34',
       description='Python Crypto Coin Tools',
       long_description=open('README.md').read(),
       author='Paul Martin',

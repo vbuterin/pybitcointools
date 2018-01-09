@@ -319,6 +319,18 @@ class BaseCoin(object):
 
         return self.mktx(ins, outputs2)
 
+    def preparesignedtx(self, privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None):
+        """
+        Prepare a tx with a specific amount from address belonging to private key to another address, returning change to the
+        from address or change address, if set.
+        Requires private key, target address, value and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        return self.preparesignedmultitx(privkey, to + ":" + str(value), fee, change_addr=change_addr, segwit=segwit, addr=addr)
+
     def send(self, privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
@@ -331,9 +343,9 @@ class BaseCoin(object):
         """
         return self.sendmultitx(privkey, to + ":" + str(value), fee, change_addr=change_addr, segwit=segwit, addr=addr)
 
-    def sendmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
+    def preparesignedmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
         """
-        Send transactions with multiple output, with change sent back to from addrss
+        Prepare transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
         segwit paramater specifies that the inputs belong to a segwit address
         addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
@@ -350,7 +362,19 @@ class BaseCoin(object):
             frm = self.privtoaddr(privkey)
         tx = self.preparemultitx(frm, *args, change_addr=change_addr, segwit=segwit)
         tx2 = self.signall(tx, privkey)
-        return self.pushtx(tx2)
+        return tx2
+
+    def sendmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
+        """
+        Send transaction with multiple outputs, with change sent back to from addrss
+        Requires private key, address:value pairs and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        tx = self.preparesignedmultitx(privkey, *args, change_addr=change_addr, segwit=segwit, addr=addr)
+        return self.pushtx(tx)
 
     def preparetx(self, frm, to, value, fee, change_addr=None, segwit=False):
         """
