@@ -385,8 +385,8 @@ The arguments are the private key of the sender, the receiver's address and the 
 ### Useful links
 Another reminder, if you are doing something new with the library, whether a regular transaction, multisig,
 segwit or a coin you haven't worked with before, try it out in testnet first or alternatively with small amounts
-on the mainnet. The original pybitcointools had numerous issues where people lost money either due to 
-not understanding what they were doing or faulty code. 
+on the mainnet. The original pybitcointools had issues opened in Github where people lost money either due to 
+not understanding what they were doing or because of bugs. 
 
 Here are some links to testnet faucets:
 
