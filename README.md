@@ -38,8 +38,9 @@ https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Roadmap:
+* Correct fee detection algorithm
 * Bitcoin Gold support
-* Wallet class for private keys, elecrum mnemonic and addresses(read-only)
+* Wallet class for private keys, electrum mnemonic and addresses(read-only)
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
 * Easily gather unspents and broadcast transactions based on a mnemonic
@@ -245,7 +246,23 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     d = Doge()
     d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
-    
+
+### Load an Electrum words list wallet:
+    > import os
+    > from cryptos import *
+    > words = entropy_to_words(os.urandom(16))
+    > words
+    'float skirt road remind fire antique vendor select senior latin small glide'
+    > seed = mnemonic_to_seed(words)
+    > seed
+    b"\xb7Z\x9b\x9b\x9c\x1bq\x81\x1b\xdc\x98\x1c\xbc\xb8\xbb\x130\xea,\xda\x14\xeb\x9bF\xafu\x88\xc2\xf9\xfc\x7f\xd0\xb0?\x9d\xf3\xa7$0Tx\xd3\xb7\x82\x87U\xe7\xcc\xdd\x16\xddd\xbf'T\t_\xdc R!x\tJ"
+    > electrum_privkey(seed, 0)
+    '5a37812b3057e44636c6e07023e16a8669e12a4365dfabbcb376ed272081d522'
+    electrum_privkey(seed, 300, 0)
+    '04cf414f200cd090239f2116d90608a74eae34ae21103ca9eef7bd9579e48bed'
+    > electrum_privkey(seed, 0, 1)      #Change address
+    '9ca3631f813a6f81b70fbfc4384122bfe6fb159e6f7aea2811fe968c2a39d42a'
+
 ### The cryptotool command line interface:
 
     cryptotool random_electrum_seed
