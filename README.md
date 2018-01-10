@@ -32,8 +32,8 @@ Here are the first mainnet segwit transactions made with this library:
 
 Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f71d7a39e402501458c81
 
-Litecoin: https://chain.so/tx/LTC/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989,
-https://chain.so/tx/LTC/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000
+Litecoin: https://live.blockcypher.com/ltc/tx/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989/
+https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000/
 
 Aim is to provide a simple, class-based API makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
