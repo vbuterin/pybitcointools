@@ -12,5 +12,4 @@ class Doge(Bitcoin):
         'display_name': "Dogecoin Testnet",
         'coin_symbol': "Dogecoin",
         'magicbyte': 113,
-        'enabled': False
     }

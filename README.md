@@ -31,6 +31,7 @@ Segregrated Witness transactions also supported for:
 Here are the first mainnet segwit transactions made with this library:
 
 Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f71d7a39e402501458c81
+
 Litecoin: https://chain.so/tx/LTC/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989,
 https://chain.so/tx/LTC/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000
 
@@ -43,10 +44,6 @@ Longer-term roadmap:
 * Easily gather unspents and broadcast transactions based on a mnemonic
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
 * Seed-based multi-crypto wallet
-
-Contributions:
-* Needs to be tested: Live network transactions for Bitcoin Cash, Litecoin, Dash and Dogecoin.
-* Anyone know a working Dogecoin testnet explorer?
 
 ### Advantages:
 
@@ -384,3 +381,20 @@ The arguments are the private key of the sender, the receiver's address and the 
 * sum                  : (json list) -> sum of all values
 
 * select               : (unspent, value) -> returns list of unspents which are enough to cover the value
+
+### Useful links
+Another reminder, if you are doing something new with the library, whether a regular transaction, multisig,
+segwit or a coin you haven't worked with before, try it out in testnet first or alternatively with small amounts
+on the mainnet. The original pybitcointools had numerous issues where people lost money either due to 
+not understanding what they were doing or faulty code. 
+
+Here are some links to testnet faucets:
+
+Bitcoin: https://testnet.manu.backend.hamburg/faucet
+https://testnet.manu.backend.hamburg/bitcoin-cash-faucet
+http://test.faucet.masternode.io/
+https://faucet.thonguyen.net/ltc
+http://testnet.litecointools.com/
+
+Anyone know a working Dogecoin testnet faucet, or willing to send testnet coins to address 
+nmfnMVSjfyfiv37HtbphRbLgMPUHQE7QdP so I can test? (Dogecoin mainnet is tested).
