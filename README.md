@@ -35,7 +35,7 @@ Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f
 Litecoin: https://live.blockcypher.com/ltc/tx/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989/
 https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000/
 
-Aim is to provide a simple, class-based API makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
+Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Longer-term roadmap:
 * Wallet class for private keys, elecrum mnemonic and addresses(read-only)
@@ -190,7 +190,7 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     
     >from cryptos import *
     >c = Bitcoin()
-    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, segwit=True)
+    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, addr="3AGe5CkW5CKFAgKpQE82VSWkEjoxfDxMxQ")
     {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
 
 ### 2-of-3 MultiSig Transaction example:
@@ -325,7 +325,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 * fetchtx              : (txhash) -> fetch a tx from the blockchain
 * txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
 * send                 : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
-* sendmultitx          : (privkey, to:value pairs, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a transaction to send coins to mulitple addresses and return change to the change address or sender
+* sendmultitx          : (privkey, to:value pairs, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a transaction to send coins to multiple addresses and return change to the change address or sender
 * preparetx            : (frm, to, value, fee, change_addr=None, segwit=False): -> create unsigned txobj with change output
 * preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj with multiple outputs and additional change output
 * preparesignedtx      : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create signed txobj with change output
@@ -390,10 +390,14 @@ not understanding what they were doing or faulty code.
 
 Here are some links to testnet faucets:
 
-Bitcoin: https://testnet.manu.backend.hamburg/faucet
+https://testnet.manu.backend.hamburg/faucet
+
 https://testnet.manu.backend.hamburg/bitcoin-cash-faucet
+
 http://test.faucet.masternode.io/
+
 https://faucet.thonguyen.net/ltc
+
 http://testnet.litecointools.com/
 
 Anyone know a working Dogecoin testnet faucet, or willing to send testnet coins to address 
