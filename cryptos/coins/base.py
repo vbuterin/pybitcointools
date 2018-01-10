@@ -136,6 +136,8 @@ class BaseCoin(object):
         """
         Convert a public key to a pay to witness public key hash address (P2WPKH, required for segwit)
         """
+        if not self.segwit_supported:
+            raise Exception("Segwit not supported for this coin")
         compressed_pub = compress(pub)
         return self.scripttoaddr(mk_p2wpkh_script(compressed_pub))
 

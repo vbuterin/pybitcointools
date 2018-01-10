@@ -12,21 +12,27 @@ Library now supports making and pushing raw transactions for:
 
 * Bitcoin mainnet
 * Bitcoin testnet 
-* Bitcoin Cash mainnet** (with replay protection)
+* Bitcoin Cash mainnet (with replay protection)
 * Bitcoin Cash testnet (with replay protection)
-* Litecoin mainnet**
+* Litecoin mainnet
 * Litecoin testnet
-* Dash mainnet**
+* Dash mainnet
 * Dash testnet
-* Dogecoin mainnet**
+* Dogecoin mainnet
+
+Transaction broadcast has been tested for all of these.
 
 Segregrated Witness transactions also supported for:
-* Bitcoin mainnet **
+* Bitcoin mainnet
 * Bitcoin testnet
-* Litecoin mainnet **
+* Litecoin mainnet
 * Litecoin testnet
 
-** Transaction broadcast not tested
+Here are the first mainnet segwit transactions made with this library:
+
+Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f71d7a39e402501458c81
+Litecoin: https://chain.so/tx/LTC/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989,
+https://chain.so/tx/LTC/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000
 
 Aim is to provide a simple, class-based API makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
@@ -66,7 +72,8 @@ So if the total inputs value is 1 BTC, and the total outputs amount to 0.5 BTC, 
 miners as a fee. The faster way, listed later in the README, ensures the difference between
 inputs and outputs is sent as change back to the sender (except for a small fee).
 If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
-and make sure it looks right.
+and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
+ this procedure a few times on the testnet before developing for mainnet - same if you aren't familiar with segwit.
 
 OTHER WARNING: Default fees for Bitcoin mainnet are way too low throughout this library. 
 This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
@@ -110,11 +117,21 @@ To send 12 DASH from addr belonging to privkey 89d8d898b95addf569b458fbbd25620e9
 to address yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg, with change returned to the sender address:
 
     > from cryptos import *
-    > d = Dash(testnet=True)
-    > d.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg", 1200000000)
+    > dash = Dash(testnet=True)
+    > dash.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg", 1200000000)
     {'status': 'success', 'data': {'txid': '6a510a129bf1e229e99c3eede516d3bde8bdccf859199937a98eaab2ce1cd7ab', 'network': 'DASHTEST'}}
 
-Or if you prepare to verify the tx (for example, with Blockcypher) you can break it into two steps:
+Or if you prefer to verify the tx (for example, with Blockcypher) you can break it into two steps:
+
+    > from cryptos import *
+    > dash = Dash()
+    > tx = dash.preparesignedtx(priv, "Xhcmzs5wKECBiWwSEsTZu8wNonguH5poaz", 9800000-20000, fee=20000)
+    > tx
+    '010000000194f2f955627dfd549f213a70d65dcd5550c0b14a484d38b6ae47fe7a8896ca41000000008b483045022100b125b1f4848c145193f70b915b0074539d90fd74c2e75492169f06927acafa39022025a009711a354a7d84e19f234dfb5d20e155b64acad40941670e634c1100101a01410437b81f8f1376a87556380ad9f3a6b7f642754b3497ce42518f8dbd39bfedea24d897ae5d8d1dd41c04f55700ed6f3b7cee99df5aed74f98a54cbc576d75c0b9fffffffff01203b9500000000001976a9144c0404140e6ad8d04bdf625888bf6dfcc20fa12d88ac00000000'
+    >dash.pushtx(tx)
+    {'status': 'success', 'data': {'txid': '0d889f6a268340c8fd30cdc6567eb588765e911fdd1fb0aac870dc3125ffde76', 'network': 'DASH'}}
+
+Another example with Bitcoin Cash testnet:
 
     > from cryptos import *
     > crypto = BitcoinCash(testnet=True)
@@ -125,7 +142,7 @@ Or if you prepare to verify the tx (for example, with Blockcypher) you can break
     {'status': 'success', 'data': {'txid': 'd8b130183824d0001d3bc669b31e798e2654868a7fda743aaf35d757d89db0eb', 'network': 'tbcc'}}
     
 ### Segregated Witness - the long way
-The same warnings about fees as the long way for regular transactions listed above applies here
+The same warnings about fees as the long way for regular transactions listed above applies here.
 
 To create a segwit transaction, generate a pay to witness script hash (P2WPKH) 
 address and mark all the Segwit UTXOs with segwit=True.
@@ -158,24 +175,26 @@ address and mark all the Segwit UTXOs with segwit=True.
     {'status': 'success', 'data': {'network': 'LTCTEST', 'txid': '51d5be05d0a35ef5a8ff5f43855ea59e8361874aff1039d6cf5d9a1f93ae1042'}}
 
 
-It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit to create a segwit transaction.
+It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit 
+to create a segwit transaction.
 
-###Segregated Witness - Faster Way:
+### Segregated Witness - Faster Way:
 
-Send 0.88036480 BTC to 2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF from segwit address 2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh, 
-returning change to 2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ
+Send 0.23486583 LTC to LPZd11JyAd6fJh5ZBMcmu6qczV14CZnz55 from segwit address 3P1bEPk5v4CUhvX9VqDuxqJGnTutt9czZb, 
+returning change to LchaMS51XFYmks3fJLAyuSeYSbiyByPLUD:
  
     >from cryptos import *
-    >c = Bitcoin(testnet=True)
-    >c.send('89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678', '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF', 88036480, change_addr="2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", segwit=True)
-    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '1d3754e3b5460cd6957fcceb7f052b21b1003db32dd08e1aa3ed5fb8fb0f3908'}}
-    
-It's also possible to provide the send address in addition to the private key in which case segwit will be auto-detected, so no need to know in advance if the address is segwit or not:
+    >l = Litecoin()
+    l.send("<privkey>", "LNM9Hpc6EFd7SsKkPU6ATLJNdXSNPnNdqs", 23486583, fee=20000, change_addr="LchaMS51XFYmks3fJLAyuSeYSbiyByPLUD", segwit=True)
+    {'status': 'success', 'data': {'network': 'LTC', 'txid': '3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000'}}
 
+It's also possible to provide the send address in addition to the private key in which case segwit will be 
+auto-detected, so no need to know in advance if the address is segwit or not:
+    
     >from cryptos import *
-    >c = Bitcoin(testnet=True)
-    >c.send('89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678', '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF', 44036800, change_addr="2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", addr="2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh")
-    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '6dedc0ea44a146878c1a08fde22ba8f640a9cce14dc327fb394db68f46243556'}}
+    >c = Bitcoin()
+    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, segwit=True)
+    {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
 
 ### 2-of-3 MultiSig Transaction example:
     > from cryptos import *
@@ -197,7 +216,7 @@ It's also possible to provide the send address in addition to the private key in
     {'status': 'success', 'data': {'txid': 'b64e19311e3aa197063e03657679e2974e04c02c5b651c4e8d55f428490ab75f', 'network': 'BTCTEST'}}
 
 
-### Other coins
+### Supported coins
 
     > from cryptos import *
     > priv = sha256('a big long brainwallet password')
