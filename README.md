@@ -37,7 +37,8 @@ https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad
 
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
-Longer-term roadmap:
+Roadmap:
+* Bitcoin Gold support
 * Wallet class for private keys, elecrum mnemonic and addresses(read-only)
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
@@ -382,7 +383,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * select               : (unspent, value) -> returns list of unspents which are enough to cover the value
 
-### Useful links
+### Another reminder and useful links
 Another reminder, if you are doing something new with the library, whether a regular transaction, multisig,
 segwit or a coin you haven't worked with before, try it out in testnet first or alternatively with small amounts
 on the mainnet. The original pybitcointools had issues opened in Github where people lost money either due to 
