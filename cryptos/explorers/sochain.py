@@ -11,6 +11,7 @@ tx_url = base_url + "get_tx/%s/%s"
 tx_details_url = base_url + "tx/%s/%s"
 tx_inputs_url = base_url + "get_tx_inputs/%s/%s"
 network_url = base_url + "get_info/%s"
+block_url = base_url + "block/%s/%s"
 
 def unspent(addr, coin_symbol="LTC"):
     url = utxo_url % (coin_symbol, addr)
@@ -65,6 +66,22 @@ def history(addr, coin_symbol="LTC"):
 def block_height(txhash, coin_symbol="LTC"):
     tx = gettxdetails(txhash,coin_symbol=coin_symbol)
     return tx['block_no']
+
+def block_info(height, coin_symbol="LTC"):
+    url = block_url % (coin_symbol, height)
+    response = requests.get(url)
+    data = response.json()['data']
+    return {
+        'version': data['version'],
+        'hash': data['blockhash'],
+        'prevhash': data['previous_blockhash'],
+        'timestamp': data['time'],
+        'merkle_root': data['merkleroot'],
+        'bits': data['bits'],
+        'nonce': data['nonce'],
+        'tx_hashes': [t['txid'] for t in data['txs']]
+    }
+
 
 def current_block_height(coin_symbol="LTC"):
     url = network_url % coin_symbol

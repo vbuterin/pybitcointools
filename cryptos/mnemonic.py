@@ -1,6 +1,3 @@
-import hashlib
-import os.path
-import binascii
 import random
 from .py2specials import *
 from .py3specials import *
@@ -77,7 +74,8 @@ def words_verify(words,wordlist=wordlist_english):
     ebytes=_eint_to_bytes(eint,entropy_bits)
     return csint == entropy_cs(ebytes)
 
-def mnemonic_to_seed(mnemonic_phrase,passphrase=b''):
+def mnemonic_to_seed(mnemonic_phrase,passphrase=''):
+    passphrase = from_string_to_bytes(passphrase)
     if isinstance(mnemonic_phrase, (list, tuple)):
         mnemonic_phrase = ' '.join(mnemonic_phrase)
     mnemonic_phrase = from_string_to_bytes(mnemonic_phrase)
@@ -117,17 +115,4 @@ def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits
             print("Searched %f percent of the space" % (float(count)/float(1 << mine_bits)))
 
     return entropy_to_words(eint_to_bytes(pint+dint,entbits))
-
-if __name__=="__main__":
-    import json
-    testvectors=json.load(open('vectors.json','r'))
-    passed=True
-    for v in testvectors['english']:
-        ebytes=binascii.unhexlify(v[0])
-        w=entropy_to_words(ebytes)
-        seed=mnemonic_to_seed(w,passphrase='TREZOR')
-        passed = passed and w==v[1]
-        passed = passed and binascii.hexlify(seed)==v[2]
-    print("Tests %s." % ("Passed" if passed else "Failed"))
-
 

@@ -10,6 +10,8 @@ address_url = "%s/addrs/%s/txs"
 utxo_url = "%s/addrs/%s/utxo"
 fetchtx_url = "%s/tx/%s"
 current_block_height_url = "%s/status?q=getInfo"
+block_hash_by_height_url = "%s/block-index/%s"
+block_info_url = "%s/block/%s"
 
 def unspent(base_url, *args):
 
@@ -80,6 +82,25 @@ def history(base_url, *args):
 def block_height(base_url, txhash):
     tx = fetchtx(base_url, txhash)
     return tx.get('blockheight', None) or tx.get('height', None)
+
+def block_info(base_url, height):
+    url = block_hash_by_height_url % (base_url, height)
+    response = requests.get(url)
+    blockhash = response.json()['blockHash']
+    url = block_info_url % (base_url, blockhash)
+    response = requests.get(url)
+    data = response.json()
+    return {
+        'version': data['version'],
+        'hash': data['hash'],
+        'prevhash': data['previousblockhash'],
+        'timestamp': data['time'],
+        'merkle_root': data['merkleroot'],
+        'bits': data['bits'],
+        'nonce': data['nonce'],
+        'tx_hashes': data['tx']
+    }
+
 
 def current_block_height(base_url):
     url = current_block_height_url % base_url

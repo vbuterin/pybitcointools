@@ -45,8 +45,8 @@ def electrum_pubkey(masterkey, n, for_change=0):
 # seed/stretched seed/pubkey -> address (convenience method)
 
 
-def electrum_address(masterkey, n, for_change=0, version=0):
-    return pubkey_to_address(electrum_pubkey(masterkey, n, for_change), version)
+def electrum_address(masterkey, n, for_change=0, magicbyte=0):
+    return pubkey_to_address(electrum_pubkey(masterkey, n, for_change), magicbyte)
 
 # Given a master public key, a private key from that wallet and its index,
 # cracks the secret exponent which can be used to generate all other private

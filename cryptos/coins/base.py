@@ -1,9 +1,10 @@
 from ..transaction import *
+from ..deterministic import electrum_pubkey
+from ..blocks import mk_merkle_proof
 from ..main import *
 from ..explorers import blockchain
 from ..py3specials import *
 from ..py2specials import *
-
 
 class BaseCoin(object):
     """
@@ -89,6 +90,14 @@ class BaseCoin(object):
         Get address from a private key
         """
         return privtoaddr(privkey, magicbyte=self.magicbyte)
+
+    def electrum_address(self, masterkey, n, for_change=0):
+        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
+        return self.pubtoaddr(pubkey)
+
+    def electrum_address_segwit(self, masterkey, n, for_change=0):
+        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
+        return self.pubtop2w(pubkey)
 
     def is_address(self, addr):
         """
@@ -409,6 +418,9 @@ class BaseCoin(object):
     def current_block_height(self):
         return self.explorer.current_block_height(coin_symbol=self.coin_symbol)
 
+    def block_info(self, height):
+        return self.explorer.block_info(height, coin_symbol=self.coin_symbol)
+
     def inspect(self, tx):
         if not isinstance(tx, dict):
             tx = deserialize(tx)
@@ -432,3 +444,17 @@ class BaseCoin(object):
             'outs': outs,
             'ins': ins
         }
+
+    def merkle_prove(self, txhash):
+        """
+        Prove that information an explorer returns about a transaction in the blockchain is valid. Only run on a
+        tx with at least 1 confirmation.
+        """
+        blocknum = self.block_height(txhash)
+        blockinfo = self.block_info(blocknum)
+        hashes = blockinfo.pop('tx_hashes')
+        try:
+            i = hashes.index(txhash)
+        except ValueError:
+            raise Exception("Merkle proof failed because transaction %s is not part of the main chain" % txhash)
+        return mk_merkle_proof(blockinfo, hashes, i)

@@ -255,13 +255,53 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     'float skirt road remind fire antique vendor select senior latin small glide'
     > seed = mnemonic_to_seed(words)
     > seed
-    b"\xb7Z\x9b\x9b\x9c\x1bq\x81\x1b\xdc\x98\x1c\xbc\xb8\xbb\x130\xea,\xda\x14\xeb\x9bF\xafu\x88\xc2\xf9\xfc\x7f\xd0\xb0?\x9d\xf3\xa7$0Tx\xd3\xb7\x82\x87U\xe7\xcc\xdd\x16\xddd\xbf'T\t_\xdc R!x\tJ"
+    b'\xb7Z\x9b\x9b\x9c\x1bq\x81\x1b\xdc\x98\x1c\xbc\xb8\xbb\x130\xea,\xda\x14\xeb\x9bF\xafu\x88\xc2\xf9\xfc\x7f\xd0\xb0?\x9d\xf3\xa7$0Tx\xd3\xb7\x82\x87U\xe7\xcc\xdd\x16\xddd\xbf'T\t_\xdc R!x\t'
     > electrum_privkey(seed, 0)
     '5a37812b3057e44636c6e07023e16a8669e12a4365dfabbcb376ed272081d522'
-    electrum_privkey(seed, 300, 0)
+    > electrum_privkey(seed, 300, 0)
     '04cf414f200cd090239f2116d90608a74eae34ae21103ca9eef7bd9579e48bed'
     > electrum_privkey(seed, 0, 1)      #Change address
     '9ca3631f813a6f81b70fbfc4384122bfe6fb159e6f7aea2811fe968c2a39d42a'
+    
+If an application only needs to receive coins and not spend, there is no need to have a copy of the words, seeds or 
+private keys on the server, as if the server is hacked, the coins will be stolen. Instead, store the master public key and
+generate addresses based on that. The wallet words can be used to spend the coins on a separate cold storage machine.
+
+    > import os
+    > from cryptos import *
+    > words = entropy_to_words(os.urandom(16))
+    > words
+    'shield industry dose token network define slow under omit castle dinosaur afford'
+    > seed = mnemonic_to_seed(words)
+    > seed
+    b'\xe1\xa2R\xddV\xd1\xed\x84\xdd\x82d\xe7\xd6\xdcII\xa4\x7f([\xc4\xaem\x0c\x8a\xe8F\x1b6\xd6\xab\xda}\x02\xa4>\x03=\x83\xae&\x14\x908\xcdc\x10U\xf9\xe7.<r~Lu\xb4\xff\xe5\xd1\x8eXOU'
+    > master_public_key = electrum_mpk(seed)
+    > master_public_key
+    '9ea7e2f83bbf1c3ece4b120ddc3f142117c6c9d82d1b08ad0f54a91f3f0b938c587cb3edf7d54eba1eacc205b3890296fd58ec1b155021ac4d829a1288b24ce1'
+    
+    # Safe to store the mpk on the web server and generate addresses on demand:
+    > from cryptos import *
+    > coin = Bitcoin()
+    > master_public_key = '9ea7e2f83bbf1c3ece4b120ddc3f142117c6c9d82d1b08ad0f54a91f3f0b938c587cb3edf7d54eba1eacc205b3890296fd58ec1b155021ac4d829a1288b24ce1'
+    > addr = coin.electrum_address(master_public_key, 0, 0)
+    > addr
+    '1GEHJopN3F5EgZozEbu6fyp4A6CQMAvyTZ'
+    > change_addr = coin.electrum_address(master_public_key, 0, 1)
+    > change_addr
+    '1AF6A7YD6fJnFUHX3mcmGeHs4MN9aFjp7X'
+    
+    # Then to recover the coins on the cold storage machine:
+    > words = 'shield industry dose token network define slow under omit castle dinosaur afford'
+    > seed = mnemonic_to_seed(words)
+    > priv = electrum_privkey(seed, 0, 0)
+    > priv
+    '1120fb42302e05fbbdd55fefb7bc3ae075ce77ae9328672ee46b1f4af1d68189'
+    > change_priv = electrum_privkey(seed, 0, 1)
+    > change_priv
+    '29a6f2d3de33f79bb6e39753ce2a366ff7e6034f62c2809cfe501f3bb2580fe5'
+    > assert privtoaddr(priv) == '1GEHJopN3F5EgZozEbu6fyp4A6CQMAvyTZ'
+    > assert privtoaddr(change_priv) == '1AF6A7YD6fJnFUHX3mcmGeHs4MN9aFjp7X'
+    
 
 ### The cryptotool command line interface:
 
@@ -359,7 +399,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 * current_block_height : () -> Latest block height
 * block_height         : (txhash) -> Block height containing the txhash
 * inspect              : (tx_hex) -> Deserialize a transaction and decode and ins and outs
-
+* merkle_prove         : (txhash) -> Proves a transaction is valid and returns txhash, merkle siblings and block header.
 
 ### Listing of main non-coin specific commands:
 

@@ -25,6 +25,7 @@ class BaseCoinCase(unittest.TestCase):
     blockcypher_api_key = None
     blockcypher_coin_symbol = None
     testnet = True
+    num_merkle_siblings = 0
 
     @classmethod
     def setUpClass(cls):
@@ -342,6 +343,18 @@ class BaseCoinCase(unittest.TestCase):
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
+    def assertBlockInfoOK(self):
+        coin = self.coin(testnet=self.testnet)
+        blockinfo = coin.block_info(self.txheight)
+        self.assertListEqual(list(blockinfo.keys()),
+            ["version", "hash", "prevhash", "timestamp", "merkle_root", "bits", "nonce", "tx_hashes"]
+        )
+
+    def assertMerkleProofOK(self):
+        coin = self.coin(testnet=self.testnet)
+        proof = coin.merkle_prove(self.txid)
+        self.assertEqual(self.num_merkle_siblings, len(proof['siblings']))
+
 
 class TestBitcoin(BaseCoinCase):
     name = "Bitcoin"
@@ -361,10 +374,17 @@ class TestBitcoin(BaseCoinCase):
     txinputs = [{"output": "7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583:1", 'value': 1000000},
                 {"output": "da1ad82b777c51105d3a24cef253e0301dd08153115013a49e0edf69fd7cdadf:1", 'value': 100000}]
     tx = {'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690'}
+    num_merkle_siblings = 6
 
     def test_block_height(self):
         self.assertBlockHeightOK()
         self.assertLatestBlockHeightOK()
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_fetchtx(self):
         self.assertFetchTXOK()
@@ -395,6 +415,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     blockcypher_coin_symbol = "btc-testnet"
     testnet = True
 
+    num_merkle_siblings = 5
     min_latest_height = 1258030
     multisig_address = "2ND6ptW19yaFEmBa5LtEDzjKc2rSsYyUvqA"
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
@@ -403,6 +424,12 @@ class TestBitcoinTestnet(BaseCoinCase):
     txheight = 1238008
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
     tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -509,6 +536,7 @@ class TestLitecoin(BaseCoinCase):
     fee = 54400
     testnet = False
 
+    num_merkle_siblings = 8
     min_latest_height = 1347349
     txid = "0c2d49e00dd1372a7219fbc4378611b39f54790bbd597b4c29517f0d93c9faa2"
     txinputs = [{'output': 'b3105972beef05e88cf112fd9718d32c270773462d62e4659dc9b4a2baafc038:0', 'value': 1157763509}]
@@ -517,6 +545,12 @@ class TestLitecoin(BaseCoinCase):
     unspent_address = "LcHdcvAs71DAnkEPLSEuqMGcCWu3zG4Dw5"
     unspent = [
             {'output': '0c2d49e00dd1372a7219fbc4378611b39f54790bbd597b4c29517f0d93c9faa2:0', 'value': 1107944447}]
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -551,6 +585,7 @@ class TestLitecoinTestnet(BaseCoinCase):
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
     unspent = [{'output': '3f7a5460983cdfdf8118a1ab6bc84c28e536e83971532d4910c26bd21153de19:1', 'value': 100000000,}]
 
+    num_merkle_siblings = 2
     txid = "2a288547460ebe410e98fe63a1900b6452d95ec318efb0d58a5584ac67f27d93"
     txheight = 296568
     txinputs = [{'output': '83a32eb466e6a4600011b18cb4d7679f05bae8df40572a37b7c08e8849a7c984:0', 'value': 17984768},
@@ -560,6 +595,12 @@ class TestLitecoinTestnet(BaseCoinCase):
 
     def tearDown(self):
         time.sleep(8)
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -589,6 +630,7 @@ class TestDash(BaseCoinCase):
     fee = 54400
     testnet = False
 
+    num_merkle_siblings = 4
     min_latest_height = 801344
     txid = "e7a607c5152863209f33cec4cc0baed973f7cfd75ae28130e623c099fde7072c"
     txinputs = [{'output': 'ac7312d63f2817d4d2823dae107e601b52c08a52779c237bd06359e6189af9b8:0', 'value': 493488869}]
@@ -597,6 +639,12 @@ class TestDash(BaseCoinCase):
     unspent_address = "XiY7UHfBCBkMCZR3L96kuCQ5HHEEuPZRXk"
     unspent = [
             {'output': 'e7a607c5152863209f33cec4cc0baed973f7cfd75ae28130e623c099fde7072c:1', 'value': 220000000}]
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -624,6 +672,7 @@ class TestDashTestnet(BaseCoinCase):
     fee = 54400
     blockcypher_coin_symbol = None
     testnet = True
+    num_merkle_siblings = 1
     min_latest_height = 56045
     unspent_address = "yV1AhJ3N3Dh4LeiN1ECYpWuLEgmfcA1y5G"
     unspent = [{'output': '546842058817fc29f18de4ba1f0aa5d45fa429c8716ea59d005f878af463ee6c:0', 'value': 29228600000}]
@@ -632,6 +681,12 @@ class TestDashTestnet(BaseCoinCase):
                 {'output': 'f0b59a7a00ab906653271760922592eaa8c733e24c60115cf4c1981276fc2777:1', 'value': 44907516684}]
     tx = {'txid': '725ff2599700462905aafe658a082c0545c2749f779a7c9114421b4ca65183d0'}
     txheight = 45550
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -655,6 +710,7 @@ class TestDoge(BaseCoinCase):
     fee = 54400
     testnet = False
 
+    num_merkle_siblings = 8
     min_latest_height = 2046537
     txid = "345c28885d265edbf8565f553f9491c511b6549d3923a1d63fe158b8000bbee2"
     txinputs = [{'output': '72ee1f1f41d7613db02e89a58104a4c0cb0b3e9e5d46bfe4b14c80b80a9c2285:0', 'value': 3661230900743}]
@@ -663,6 +719,12 @@ class TestDoge(BaseCoinCase):
     unspent_address = "DTXcEMwdwx6ZNjPdfVTSMFYABqqDqZQCVJ"
     unspent = [
             {'output': '345c28885d265edbf8565f553f9491c511b6549d3923a1d63fe158b8000bbee2:1', 'value': 3485074167413}]
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -707,11 +769,18 @@ class TestBitcoinCash(BaseCoinCase):
     fee = 54400
     testnet = False
     min_latest_height = 512170
+    num_merkle_siblings = 9
     txid = "e3ead2c8e6ad22b38f49abd5ae7a29105f0f64d19865fd8ccb0f8d5b2665f476"
     txheight = 508381
     unspent_address = "1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS"
     unspent = [
             {'output': 'e3ead2c8e6ad22b38f49abd5ae7a29105f0f64d19865fd8ccb0f8d5b2665f476:1', 'value': 249077026}]
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()
@@ -734,6 +803,7 @@ class TestBitcoinCashTestnet(BaseCoinCase):
     blockcypher_coin_symbol = None
     testnet = True
 
+    num_merkle_siblings = 2
     min_latest_height = 1201889
     unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
     unspent = [{'output': '80700e6d1125deafa22b307f6c7c99e75771f9fc05517fc795a1344eca7c8472:0', 'value': 550000000}]
@@ -741,6 +811,12 @@ class TestBitcoinCashTestnet(BaseCoinCase):
     txinputs = [{'output': "cbd43131ee11bc9e05f36f55088ede26ab5fb160cc3ff11785ce9cc653aa414b:1", 'value': 96190578808}]
     tx = {'txid': 'b4dd5908cca851d861b9d2ca267a901bb6f581f2bb096fbf42a28cc2d98e866a'}
     txheight = 1196454
+
+    def test_block_info(self):
+        self.assertBlockInfoOK()
+
+    def test_merkle_proof(self):
+        self.assertMerkleProofOK()
 
     def test_block_height(self):
         self.assertBlockHeightOK()

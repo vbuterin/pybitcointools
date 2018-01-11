@@ -29,3 +29,7 @@ def block_height(tx, coin_symbol="bcc"):
 def current_block_height(coin_symbol="bcc"):
     base_url_for_coin = base_url % coin_symbol
     return insight.current_block_height(base_url_for_coin)
+
+def block_info(height, coin_symbol="bcc"):
+    base_url_for_coin = base_url % coin_symbol
+    return insight.block_info(base_url_for_coin, height)

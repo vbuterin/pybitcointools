@@ -14,6 +14,7 @@ utxo_url = "%s/unspent?active=%s&limit=1000&format=json"
 fetchtx_url = "%s/rawtx/%s?format=json"
 block_height_url = "%s/block-height/%s?format=json"
 latest_block_url = "%s/latestblock"
+block_info_url = "%s/rawblock/%s"
 
 def unspent(*args, coin_symbol="BTC"):
 
@@ -96,6 +97,23 @@ def history(*args, coin_symbol="BTC"):
 def block_height(txhash, coin_symbol="BTC"):
     tx = fetchtx(txhash,coin_symbol=coin_symbol)
     return tx['block_height']
+
+def block_info(height, coin_symbol="BTC"):
+    base_url = get_url(coin_symbol)
+    url = block_height_url % (base_url, height)
+    response = requests.get(url)
+    blocks = response.json()['blocks']
+    data = list(filter(lambda d: d['main_chain'], blocks))[0]
+    return {
+        'version': data['ver'],
+        'hash': data['hash'],
+        'prevhash': data['prev_block'],
+        'timestamp': data['time'],
+        'merkle_root': data['mrkl_root'],
+        'bits': data['bits'],
+        'nonce': data['nonce'],
+        'tx_hashes': [t['hash'] for t in data['tx']]
+    }
 
 def current_block_height(coin_symbol="BTC"):
     base_url = get_url(coin_symbol)

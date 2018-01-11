@@ -74,9 +74,73 @@ class TestBases(unittest.TestCase):
 
 class TestElectrumWalletInternalConsistency(unittest.TestCase):
 
+    words = 'shield industry dose token network define slow under omit castle dinosaur afford'
+    seed = b'\xe1\xa2R\xddV\xd1\xed\x84\xdd\x82d\xe7\xd6\xdcII\xa4\x7f([\xc4\xaem\x0c\x8a\xe8F\x1b6\xd6\xab\xda}\x02\xa4>\x03=\x83\xae&\x14\x908\xcdc\x10U\xf9\xe7.<r~Lu\xb4\xff\xe5\xd1\x8eXOU'
+    priv0 = '1120fb42302e05fbbdd55fefb7bc3ae075ce77ae9328672ee46b1f4af1d68189'
+    priv121 = '4b62d0afd6c94958bfad6d35db3693c090a67286d882d5d106f2295447fe8a66'
+    changepriv0 = '29a6f2d3de33f79bb6e39753ce2a366ff7e6034f62c2809cfe501f3bb2580fe5'
+    changepriv345 = '07d8ce5dd439426800da7cb091fb40b410ecdff88710a417082388e6da3bdf54'
+    passphrase = "abcd1234"
+    seed_from_password = b'\x05-\xff\x9d\r\xeb\xd2}\xde\x9c\xd1\xaa\xfbN\xac\xf6\x86\x12\n\xe3\xa2Ap\x9dT\x15\x8dS\x08\x13~\x84e\xc8\xa9\x7f\xbd>\xe1\xad\x07\x98\xd5\x94\xf3C\x1abVW\xc6_\xe1C\xd3\xfe~\x12\x0c\x7f\xeee\xa2\x1c'
+
     @classmethod
     def setUpClass(cls):
         print('Starting Electrum wallet internal consistency tests')
+
+    def test_words_to_seed(self):
+        seed = mnemonic_to_seed(self.words)
+        self.assertEqual(seed, self.seed)
+
+    def test_words_to_seed_password(self):
+        seed = mnemonic_to_seed(self.words, passphrase=self.passphrase)
+        self.assertEqual(seed, self.seed_from_password)
+
+    def test_seed_to_keys(self):
+        coin = Bitcoin()
+        priv = electrum_privkey(self.seed, 0)
+        self.assertEqual(priv, self.priv0)
+        self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 0))
+        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 0))
+        priv = electrum_privkey(self.seed, 121)
+        self.assertEqual(priv, self.priv121)
+        self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 121))
+        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 121))
+        priv = electrum_privkey(self.seed, 0, 1)
+        self.assertEqual(priv, self.changepriv0)
+        self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 0, 1))
+        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 0, 1))
+        priv = electrum_privkey(self.seed, 345, 1)
+        self.assertEqual(priv, self.changepriv345)
+        self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 345, 1))
+        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 345, 1))
+        self.assertEqual(Dash().privtoaddr(priv), Dash().electrum_address(self.seed, 345, 1))
+        self.assertEqual(Litecoin().privtop2w(priv), Litecoin().electrum_address_segwit(self.seed, 345, 1))
+
+    def test_master_public_key(self):
+        coin = Bitcoin()
+        mpk = electrum_mpk(self.seed_from_password)
+        pubkey0 = electrum_pubkey(mpk, 0)
+        privkey0 = electrum_privkey(self.seed_from_password, 0)
+        self.assertEqual(pubkey0, privtopub(privkey0))
+        self.assertEqual(coin.electrum_address(mpk, 0), coin.electrum_address(self.seed_from_password, 0))
+        self.assertEqual(coin.electrum_address_segwit(mpk, 0), coin.electrum_address_segwit(self.seed_from_password, 0))
+        pubkey101 = electrum_pubkey(mpk, 101)
+        privkey101 = electrum_privkey(self.seed_from_password, 101)
+        self.assertEqual(pubkey101, privtopub(privkey101))
+        self.assertEqual(coin.electrum_address(mpk, 101), coin.electrum_address(self.seed_from_password, 101))
+        self.assertEqual(coin.electrum_address_segwit(mpk, 101), coin.electrum_address_segwit(self.seed_from_password, 101))
+        change_pubkey0 = electrum_pubkey(mpk, 0, 1)
+        change_privkey0 = electrum_privkey(self.seed_from_password, 0, 1)
+        self.assertEqual(change_pubkey0, privtopub(change_privkey0))
+        self.assertEqual(coin.electrum_address(mpk, 0, 1), coin.electrum_address(self.seed_from_password, 0, 1))
+        self.assertEqual(coin.electrum_address_segwit(mpk, 0, 1), coin.electrum_address_segwit(self.seed_from_password, 0, 1))
+        change_pubkey200 = electrum_pubkey(mpk, 200, 1)
+        change_privkey200 = electrum_privkey(self.seed_from_password, 200, 1)
+        self.assertEqual(change_pubkey200, privtopub(change_privkey200))
+        self.assertEqual(coin.electrum_address(mpk, 0, 200), coin.electrum_address(self.seed_from_password, 0, 200))
+        self.assertEqual(coin.electrum_address_segwit(mpk, 0, 200), coin.electrum_address_segwit(self.seed_from_password, 0, 200))
+        self.assertEqual(Dash().electrum_address(mpk, 0, 200), Dash().electrum_address(self.seed_from_password, 0, 200))
+        self.assertEqual(Litecoin().electrum_address_segwit(mpk, 0, 200), Litecoin().electrum_address_segwit(self.seed_from_password, 0, 200))
 
     def test_all(self):
         for i in range(3):

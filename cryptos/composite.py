@@ -48,13 +48,3 @@ def sign_coinvault_tx(tx, priv):
             scr = [None] + filter(lambda x: x, scr[1:-1])[:k] + [scr[-1]]
         txobj['ins'][j]['script'] = serialize_script(scr)
     return serialize(txobj)
-
-# Will be added again after required explorer requests done (1/3 so far)
-"""
-def merkle_prove(txhash):
-    blocknum = str(get_block_height(txhash))
-    header = get_block_header_data(blocknum)
-    hashes = get_txs_in_block(blocknum)
-    i = hashes.index(txhash)
-    return mk_merkle_proof(header, hashes, i)
-"""
