@@ -67,12 +67,16 @@ Roadmap:
 
 WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet 
 unless you really know what you are doing. Any value in the inputs not included in the ouputs will be lost.
-So if the total inputs value is 1 BTC, and the total outputs amount to 0.5 BTC, 0.5 BTC will be given to the 
+So if the total inputs value is 1 BTC, and the total outputs amount to 0.6 BTC, 0.4 BTC will be given to the 
 miners as a fee. The faster way, listed later in the README, ensures the difference between
 inputs and outputs is sent as change back to the sender (except for a small fee).
 If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
 and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
  this procedure a few times on the testnet before developing for mainnet.
+
+Here's a link about for information about the current recommended fees:
+
+https://bitcoinfees.earn.com/
 
 OTHER WARNING: Default fees for Bitcoin mainnet are probably too low throughout this library. 
 This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
