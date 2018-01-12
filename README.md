@@ -74,15 +74,13 @@ If in doubt, before broadcasting a transaction, visit https://live.blockcypher.c
 and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
  this procedure a few times on the testnet before developing for mainnet.
 
-Here's a link about for information about the current recommended fees:
-
-https://bitcoinfees.earn.com/
-
 OTHER WARNING: Default fees for Bitcoin mainnet are probably too low throughout this library. 
 This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
 of "correct fee" detection algorithm will be implemented soon but for now it is recommended to think about and set an 
 appropriate fee when making transactions. There are many different ways of making a transaction. Whichever method you
-choose, make sure you understand how to set the correct fee.
+choose, make sure you understand how to set the correct fee. Here's a link about for information about the current recommended fees:
+
+https://bitcoinfees.earn.com/
 
     > from cryptos import *
     > c = Bitcoin(testnet=True)
