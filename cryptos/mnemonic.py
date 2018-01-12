@@ -1,9 +1,27 @@
 import random
+from pbkdf2 import PBKDF2
+import hmac
 from .py2specials import *
 from .py3specials import *
 from bisect import bisect_left
+import unicodedata
 
-wordlist_english=list(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r'))
+wordlist_english=[word.strip() for word in list(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r'))]
+
+
+def normalize_text(seed):
+    # normalize
+    seed = unicodedata.normalize('NFKD', seed)
+    # lower
+    seed = seed.lower()
+    # remove accents
+    seed = u''.join([c for c in seed if not unicodedata.combining(c)])
+    # normalize whitespaces
+    seed = u' '.join(seed.split())
+    # remove whitespaces between CJK
+    seed = u''.join([seed[i] for i in range(len(seed)) if not (seed[i] in string.whitespace and is_CJK(seed[i-1]) and is_CJK(seed[i+1]))])
+    return seed
+
 
 def eint_to_bytes(entint,entbits):
     a=hex(entint)[2:].rstrip('L').zfill(32)
@@ -12,7 +30,7 @@ def eint_to_bytes(entint,entbits):
 
 def mnemonic_int_to_words(mint,mint_num_words,wordlist=wordlist_english):
     backwords=[wordlist[(mint >> (11*x)) & 0x7FF].strip() for x in range(mint_num_words)]
-    return backwords[::-1]
+    return ' '.join((backwords[::-1]))
 
 def entropy_cs(entbytes):
     entropy_size=8*len(entbytes)
@@ -30,8 +48,7 @@ def entropy_to_words(entbytes,wordlist=wordlist_english):
     mint=(entint << checksum_size) | csint
     mint_num_words=(entropy_size+checksum_size)//11
 
-    words = mnemonic_int_to_words(mint,mint_num_words,wordlist)
-    return ' '.join(words)
+    return mnemonic_int_to_words(mint,mint_num_words,wordlist)
 
 def words_bisect(word,wordlist=wordlist_english):
     lo=bisect_left(wordlist,word)
@@ -44,7 +61,7 @@ def words_split(wordstr,wordlist=wordlist_english):
         for fwl in range(1,9):
             w=wordstr[:fwl].strip()
             lo,hi=words_bisect(w,wordlist)
-            if(hi-lo == 1):
+            if (hi-lo == 1):
                 return w,wordstr[fwl:].lstrip()
             wordlist=wordlist[lo:hi]
         raise Exception("Wordstr %s not found in list" %(w))
@@ -58,7 +75,7 @@ def words_split(wordstr,wordlist=wordlist_english):
 
 def words_to_mnemonic_int(words,wordlist=wordlist_english):
     if(isinstance(words,str)):
-        words=words_split(words,wordlist)
+        words = words.split()
     return sum([wordlist.index(w) << (11*x) for x,w in enumerate(words[::-1])])
 
 def words_verify(words,wordlist=wordlist_english):
@@ -71,7 +88,7 @@ def words_verify(words,wordlist=wordlist_english):
     entropy_bits=mint_bits-cs_bits
     eint=mint >> cs_bits
     csint=mint & ((1 << cs_bits)-1)
-    ebytes=_eint_to_bytes(eint,entropy_bits)
+    ebytes = eint_to_bytes(eint,entropy_bits)
     return csint == entropy_cs(ebytes)
 
 def mnemonic_to_seed(mnemonic_phrase,passphrase=''):
@@ -79,28 +96,7 @@ def mnemonic_to_seed(mnemonic_phrase,passphrase=''):
     if isinstance(mnemonic_phrase, (list, tuple)):
         mnemonic_phrase = ' '.join(mnemonic_phrase)
     mnemonic_phrase = from_string_to_bytes(mnemonic_phrase)
-    try:
-        from hashlib import pbkdf2_hmac
-        def pbkdf2_hmac_sha256(password,salt,iters=2048):
-            return pbkdf2_hmac(hash_name='sha512',password=password,salt=salt,iterations=iters)
-    except:
-        try:
-            from Crypto.Protocol.KDF import PBKDF2
-            from Crypto.Hash import SHA512,HMAC
-
-            def pbkdf2_hmac_sha256(password,salt,iters=2048):
-                return PBKDF2(password=password,salt=salt,dkLen=64,count=iters,prf=lambda p,s: HMAC.new(p,s,SHA512).digest())
-        except:
-            try:
-
-                from pbkdf2 import PBKDF2
-                import hmac
-                def pbkdf2_hmac_sha256(password,salt,iters=2048):
-                    return PBKDF2(password,salt, iterations=iters, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
-            except:
-                raise RuntimeError("No implementation of pbkdf2 was found!")
-
-    return pbkdf2_hmac_sha256(password=mnemonic_phrase,salt=b'mnemonic'+passphrase)
+    return PBKDF2(mnemonic_phrase, b'electrum'+passphrase, iterations=2048, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
 
 def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits=random.getrandbits):
     prefix_bits=len(prefix)*11
