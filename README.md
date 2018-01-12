@@ -72,9 +72,9 @@ miners as a fee. The faster way, listed later in the README, ensures the differe
 inputs and outputs is sent as change back to the sender (except for a small fee).
 If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
 and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
- this procedure a few times on the testnet before developing for mainnet - same if you aren't familiar with segwit.
+ this procedure a few times on the testnet before developing for mainnet.
 
-OTHER WARNING: Default fees for Bitcoin mainnet are way too low throughout this library. 
+OTHER WARNING: Default fees for Bitcoin mainnet are probably too low throughout this library. 
 This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
 of "correct fee" detection algorithm will be implemented soon but for now it is recommended to think about and set an 
 appropriate fee when making transactions. There are many different ways of making a transaction. Whichever method you
@@ -127,7 +127,7 @@ Or if you prefer to verify the tx (for example, with Blockcypher) you can break 
     > tx = dash.preparesignedtx(priv, "Xhcmzs5wKECBiWwSEsTZu8wNonguH5poaz", 9800000-20000, fee=20000)
     > tx
     '010000000194f2f955627dfd549f213a70d65dcd5550c0b14a484d38b6ae47fe7a8896ca41000000008b483045022100b125b1f4848c145193f70b915b0074539d90fd74c2e75492169f06927acafa39022025a009711a354a7d84e19f234dfb5d20e155b64acad40941670e634c1100101a01410437b81f8f1376a87556380ad9f3a6b7f642754b3497ce42518f8dbd39bfedea24d897ae5d8d1dd41c04f55700ed6f3b7cee99df5aed74f98a54cbc576d75c0b9fffffffff01203b9500000000001976a9144c0404140e6ad8d04bdf625888bf6dfcc20fa12d88ac00000000'
-    >dash.pushtx(tx)
+    > dash.pushtx(tx)
     {'status': 'success', 'data': {'txid': '0d889f6a268340c8fd30cdc6567eb588765e911fdd1fb0aac870dc3125ffde76', 'network': 'DASH'}}
 
 Another example with Bitcoin Cash testnet:
@@ -141,7 +141,7 @@ Another example with Bitcoin Cash testnet:
     {'status': 'success', 'data': {'txid': 'd8b130183824d0001d3bc669b31e798e2654868a7fda743aaf35d757d89db0eb', 'network': 'tbcc'}}
     
 ### Segregated Witness - the long way
-The same warnings about fees as the long way for regular transactions listed above applies here.
+The same warnings about testnet practice and fees as discussed earlier applies here.
 
 To create a segwit transaction, generate a pay to witness script hash (P2WPKH) 
 address and mark all the Segwit UTXOs with segwit=True.
