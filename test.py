@@ -318,6 +318,29 @@ class TestBIP0032(unittest.TestCase):
     def setUpClass(cls):
         print("Beginning BIP0032 tests")
 
+    def test_bip32(self):
+        mnemonic = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
+        seed = mnemonic_to_seed(mnemonic)
+        self.assertEqual(safe_hexlify(seed), "1bd2baff3222cf0a49835007588c6a7f2895f1560b58356023c4bf92ed75107856fc6819558f260a9ccddf9511251cb398f5487ec2938d355a93a0ae50823eb9")
+        master_private_key = bip32_master_key(seed)
+        self.assertEqual(master_private_key, "xprv9s21ZrQH143K2XLDB6wEU9AUR6ifaVBtyYiupFfnWEQwYJbJwmbWSE5iXwwDcA4u7b1vPYzzBUrnfS94dJ4Y9swYowp4bNjAHa4LRL2ix3w")
+        first_privkey = 'cadad194f1dbbb40cfe4506a80bd3981bd4617881278108c19c34c920491ccb401'
+        first_pubkey = '0201f24c4b76d90df1e2828fb80c70ac15ec5875d86ae7fca50b9bb8e6599bcf0d'
+        first_address = "16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo"
+        #key = bip32_extract_key(bip32_ckd(master_private_key, "m/44'/0'/0'/0/"))
+        #key = bip32_descend(master_private_key, "m/44/0/0/0/")
+        key = bip32_extract_key(bip32_ckd(master_private_key, "m/44'/0'/0'/0/"))
+        self.assertEqual(first_privkey, key)
+        self.assertEqual(privtopub(key), first_pubkey)
+        self.assertEqual(first_address, privtoaddr(key))
+        self.assertEqual(pubtoaddr(first_pubkey), pubtoaddr(first_pubkey))
+        master_public_key = bip32_privtopub(master_private_key)
+        self.assertEqual(master_public_key, "xpub661MyMwAqRbcF1QgH8UEqH7Cy8Z9ywukLmeWce5Q4ZwvR6vTVJukz2QCPCo1xtVC4SmBzCHDPqPGPSdrEqfQa25jXARwuKaFQSqtvJL2wBq")
+        master_public_key = "xpub6De8MLm5JsnJc8gXP1VLE9T19XhfkxNzkxpRJS7MYwmBYLYUKhmyHUeMZDBjbANAimGMwFU9vMcGBV5RgUWoTZmYFJJWtdwLvkESQpMHco4"
+        key = bip32_descend(master_public_key, parse_bip32_path("m/44'/0'/0'/0/"))
+        #key = bip32_extract_key(bip32_ckd(master_public_key, "m/44'/0'/0'/0/", public=True))
+        self.assertEqual(first_pubkey, key)
+
     def _full_derive(self, key, chain):
         if len(chain) == 0:
             return key

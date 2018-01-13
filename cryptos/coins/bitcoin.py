@@ -8,10 +8,13 @@ class Bitcoin(BaseCoin):
     segwit_supported = True
     magicbyte = 0
     script_magicbyte = 5
+    hd_path = 0
+    wif_prefix = 0x80
     explorer = blockchain
     testnet_overrides = {
         'display_name': "Bitcoin Testnet",
         'coin_symbol': "BTCTEST",
         'magicbyte': 111,
-        'script_magicbyte': 196
+        'script_magicbyte': 196,
+        'hd_path': 1,
     }

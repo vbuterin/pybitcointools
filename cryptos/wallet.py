@@ -1,5 +1,5 @@
 # Electrum - lightweight Bitcoin client
-# Copyright (C) 2015 Thomas Voegtlin
+# Copyright (C) 2015 Thomas Voegtlin  with changes by pycryptotools developers
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation files
@@ -44,9 +44,9 @@ import sys
 from .i18n import _
 from .util import (NotEnoughFunds, PrintError, UserCancelled, profiler,
                    format_satoshis, NoDynamicFeeEstimates)
-
+from cryptos import Bitcoin
 from .bitcoin import *
-from .version import *
+from .constants import *
 from .keystore import load_keystore, Hardware_KeyStore
 from .storage import multisig_type
 
@@ -161,9 +161,9 @@ class Abstract_Wallet(PrintError):
 
     max_change_outputs = 3
 
-    def __init__(self, storage):
+    def __init__(self, coin=Bitcoin()):
         self.electrum_version = ELECTRUM_VERSION
-        self.storage = storage
+        self.coin = coin
         self.network = None
         # verifier (SPV) and synchronizer are started in start_threads
         self.synchronizer = None

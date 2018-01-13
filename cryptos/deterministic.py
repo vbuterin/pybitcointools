@@ -128,8 +128,19 @@ def bip32_privtopub(data):
     return bip32_serialize(raw_bip32_privtopub(bip32_deserialize(data)))
 
 
-def bip32_ckd(data, i):
-    return bip32_serialize(raw_bip32_ckd(bip32_deserialize(data), i))
+def bip32_ckd(key, *args, **kwargs):
+    """Same as bip32_ckd but takes bip32_path or ints"""
+    # use keyword public=True or end path in .pub for public child derivation
+    argz = map(str, args)
+    path = "/".join(argz)    # no effect if "m/path/0"
+    if not (path.startswith("m/") and path.startswith("M/")):
+        path = "m/{0}".format(path)
+    is_public = path.startswith("M/") or path.endswith(".pub") or kwargs.get("public", False)
+    pathlist = parse_bip32_path(path)
+    for p in pathlist:
+        key = bip32_serialize(raw_bip32_ckd(bip32_deserialize(key), p))
+    return key if not is_public else bip32_privtopub(key)
+
 
 
 def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
@@ -194,10 +205,32 @@ def coinvault_priv_to_bip32(*args):
 
 
 def bip32_descend(*args):
+    """Descend masterkey and return privkey"""
     if len(args) == 2 and isinstance(args[1], list):
         key, path = args
-    else:
+    elif len(args) == 2 and isinstance(args[1], string_types):
+        key = args[0]
+        path = map(int, str(args[1]).lstrip("mM/").split('/'))
+    elif len(args):
         key, path = args[0], map(int, args[1:])
     for p in path:
         key = bip32_ckd(key, p)
     return bip32_extract_key(key)
+
+def parse_bip32_path(path):
+    """Takes bip32 path, "m/0'/2H" or "m/0H/1/2H/2/1000000000.pub", returns list of ints """
+    path = path.lstrip("m/").rstrip(".pub")
+    if not path:
+        return []
+    elif path.endswith("/"):
+        path += "0"
+    patharr = []
+    for v in path.split('/'):
+        if not v: 
+            continue
+        elif v[-1] in ("'H"):  # hardened path
+            v = int(v[:-1]) | 0x80000000
+        else:                  # non-hardened path
+            v = int(v) & 0x7fffffff
+        patharr.append(v)
+    return patharr

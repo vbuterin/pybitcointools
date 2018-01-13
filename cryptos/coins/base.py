@@ -23,6 +23,8 @@ class BaseCoin(object):
     address_prefixes = ()
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
+    hd_path = 0
+    wif_prefix = 0x80
 
     def __init__(self, testnet=False, **kwargs):
         if testnet:
@@ -458,3 +460,12 @@ class BaseCoin(object):
         except ValueError:
             raise Exception("Merkle proof failed because transaction %s is not part of the main chain" % txhash)
         return mk_merkle_proof(blockinfo, hashes, i)
+
+    def privkey_to_wif(self, privkey):
+        return encode_privkey(privkey, formt="wif", vbyte=self.wif_prefix)
+
+    def privkey_to_wif_compressed(self, privkey):
+        return encode_privkey(privkey, formt="wif_compressed", vbyte=self.wif_prefix)
+
+    def bip44_derivation(self, account_id, bip43_purpose=44):
+        return "m/%d'/%d'/%d'" % (bip43_purpose, self.hd_path, int(account_id))

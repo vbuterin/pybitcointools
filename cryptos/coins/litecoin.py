@@ -8,6 +8,8 @@ class Litecoin(BaseCoin):
     magicbyte = 48
     #script_magicbyte = 50 #Supposed to be new magicbyte
     script_magicbyte = 5 #Old magicbyte still recognised by explorers
+    wif_prefix = 0xb0
+    hd_path = 2
     explorer = sochain
     testnet_overrides = {
         'display_name': "Litecoin Testnet",

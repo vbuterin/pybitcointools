@@ -540,15 +540,15 @@ def ecdsa_raw_verify(msghash, vrs, pub):
 
 
 # For BitcoinCore, (msg = addr or msg = "") be default
-def ecdsa_verify_addr(msg, sig, addr):
-    assert is_address(addr)
+def ecdsa_verify_addr(msg, sig, addr, coin):
+    assert coin.is_address(addr)
     Q = ecdsa_recover(msg, sig)
     magic = get_version_byte(addr)
     return (addr == pubtoaddr(Q, int(magic))) or (addr == pubtoaddr(compress(Q), int(magic)))
 
 
-def ecdsa_verify(msg, sig, pub):
-    if is_address(pub):
+def ecdsa_verify(msg, sig, pub, coin):
+    if coin.is_address(pub):
         return ecdsa_verify_addr(msg, sig, pub)
     return ecdsa_raw_verify(electrum_sig_hash(msg), decode_sig(sig), pub)
 
