@@ -27,11 +27,121 @@
 import hashlib
 import hmac
 from .main import *
+from .py2specials import *
+from .py3specials import *
 from . import constants as version
 
-b2hu = safe_hexlify
-hfu = binascii.hexlify
+# Version numbers for BIP32 extended keys
+# standard: xprv, xpub
+# segwit in p2sh: yprv, ypub
+# native segwit: zprv, zpub
+XPRV_HEADERS = {
+    'standard': 0x0488ade4,
+    'p2wpkh-p2sh': 0x049d7878,
+    'p2wsh-p2sh': 0x295b005,
+    'p2wpkh': 0x4b2430c,
+    'p2wsh': 0x2aa7a99
+}
+XPUB_HEADERS = {
+    'standard': 0x0488b21e,
+    'p2wpkh-p2sh': 0x049d7cb2,
+    'p2wsh-p2sh': 0x295b43f,
+    'p2wpkh': 0x4b24746,
+    'p2wsh': 0x2aa7ed3
+}
 
+bh2u = safe_hexlify
+hfu = binascii.hexlify
+bfh = safe_from_hex
+
+def rev_hex(s):
+    return bh2u(bfh(s)[::-1])
+
+def int_to_hex(i, length=1):
+    assert isinstance(i, int)
+    s = hex(i)[2:].rstrip('L')
+    s = "0"*(2*length - len(s)) + s
+    return rev_hex(s)
+
+class InvalidPassword(Exception):
+    def __str__(self):
+        return "Incorrect password"
+
+try:
+    from Cryptodome.Cipher import AES
+except:
+    AES = None
+
+
+class InvalidPadding(Exception):
+    pass
+
+def assert_bytes(*args):
+    """
+    porting helper, assert args type
+    """
+    try:
+        for x in args:
+            assert isinstance(x, (bytes, bytearray))
+    except:
+        print('assert bytes failed', list(map(type, args)))
+        raise
+
+def append_PKCS7_padding(data):
+    assert_bytes(data)
+    padlen = 16 - (len(data) % 16)
+    return data + bytes([padlen]) * padlen
+
+
+def strip_PKCS7_padding(data):
+    assert_bytes(data)
+    if len(data) % 16 != 0 or len(data) == 0:
+        raise InvalidPadding("invalid length")
+    padlen = data[-1]
+    if padlen > 16:
+        raise InvalidPadding("invalid padding byte (large)")
+    for i in data[-padlen:]:
+        if i != padlen:
+            raise InvalidPadding("in
+
+def aes_encrypt_with_iv(key, iv, data):
+    assert_bytes(key, iv, data)
+    data = append_PKCS7_padding(data)
+    if AES:
+        e = AES.new(key, AES.MODE_CBC, iv).encrypt(data)
+    else:
+        aes_cbc = pyaes.AESModeOfOperationCBC(key, iv=iv)
+        aes = pyaes.Encrypter(aes_cbc, padding=pyaes.PADDING_NONE)
+        e = aes.feed(data) + aes.feed()  # empty aes.feed() flushes buffer
+    return e
+
+
+def aes_decrypt_with_iv(key, iv, data):
+    assert_bytes(key, iv, data)
+    if AES:
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        data = cipher.decrypt(data)
+    else:
+        aes_cbc = pyaes.AESModeOfOperationCBC(key, iv=iv)
+        aes = pyaes.Decrypter(aes_cbc, padding=pyaes.PADDING_NONE)
+        data = aes.feed(data) + aes.feed()  # empty aes.feed() flushes buffer
+    try:
+        return strip_PKCS7_padding(data)
+    except InvalidPadding:
+        raise InvalidPassword()
+
+def EncodeAES(secret, s):
+    assert_bytes(s)
+    iv = bytes(os.urandom(16))
+    ct = aes_encrypt_with_iv(secret, iv, s)
+    e = iv + ct
+    return base64.b64encode(e)
+
+def DecodeAES(secret, e):
+    e = bytes(base64.b64decode(e))
+    iv, e = e[:16], e[16:]
+    s = aes_decrypt_with_iv(secret, iv, e)
+    return s
 
 def pw_encode(s, password):
     if password:
@@ -76,21 +186,43 @@ SCRIPT_TYPES = {
     'p2wsh-p2sh':7
 }
 
+__b58chars = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+assert len(__b58chars) == 58
 
-def serialize_privkey(secret, compressed, txin_type):
-    prefix = bytes([(SCRIPT_TYPES[txin_type]+NetworkConstants.WIF_PREFIX)&255])
+__b43chars = b'0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$*+-./:'
+assert len(__b43chars) == 43
+
+def inv_dict(d):
+    return {v: k for k, v in d.items()}
+
+def is_minikey(text):
+    # Minikeys are typically 22 or 30 characters, but this routine
+    # permits any length of 20 or more provided the minikey is valid.
+    # A valid minikey must begin with an 'S', be in base58, and when
+    # suffixed with '?' have its SHA256 hash begin with a zero byte.
+    # They are widely used in Casascius physical bitcoins.
+    return (len(text) >= 20 and text[0] == 'S'
+            and all(ord(c) in __b58chars for c in text)
+            and sha256(text + '?')[0] == 0x00)
+
+def minikey_to_private_key(text):
+    return sha256(text)
+
+
+def serialize_privkey(secret, compressed, txin_type, wif_prefix=0x80):
+    prefix = bytes([(SCRIPT_TYPES[txin_type] + wif_prefix)&255])
     suffix = b'\01' if compressed else b''
     vchIn = secret + suffix
     return bin_to_b58check(vchIn, prefix)
 
 
-def deserialize_privkey(key):
+def deserialize_privkey(key, wif_prefix=0x80):
     # whether the pubkey is compressed should be visible from the keystore
-    vch = DecodeBase58Check(key)
+    vch = b58check_to_hex(key)
     if is_minikey(key):
         return 'p2pkh', minikey_to_private_key(key), True
     elif vch:
-        txin_type = inv_dict(SCRIPT_TYPES)[vch[0] - NetworkConstants.WIF_PREFIX]
+        txin_type = inv_dict(SCRIPT_TYPES)[vch[0] - wif_prefix]
         assert len(vch) in [33, 34]
         compressed = len(vch) == 34
         return txin_type, vch[1:33], compressed
@@ -111,11 +243,8 @@ BIP32_PRIME = 0x80000000
 
 def get_pubkeys_from_secret(secret):
     # public key
-    private_key = ecdsa.SigningKey.from_string( secret, curve = SECP256k1 )
-    public_key = private_key.get_verifying_key()
-    K = public_key.to_string()
-    K_compressed = GetPubKey(public_key.pubkey,True)
-    return K, K_compressed
+    pubkey = compress(privtopub(secret))
+    return pubkey, True
 
 
 # Child private key derivation function (from master private key)
@@ -173,12 +302,12 @@ def xpub_header(xtype):
 
 def serialize_xprv(xtype, c, k, depth=0, fingerprint=b'\x00'*4, child_number=b'\x00'*4):
     xprv = xprv_header(xtype) + bytes([depth]) + fingerprint + child_number + c + bytes([0]) + k
-    return EncodeBase58Check(xprv)
+    return bin_to_b58check(xprv)
 
 
 def serialize_xpub(xtype, c, cK, depth=0, fingerprint=b'\x00'*4, child_number=b'\x00'*4):
     xpub = xpub_header(xtype) + bytes([depth]) + fingerprint + child_number + c + cK
-    return EncodeBase58Check(xpub)
+    return bin_to_b58check(xpub)
 
 
 def deserialize_xkey(xkey, prv):
@@ -274,7 +403,7 @@ def bip32_private_derivation(xprv, branch, sequence):
         k, c = CKD_priv(k, c, i)
         depth += 1
     _, parent_cK = get_pubkeys_from_secret(parent_k)
-    fingerprint = hash_160(parent_cK)[0:4]
+    fingerprint = hash160(parent_cK)[0:4]
     child_number = bfh("%08X"%i)
     K, cK = get_pubkeys_from_secret(k)
     xpub = serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
@@ -292,7 +421,7 @@ def bip32_public_derivation(xpub, branch, sequence):
         parent_cK = cK
         cK, c = CKD_pub(cK, c, i)
         depth += 1
-    fingerprint = hash_160(parent_cK)[0:4]
+    fingerprint = hash160(parent_cK)[0:4]
     child_number = bfh("%08X"%i)
     return serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
 

@@ -8,6 +8,16 @@ import unicodedata
 
 wordlist_english=[word.strip() for word in list(open(os.path.join(os.path.dirname(os.path.realpath(__file__)),'english.txt'),'r'))]
 
+ELECTRUM_VERSION = '3.0.5'   # version of the client package
+PROTOCOL_VERSION = '1.1'     # protocol version requested
+
+# The hash of the mnemonic seed must begin with this
+SEED_PREFIX      = '01'      # Standard wallet
+SEED_PREFIX_2FA  = '101'     # Two-factor authentication
+SEED_PREFIX_SW   = '100'     # Segwit wallet
+
+whitespace = ' \t\n\r\v\f'
+
 # http://www.asahi-net.or.jp/~ax2s-kmtn/ref/unicode/e_asia.html
 CJK_INTERVALS = [
     (0x4E00, 0x9FFF, 'CJK Unified Ideographs'),
@@ -56,7 +66,7 @@ def normalize_text(seed):
     # normalize whitespaces
     seed = u' '.join(seed.split())
     # remove whitespaces between CJK
-    seed = u''.join([seed[i] for i in range(len(seed)) if not (seed[i] in string.whitespace and is_CJK(seed[i-1]) and is_CJK(seed[i+1]))])
+    seed = u''.join([seed[i] for i in range(len(seed)) if not (seed[i] in whitespace and is_CJK(seed[i-1]) and is_CJK(seed[i+1]))])
     return seed
 
 
@@ -128,9 +138,36 @@ def words_verify(words,wordlist=wordlist_english):
     ebytes = eint_to_bytes(eint,entropy_bits)
     return csint == entropy_cs(ebytes)
 
-
 def bip39_normalize_passphrase(passphrase):
     return unicodedata.normalize('NFKD', passphrase or '')
+
+# returns tuple (is_checksum_valid, is_wordlist_valid)
+def bip39_is_checksum_valid(mnemonic):
+    words = [ unicodedata.normalize('NFKD', word) for word in mnemonic.split() ]
+    words_len = len(words)
+    n = len(wordlist_english)
+    checksum_length = 11*words_len//33
+    entropy_length = 32*checksum_length
+    i = 0
+    words.reverse()
+    while words:
+        w = words.pop()
+        try:
+            k = wordlist_english.index(w)
+        except ValueError:
+            return False, False
+        i = i*n + k
+    if words_len not in [12, 15, 18, 21, 24]:
+        return False, True
+    entropy = i >> checksum_length
+    checksum = i % 2**checksum_length
+    h = '{:x}'.format(entropy)
+    while len(h) < entropy_length/4:
+        h = '0'+h
+    b = bytearray.fromhex(h)
+    hashed = int(safe_hexlify(hashlib.sha256(b).digest()), 16)
+    calculated_checksum = hashed >> (256 - checksum_length)
+    return checksum == calculated_checksum, True
 
 def mnemonic_to_seed(mnemonic_phrase, passphrase='', passphrase_prefix=b"mnemonic"):
     passphrase = bip39_normalize_passphrase(passphrase)
@@ -138,8 +175,47 @@ def mnemonic_to_seed(mnemonic_phrase, passphrase='', passphrase_prefix=b"mnemoni
     if isinstance(mnemonic_phrase, (list, tuple)):
         mnemonic_phrase = ' '.join(mnemonic_phrase)
     mnemonic = unicodedata.normalize('NFKD', ' '.join(mnemonic_phrase.split()))
-    mnemonic_phrase = from_string_to_bytes(mnemonic_phrase)
-    return PBKDF2(mnemonic_phrase, passphrase_prefix + passphrase, iterations=2048, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
+    mnemonic = from_string_to_bytes(mnemonic)
+    return PBKDF2(mnemonic, passphrase_prefix + passphrase, iterations=2048, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
+
+def bip39_mnemonic_to_seed(mnemonic_phrase, passphrase=''):
+    if not bip39_is_checksum_valid(mnemonic_phrase)[1]:
+        raise Exception("BIP39 Checksum is invalid for this mnemonic")
+    return mnemonic_to_seed(mnemonic_phrase, passphrase=passphrase, passphrase_prefix=b"mnemonic")
+
+def electrum_mnemonic_to_seed(mnemonic_phrase, passphrase='', ):
+    return mnemonic_to_seed(mnemonic_phrase, passphrase=passphrase, passphrase_prefix=b"electrum")
+
+def is_new_seed(x, prefix=SEED_PREFIX):
+    x = normalize_text(x)
+    s = safe_hexlify(mnemonic_to_seed(x, passphrase_prefix=b"Seed version"))
+    return s.startswith(prefix)
+
+def is_old_seed(seed):
+    return False
+
+def seed_prefix(seed_type):
+    if seed_type == 'standard':
+        return SEED_PREFIX
+    elif seed_type == 'segwit':
+        return SEED_PREFIX_SW
+    elif seed_type == '2fa':
+        return SEED_PREFIX_2FA
+
+def seed_type(x):
+    if is_old_seed(x):
+        return 'old'
+    elif is_new_seed(x):
+        return 'standard'
+    elif is_new_seed(x, SEED_PREFIX_SW):
+        return 'segwit'
+    elif is_new_seed(x, SEED_PREFIX_2FA):
+        return '2fa'
+    return ''
+
+is_seed = lambda x: bool(seed_type(x))
+
+
 
 def words_mine(prefix,entbits,satisfunction,wordlist=wordlist_english,randombits=random.getrandbits):
     prefix_bits=len(prefix)*11

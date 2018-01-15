@@ -17,4 +17,6 @@ class Bitcoin(BaseCoin):
         'magicbyte': 111,
         'script_magicbyte': 196,
         'hd_path': 1,
+        'bip39_xpriv_prefix': 0x04358394,
+        'bip39_xpub_prefix': 0x043587cf
     }

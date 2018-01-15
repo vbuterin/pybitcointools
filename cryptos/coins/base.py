@@ -24,6 +24,8 @@ class BaseCoin(object):
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
     hd_path = 0
+    bip39_xpriv_prefix = 0x0488ade4
+    bip39_xpub_prefix = 0x0488b21e
     wif_prefix = 0x80
 
     def __init__(self, testnet=False, **kwargs):

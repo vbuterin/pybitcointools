@@ -1,2 +1,3 @@
 requests
 pbkdf2
+pycryptodomex

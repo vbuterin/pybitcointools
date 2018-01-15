@@ -69,11 +69,11 @@ PUBLIC = [MAINNET_PUBLIC, TESTNET_PUBLIC]
 # BIP32 child key derivation
 
 
-def raw_bip32_ckd(rawtuple, i):
+def raw_bip32_ckd(rawtuple, i, private=True):
     vbytes, depth, fingerprint, oldi, chaincode, key = rawtuple
     i = int(i)
 
-    if vbytes in PRIVATE:
+    if private:
         priv = key
         pub = privtopub(key)
     else:
@@ -86,15 +86,20 @@ def raw_bip32_ckd(rawtuple, i):
     else:
         I = hmac.new(chaincode, pub+encode(i, 256, 4), hashlib.sha512).digest()
 
-    if vbytes in PRIVATE:
+    if private:
         newkey = add_privkeys(I[:32]+B'\x01', priv)
         fingerprint = bin_hash160(privtopub(key))[:4]
-    if vbytes in PUBLIC:
+    else:
         newkey = add_pubkeys(compress(privtopub(I[:32])), key)
         fingerprint = bin_hash160(key)[:4]
 
     return (vbytes, depth + 1, fingerprint, i, I[32:], newkey)
 
+def bip32_privkey(rawtuple, i):
+    return raw_bip32_ckd(rawtuple, i, private=True)
+
+def bip32_pubkey(rawtuple, i):
+    return raw_bip32_ckd(rawtuple, i, private=False)
 
 def bip32_serialize(rawtuple):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
@@ -105,7 +110,8 @@ def bip32_serialize(rawtuple):
     return changebase(bindata+bin_dbl_sha256(bindata)[:4], 256, 58)
 
 
-def bip32_deserialize(data):
+def bip32_deserialize(data, priv_vbytes=PRIVATE):
+    priv_vbytes = encode(priv_vbytes, 256, 4)
     dbin = changebase(data, 58, 256)
     if bin_dbl_sha256(dbin[:-4])[:4] != dbin[-4:]:
         raise Exception("Invalid checksum")
@@ -114,7 +120,7 @@ def bip32_deserialize(data):
     fingerprint = dbin[5:9]
     i = decode(dbin[9:13], 256)
     chaincode = dbin[13:45]
-    key = dbin[46:78]+b'\x01' if vbytes in PRIVATE else dbin[45:78]
+    key = dbin[46:78]+b'\x01' if vbytes == priv_vbytes else dbin[45:78]
     return (vbytes, depth, fingerprint, i, chaincode, key)
 
 
@@ -128,7 +134,7 @@ def bip32_privtopub(data):
     return bip32_serialize(raw_bip32_privtopub(bip32_deserialize(data)))
 
 
-def bip32_ckd(key, *args, **kwargs):
+def bip32_ckd(key, *args, priv_prefix=PRIVATE, pub_prefix=PUB, **kwargs):
     """Same as bip32_ckd but takes bip32_path or ints"""
     # use keyword public=True or end path in .pub for public child derivation
     argz = map(str, args)
@@ -138,12 +144,11 @@ def bip32_ckd(key, *args, **kwargs):
     is_public = path.startswith("M/") or path.endswith(".pub") or kwargs.get("public", False)
     pathlist = parse_bip32_path(path)
     for p in pathlist:
-        key = bip32_serialize(raw_bip32_ckd(bip32_deserialize(key), p))
+        key = bip32_serialize(raw_bip32_ckd(bip32_deserialize(key, prefix), p))
     return key if not is_public else bip32_privtopub(key)
 
-
-
-def bip32_master_key(seed, vbytes=MAINNET_PRIVATE):
+def bip32_master_key(seed, prefix=0x0488ade4):
+    vbytes = encode(prefix, 256, 4)
     I = hmac.new(
             from_string_to_bytes("Bitcoin seed"), 
             from_string_to_bytes(seed), 
