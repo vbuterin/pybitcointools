@@ -315,6 +315,21 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
+
+def op_push(i):
+    if i<0x4c:
+        return int_to_hex(i)
+    elif i<0xff:
+        return '4c' + int_to_hex(i)
+    elif i<0xffff:
+        return '4d' + int_to_hex(i,2)
+    else:
+        return '4e' + int_to_hex(i,4)
+
+def push_script(x):
+    return op_push(len(x)//2) + x
+
+
 def mk_pubkey_script(addr):
     return '76a914' + b58check_to_hex(addr) + '88ac'
 

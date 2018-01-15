@@ -2,6 +2,7 @@ from ..transaction import *
 from ..deterministic import electrum_pubkey
 from ..blocks import mk_merkle_proof
 from ..main import *
+from .. import segwit_addr
 from ..explorers import blockchain
 from ..keystore import *
 from ..wallet import *
@@ -20,6 +21,7 @@ class BaseCoin(object):
     segwit_supported = None
     magicbyte = None
     script_magicbyte = None
+    segwit_hrp = None
     explorer = blockchain
     is_testnet = False
     address_prefixes = ()
@@ -100,12 +102,11 @@ class BaseCoin(object):
         return privtoaddr(privkey, magicbyte=self.magicbyte)
 
     def electrum_address(self, masterkey, n, for_change=0):
+        """
+        For old electrum seeds
+        """
         pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
         return self.pubtoaddr(pubkey)
-
-    def electrum_address_segwit(self, masterkey, n, for_change=0):
-        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
-        return self.pubtop2w(pubkey)
 
     def is_address(self, addr):
         """
@@ -144,6 +145,14 @@ class BaseCoin(object):
         """
         Convert an output address to a script
         """
+        if self.segwit_hrp:
+            witver, witprog = segwit_addr.decode(self.segwit_hrp, addr)
+            if witprog is not None:
+                assert (0 <= witver <= 16)
+                OP_n = witver + 0x50 if witver > 0 else 0
+                script = safe_hexlify(bytes([OP_n]))
+                script += push_script(safe_hexlify(bytes(witprog)))
+                return script
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
         else:
@@ -163,6 +172,24 @@ class BaseCoin(object):
         Convert a private key to a pay to witness public key hash address (P2WPKH, required for segwit)
         """
         return self.pubtop2w(privtopub(priv))
+
+    def hash_to_segwit_addr(self, hash):
+        """
+        Convert a hash to the new segwit address format outlined in BIP-0173
+        """
+        return segwit_addr.encode(self.segwit_hrp, 0, hash)
+
+    def public_key_to_p2wpkh(self, public_key):
+        """
+        Convert a public key to the new segwit address format outlined in BIP01743
+        """
+        return self.hash_to_segwit_addr(hash160(public_key))
+
+    def script_to_p2wsh(self, script):
+        """
+        Convert a script to the new segwit address format outlined in BIP01743
+        """
+        return self.hash_to_segwit_addr(sha256(safe_from_hex(script)))
 
     def mk_multsig_address(self, *args):
         """

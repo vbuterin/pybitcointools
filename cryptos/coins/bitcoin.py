@@ -8,6 +8,7 @@ class Bitcoin(BaseCoin):
     segwit_supported = True
     magicbyte = 0
     script_magicbyte = 5
+    segwit_hrp = "bc"
     hd_path = 0
     wif_prefix = 0x80
     explorer = blockchain
@@ -16,6 +17,7 @@ class Bitcoin(BaseCoin):
         'coin_symbol': "BTCTEST",
         'magicbyte': 111,
         'script_magicbyte': 196,
+        'segwit_hrp': 'tb',
         'hd_path': 1,
         'bip39_xpriv_prefix': 0x04358394,
         'bip39_xpub_prefix': 0x043587cf
