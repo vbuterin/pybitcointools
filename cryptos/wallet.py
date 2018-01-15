@@ -2,8 +2,8 @@ from .main import *
 from .keystore import xpubkey_to_address
 
 class HDWallet(object):
-    def __init__(self, coin, keystore, num_addresses=0):
-        self.coin = coin
+    def __init__(self, keystore, num_addresses=0):
+        self.coin = keystore.coin
         self.keystore = keystore
         self.addresses = {}
         self.last_receiving_index = 0

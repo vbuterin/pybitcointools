@@ -3,6 +3,8 @@ from ..deterministic import electrum_pubkey
 from ..blocks import mk_merkle_proof
 from ..main import *
 from ..explorers import blockchain
+from ..keystore import *
+from ..wallet import *
 from ..py3specials import *
 from ..py2specials import *
 
@@ -24,9 +26,10 @@ class BaseCoin(object):
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
     hd_path = 0
-    bip39_xpriv_prefix = 0x0488ade4
-    bip39_xpub_prefix = 0x0488b21e
+    xpriv_prefix = 0x0488ade4
+    xpub_prefix = 0x0488b21e
     wif_prefix = 0x80
+
 
     def __init__(self, testnet=False, **kwargs):
         if testnet:
@@ -46,6 +49,7 @@ class BaseCoin(object):
             self.script_prefixes = magicbyte_to_prefix(magicbyte=self.script_magicbyte)
         else:
             self.script_prefixes = ()
+        self.bip39_prefixes = (encode(self.xpriv_prefix, 256, 4), encode(self.xpub_prefix, 256, 4))
 
     def unspent(self, *addrs):
         """
@@ -469,5 +473,23 @@ class BaseCoin(object):
     def privkey_to_wif_compressed(self, privkey):
         return encode_privkey(privkey, formt="wif_compressed", vbyte=self.wif_prefix)
 
-    def bip44_derivation(self, account_id, bip43_purpose=44):
-        return "m/%d'/%d'/%d'" % (bip43_purpose, self.hd_path, int(account_id))
+    def wallet(self, seed, passphrase=None):
+        ks = standard_from_bip39_seed(seed, passphrase, coin=self)
+        return HDWallet(ks)
+
+    def p2sh_p2wpkh_wallet(self, seed, passphrase=None):
+        if not self.segwit_supported:
+            raise Exception("Segwit not enabled for this coin")
+        ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
+        return HDWallet(ks)
+
+    def p2wpkh_wallet(self, seed, passphrase=None):
+        raise Exception("p2wpkh_wallets not enabled yet. For segwit, use p2sh_p2wpkh_wallet")
+
+    def electrum_wallet(self, seed, passphrase=None):
+        ks = from_electrum_seed(seed, passphrase, False, coin=self)
+        return HDWallet(ks)
+
+    def electrum_p2sh_wallet(self, seed, passphrase=None):
+        ks = from_electrum_seed(seed, passphrase, True, coin=self)
+        return HDWallet(ks)

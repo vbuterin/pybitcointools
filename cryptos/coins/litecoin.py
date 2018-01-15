@@ -16,7 +16,8 @@ class Litecoin(BaseCoin):
         'coin_symbol': "LTCTEST",
         'magicbyte': 111,
         #script_magicbyte: 58   #Supposed to be new magicbyte
-        'script_magicbyte': 196 #Old magicbyte still recognised by explorers,
-        'bip39_xpriv_prefix': 0x04358394,
-        'bip39_xpub_prefix': 0x043587cf
+        'script_magicbyte': 196, #Old magicbyte still recognised by explorers,
+        'hd_path': 1,
+        'xpriv_prefix': 0x04358394,
+        'xpub_prefix': 0x043587cf
     }

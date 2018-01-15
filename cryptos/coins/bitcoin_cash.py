@@ -17,8 +17,9 @@ class BitcoinCash(BaseCoin):
         'coin_symbol': "tbcc",
         'magicbyte': 111,
         'script_magicbyte': 196,
-        'bip39_xpriv_prefix': 0x0488ade4,
-        'bip39_xpub_prefix': 0x0488b21e
+        'xpriv_prefix': 0x0488ade4,
+        'xpub_prefix': 0x0488b21e,
+        'hd_path': 1,
     }
 
     def __init__(self, *args, hd_prefork=False, **kwargs):

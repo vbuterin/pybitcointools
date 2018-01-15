@@ -15,6 +15,7 @@ class Dash(BaseCoin):
         'coin_symbol': "DASHTEST",
         'magicbyte': 140,
         'script_magicbyte': 19,
-        'bip39_xpriv_prefix': 0x04358394,
-        'bip39_xpub_prefix': 0x043587cf
+        'hd_path': 1,
+        'xpriv_prefix': 0x04358394,
+        'xpub_prefix': 0x043587cf
     }
