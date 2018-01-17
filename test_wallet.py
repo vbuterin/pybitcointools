@@ -59,22 +59,55 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self.assertEqual(w.new_change_addresses()[0], '1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D')
 
     def test_electrum_seed_segwit(self):
-        seed_words = 'bitter grass shiver impose acquire brush forget axis eager alone wine silver'
-        self.assertEqual(bitcoin.seed_type(seed_words), 'segwit')
+        seed_words = 'sentence march such alter disorder office banner endless clump miracle olive club'
+        self.assertEqual(mnemonic.seed_type(seed_words), 'segwit')
 
-        ks = keystore.from_seed(seed_words, '', False)
+        w = Bitcoin().electrum_wallet(seed_words)
 
-        self._check_seeded_keystore_sanity(ks)
-        self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
+        self._check_seeded_keystore_sanity(w.keystore)
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xprv, 'zprvAZswDvNeJeha8qZ8g7efN3FXYVJLaEUsE9TW6qXDEbVe74AZ75c2sZFZXPNFzxnhChDQ89oC8C5AjWwHmH1HeRKE1c4kKBQAmjUDdKDUZw2')
-        self.assertEqual(ks.xpub, 'zpub6nsHdRuY92FsMKdbn9BfjBCG6X8pyhCibNP6uDvpnw2cyrVhecvHRMa3Ne8kdJZxjxgwnpbHLkcR4bfnhHy6auHPJyDTQ3kianeuVLdkCYQ')
+        self.assertEqual(w.keystore.xprv, 'zprvAZD9X8PEspHJrYd5aDzr8RzgBibQcsHDdvWdhvidvWVPFdVjKb39oJreNwpVdV9aDQqDQAQoYLKj2iUUbCAJWfyctmsVN6Fy4UYKmFQPBcG')
+        self.assertEqual(w.keystore.xpub, 'zpub6nCVvdv8iBqc52hYgFXrVZwQjkRu2L1519SEWK8FUr2N8Rpss8MQM7B8ED9xcHw5hVvTNWWGLgnXZ2AWFp6A7DLQe3mbxhmiXniuzcF4g3i')
 
-        w = self._create_standard_wallet(ks)
-        self.assertEqual(w.txin_type, 'p2wpkh')
+        #self.assertEqual(w.txin_type, 'p2wpkh')
 
         self.assertEqual(w.get_receiving_addresses()[0], 'bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af')
         self.assertEqual(w.get_change_addresses()[0], 'bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p')
+
+
+
+    def test_electrum_seed_segwit_testnet(self):
+        seed_words = 'sentence march such alter disorder office banner endless clump miracle olive club'
+        self.assertEqual(mnemonic.seed_type(seed_words), 'segwit')
+
+        b = Bitcoin(testnet=True)
+        w = b.electrum_wallet(seed_words)
+
+        self._check_seeded_keystore_sanity(w.keystore)
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
+
+        #self.assertEqual(w.keystore.xprv, 'zprvAZD9X8PEspHJrYd5aDzr8RzgBibQcsHDdvWdhvidvWVPFdVjKb39oJreNwpVdV9aDQqDQAQoYLKj2iUUbCAJWfyctmsVN6Fy4UYKmFQPBcG')
+        #self.assertEqual(w.keystore.xpub, 'zpub6nCVvdv8iBqc52hYgFXrVZwQjkRu2L1519SEWK8FUr2N8Rpss8MQM7B8ED9xcHw5hVvTNWWGLgnXZ2AWFp6A7DLQe3mbxhmiXniuzcF4g3i')
+
+        #self.assertEqual(w.txin_type, 'p2wpkh')
+
+        #self.assertEqual(w.get_receiving_addresses()[0], 'tb1quga0krzj8y95r8lu40wcje5dj3uz83ve4uhaju')
+        #self.assertEqual(w.get_change_addresses()[0], 'tb1qy8uwwnlpmyxz8m3wh988sf9pf0fdtfdupwzvep')
+
+        ins = [{'value': 103838800, 'output': 'd3ceac98c9ae8274bf16cb41cef875c065ac8ff10bf7723f581b24ef3f241229:1', 'new_segwit': True}]
+        outs = [{'address': 'tb1qy8uwwnlpmyxz8m3wh988sf9pf0fdtfdupwzvep', 'value': 50000}, {'address': 'tb1quga0krzj8y95r8lu40wcje5dj3uz83ve4uhaju', 'value': 103738800}]
+
+        tx = b.mktx(ins, outs)
+        #tx = b.sign(tx, 0, "cWzvh67QKHKpLeemzJvXhYqfckTjL3BCS1Veu18q3waQjWTZC2cJ")
+        tx = b.sign(tx, 0, "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f")
+        tx = serialize(tx)
+        print(tx)
+        response = b.pushtx(tx)
+        print(response)
+        if hasattr(response, "text"):
+            print(response.text)
+
 
     def test_electrum_seed_old(self):
         seed_words = 'powerful random nobody notice nothing important anyway look away hidden message over'

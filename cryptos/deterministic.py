@@ -88,10 +88,7 @@ def raw_bip32_ckd(rawtuple, i, prefixes=DEFAULT):
             raise Exception("Can't do private derivation on public key!")
         I = hmac.new(chaincode, b'\x00'+priv[:32]+encode(i, 256, 4), hashlib.sha512).digest()
     else:
-        if priv:
-            raise Exception("Can't do public derivation on private key!")  ###TODO:Check if really necessary?
         I = hmac.new(chaincode, pub+encode(i, 256, 4), hashlib.sha512).digest()
-
     if private:
         newkey = add_privkeys(I[:32]+B'\x01', priv)
         fingerprint = bin_hash160(privtopub(key))[:4]

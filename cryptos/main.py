@@ -520,11 +520,11 @@ def ecdsa_raw_sign(msghash, priv):
     return v, r, s
 
 
-def ecdsa_sign(msg, priv):
+def ecdsa_sign(msg, priv, coin):
     v, r, s = ecdsa_raw_sign(electrum_sig_hash(msg), priv)
     sig = encode_sig(v, r, s)
     assert ecdsa_verify(msg, sig, 
-        privtopub(priv)), "Bad Sig!\t %s\nv = %d\n,r = %d\ns = %d" % (sig, v, r, s)
+        privtopub(priv), coin), "Bad Sig!\t %s\nv = %d\n,r = %d\ns = %d" % (sig, v, r, s)
     return sig
 
 
@@ -544,12 +544,12 @@ def ecdsa_verify_addr(msg, sig, addr, coin):
     assert coin.is_address(addr)
     Q = ecdsa_recover(msg, sig)
     magic = get_version_byte(addr)
-    return (addr == pubtoaddr(Q, int(magic))) or (addr == pubtoaddr(compress(Q), int(magic)))
+    return (addr == coin.pubtoaddr(Q, int(magic))) or (addr == coin.pubtoaddr(compress(Q), int(magic)))
 
 
 def ecdsa_verify(msg, sig, pub, coin):
     if coin.is_address(pub):
-        return ecdsa_verify_addr(msg, sig, pub)
+        return ecdsa_verify_addr(msg, sig, pub, coin)
     return ecdsa_raw_verify(electrum_sig_hash(msg), decode_sig(sig), pub)
 
 

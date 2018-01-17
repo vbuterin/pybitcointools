@@ -83,12 +83,8 @@ def deserialize(tx):
         pos[0] += bytez
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
-    def get_int(bytez=1):
-        return tx[pos[0]]
-
     def read_var_int():
         pos[0] += 1
-
         val = from_byte_to_int(tx[pos[0] - 1])
         if val < 253:
             return val
@@ -213,7 +209,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
     #is_segwit = 'witness' in tx.keys()
-    is_segwit = tx['ins'][i].get('segwit', False)
+    is_segwit = tx['ins'][i].get('segwit', False) or tx['ins'][i].get('new_segwit', False)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""

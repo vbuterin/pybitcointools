@@ -230,8 +230,7 @@ class BaseCoin(object):
             signing_tx = signature_form(txobj, i, script, self.hashcode)
             sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
             if txobj['ins'][i].get('new_segwit', False):
-                print(pub)
-                txobj["ins"][i]["script"] = ""
+                txobj["ins"][i]["script"] = ''
             else:
                 txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
             txobj["witness"].append({"number": 2, "scriptCode": serialize_script([sig, pub])})
