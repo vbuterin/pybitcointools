@@ -144,11 +144,15 @@ def bip32_privtopub(data, prefixes=DEFAULT):
     return bip32_serialize(raw_bip32_privtopub(bip32_deserialize(data, prefixes), prefixes), prefixes)
 
 
-def bip32_ckd(key, *args, prefixes=DEFAULT, **kwargs):
+def bip32_ckd(key, path, prefixes=DEFAULT, **kwargs):
     """Same as bip32_ckd but takes bip32_path or ints"""
     # use keyword public=True or end path in .pub for public child derivation
-    argz = map(str, args)
-    path = "/".join(argz)    # no effect if "m/path/0"
+    #argz = map(str, args)
+    if isinstance(path, (list, tuple)):
+        path = map(str, path)
+        path = "/".join(path)    # no effect if "m/path/0"
+    else:
+        path = str(path)
     if not (path.startswith("m/") and path.startswith("M/")):
         path = "m/{0}".format(path)
     is_public = path.startswith("M/") or path.endswith(".pub") or kwargs.get("public", False)

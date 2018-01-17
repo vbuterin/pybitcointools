@@ -11,6 +11,7 @@ class HDWallet(object):
         self.new_receiving_addresses(num=num_addresses)
         self.new_change_addresses(num=num_addresses)
         self.is_watching_only = self.keystore.is_watching_only()
+        self.txin_type = 'p2pkh'
 
     def privkey(self, address, formt="wif", password=None):
         if self.is_watching_only:

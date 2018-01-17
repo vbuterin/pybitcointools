@@ -3,6 +3,7 @@ from pbkdf2 import PBKDF2
 import hmac
 from .py2specials import *
 from .py3specials import *
+from .wallet_utils import is_new_seed
 from bisect import bisect_left
 import unicodedata
 
@@ -185,11 +186,6 @@ def bip39_mnemonic_to_seed(mnemonic_phrase, passphrase=''):
 
 def electrum_mnemonic_to_seed(mnemonic_phrase, passphrase='', ):
     return mnemonic_to_seed(mnemonic_phrase, passphrase=passphrase, passphrase_prefix=b"electrum")
-
-def is_new_seed(x, prefix=SEED_PREFIX):
-    x = normalize_text(x)
-    s = safe_hexlify(mnemonic_to_seed(x, passphrase_prefix=b"Seed version"))
-    return s.startswith(prefix)
 
 def is_old_seed(seed):
     return False

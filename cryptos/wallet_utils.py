@@ -53,6 +53,7 @@ XPUB_HEADERS = {
 bh2u = safe_hexlify
 hfu = binascii.hexlify
 bfh = safe_from_hex
+hmac_sha_512 = lambda x, y: hmac.new(x, y, hashlib.sha512).digest()
 
 def rev_hex(s):
     return bh2u(bfh(s)[::-1])
@@ -73,7 +74,7 @@ except:
     AES = None
 
 class InvalidPasswordException(Exception):
-    raise Exception("Password is incorrect")
+    pass
 
 class InvalidPadding(Exception):
     pass
@@ -104,7 +105,8 @@ def strip_PKCS7_padding(data):
         raise InvalidPadding("invalid padding byte (large)")
     for i in data[-padlen:]:
         if i != padlen:
-            raise InvalidPadding("in
+            raise InvalidPadding("invalid padding byte (inconsistent)")
+    return data[0:-padlen]
 
 def aes_encrypt_with_iv(key, iv, data):
     assert_bytes(key, iv, data)
@@ -165,7 +167,8 @@ def pw_decode(s, password):
 
 def is_new_seed(x, prefix=version.SEED_PREFIX):
     from . import mnemonic
-    s = mnemonic.mnemonic_to_seed(x, passphrase_prefix=b"Seed version")
+    x = mnemonic.normalize_text(x)
+    s = bh2u(hmac_sha_512(b"Seed version", x.encode('utf8')))
     return s.startswith(prefix)
 
 def seed_type(x):

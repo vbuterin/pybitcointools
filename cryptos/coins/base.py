@@ -1,10 +1,8 @@
 from ..transaction import *
-from ..deterministic import electrum_pubkey
 from ..blocks import mk_merkle_proof
-from ..main import *
 from .. import segwit_addr
 from ..explorers import blockchain
-from ..keystore import *
+from ..keystore import from_electrum_seed, p2wpkh_from_bip39_seed, standard_from_bip39_seed
 from ..wallet import *
 from ..py3specials import *
 from ..py2specials import *
@@ -148,11 +146,7 @@ class BaseCoin(object):
         if self.segwit_hrp:
             witver, witprog = segwit_addr.decode(self.segwit_hrp, addr)
             if witprog is not None:
-                assert (0 <= witver <= 16)
-                OP_n = witver + 0x50 if witver > 0 else 0
-                script = safe_hexlify(bytes([OP_n]))
-                script += push_script(safe_hexlify(bytes(witprog)))
-                return script
+                return mk_p2w_scripthash_script(witver, witprog)
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
         else:
@@ -169,7 +163,7 @@ class BaseCoin(object):
 
     def privtop2w(self, priv):
         """
-        Convert a private key to a pay to witness public key hash address (P2WPKH, required for segwit)
+        Convert a private key to a pay to witness public key hash address
         """
         return self.pubtop2w(privtopub(priv))
 
@@ -179,11 +173,17 @@ class BaseCoin(object):
         """
         return segwit_addr.encode(self.segwit_hrp, 0, hash)
 
-    def public_key_to_p2wpkh(self, public_key):
+    def privtosegwit(self, privkey):
+        """
+        Convert a private key to the new segwit address format outlined in BIP01743
+        """
+        return self.pubtosegwit(self.privtopub(privkey))
+
+    def pubtosegwit(self, pubkey):
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
-        return self.hash_to_segwit_addr(hash160(public_key))
+        return self.hash_to_segwit_addr(pubkey_to_hash(pubkey))
 
     def script_to_p2wsh(self, script):
         """
@@ -206,6 +206,8 @@ class BaseCoin(object):
         """
         if not self.segwit_supported:
             return False
+        if self.segwit_hrp and addr.startswith(self.segwit_hrp):
+            return True
         segwit_addr = self.privtop2w(priv)
         return segwit_addr == addr
 
@@ -220,14 +222,18 @@ class BaseCoin(object):
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
-        if txobj['ins'][i].get('segwit', False):
+        if txobj['ins'][i].get('segwit', False) or txobj['ins'][i].get('new_segwit', False):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not supported for %s" % self.display_name)
             pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
             sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
-            txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
+            if txobj['ins'][i].get('new_segwit', False):
+                print(pub)
+                txobj["ins"][i]["script"] = ""
+            else:
+                txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
             txobj["witness"].append({"number": 2, "scriptCode": serialize_script([sig, pub])})
         else:
             address = self.pubtoaddr(pub)
@@ -280,13 +286,15 @@ class BaseCoin(object):
                 (ins if is_inp(arg) else outs).append(arg)
 
         txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
-        if any(isinstance(i, dict) and i.get("segwit", False) for i in ins):
-            segwit = True
+        if any(isinstance(i, dict) and (i.get("segwit", False) or i.get("new_segwit", False)) for i in ins):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
             txobj.update({"marker": 0, "flag": 1, "witness": []})
+            segwit = any(i.get("segwit", False) for i in ins)
+            new_segwit = any(i.get("new_segwit", False) for i in ins)
         else:
             segwit = False
+            new_segwit = False
         for i in ins:
             input = {'script': "", "sequence": 4294967295}
             if isinstance(i, dict) and "output" in i:
@@ -294,8 +302,12 @@ class BaseCoin(object):
                 input['amount'] = i.get("value", None)
                 if i.get("segwit", False):
                     input["segwit"] = True
+                elif i.get("new_segwit", False):
+                    input["new_segwit"] = True
                 elif segwit:
-                    input.update({'segwit': False, 'amount': 0})
+                    input.update({'segwit': True, 'amount': 0})
+                elif new_segwit:
+                    input.update({'new_segwit': True, 'amount': 0})
             else:
                 input["outpoint"] = {"hash": i[:64], "index": int(i[65:])}
                 input['amount'] = 0

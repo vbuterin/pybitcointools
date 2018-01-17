@@ -8,3 +8,5 @@ from .py3specials import *
 from .stealth import *
 from .transaction import *
 from .coins import *
+from .keystore import *
+from .wallet import *
