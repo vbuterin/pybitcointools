@@ -38,8 +38,10 @@ class KeyStore(object):
 
     def __init__(self, coin, addresses=()):
         self.coin=coin
-        self.bip39_prefixes = coin.bip39_prefixes
         self.addresses = list(addresses)
+        self.root_derivation = None
+        self.bip39_prefixes = ()
+        self.xtype = ''
 
     def has_seed(self):
         return False
@@ -216,7 +218,6 @@ class Xpub:
         self.xpub = None
         self.xpub_receive = None
         self.xpub_change = None
-        self.bip39_prefixes = coin.bip39_prefixes
 
     def get_master_public_key(self):
         return self.xpub
@@ -309,10 +310,14 @@ class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
 
     def add_xprv(self, xprv):
         self.xprv = xprv
-        self.xpub = bip32_privtopub(xprv)
+        self.xpub = bip32_privtopub(xprv, self.bip39_prefixes)
 
-    def add_xprv_from_seed(self, bip32_seed, xtype, derivation):
+    def add_xprv_from_seed(self, bip32_seed, xtype, derivation, electrum=False):
         self.root_derivation = derivation
+        self.xtype = xtype
+        self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
+                               encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
+        encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
         xprv = bip32_master_key(bip32_seed, self.bip39_prefixes)
         xprv = bip32_ckd(xprv, derivation, self.bip39_prefixes)
         self.add_xprv(xprv)
@@ -518,13 +523,13 @@ def from_electrum_seed(seed, passphrase, is_p2sh, coin):
         else:
             der = "m/1'/" if is_p2sh else "m/0'/"
             xtype = 'p2wsh' if is_p2sh else 'p2wpkh'
-        keystore.add_xprv_from_seed(bip32_seed, xtype, der)
+        keystore.add_xprv_from_seed(bip32_seed, xtype, der, electrum=True)
     else:
         raise BaseException(t)
     return keystore
 
-def from_private_key_list(text):
-    keystore = Imported_KeyStore({})
+def from_private_key_list(text, coin):
+    keystore = Imported_KeyStore({}, coin)
     for x in get_private_keys(text):
         keystore.import_key(x, None)
     return keystore

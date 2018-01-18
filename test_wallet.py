@@ -53,28 +53,90 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self.assertEqual(w.keystore.xprv, 'xprv9s21ZrQH143K32jECVM729vWgGq4mUDJCk1ozqAStTphzQtCTuoFmFafNoG1g55iCnBTXUzz3zWnDb5CVLGiFvmaZjuazHDL8a81cPQ8KL6')
         self.assertEqual(w.keystore.xpub, 'xpub661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52CwBdDWroaZf8U')
 
-        self.assertEqual(w.txin_type, 'p2pkh')
+        self.assertEqual(w.keystore.xtype, 'standard')
 
-        self.assertEqual(w.new_receiving_addresses()[0], '1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf')
-        self.assertEqual(w.new_change_addresses()[0], '1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D')
+        self.assertEqual(w.new_receiving_address(), '1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf')
+        self.assertEqual(w.new_change_address(), '1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D')
+
+        self.assertEqual(w.receiving_addresses, ['1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf'])
+        self.assertEqual(w.change_addresses, ['1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D'])
+
+        self.assertEqual(w.new_receiving_addresses(2), ['18KCZB4y7SKPmTGN2rDQuUsNxyVBX7CAbG', '15NuNdCwazxBd3y2MZin9qevuviA3pJe65'])
+        self.assertEqual(w.new_change_addresses(2), ['1GSmpT2UWuELEMEv6GmoAYZwmUY1oFsypn', '1B6yGxiPdW8y8Zp8TLVSFV2jdKDiy3fDWv'])
+
+        self.assertEqual(w.privkey('1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf', formt="wif_compressed"), "L4xstkeBfS6RbE6FezmKsHheFqktMMHQMsK7D1Hr5dvFbNhnekHM")
+        self.assertEqual(w.privkey('1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D', formt="wif_compressed"), "L3eak2Wbw2MVgJBTcjZwNz7Ty6nw9YbDEbzAXpPxfUEfpLfXbVkA")
+        self.assertEqual(w.privkey('18KCZB4y7SKPmTGN2rDQuUsNxyVBX7CAbG', formt="wif_compressed"), "KxERQEvau1865MuqPa1HdhKGMHAgsQJUq5XczC4rijEp7xj56hui")
+        self.assertEqual(w.privkey('1GSmpT2UWuELEMEv6GmoAYZwmUY1oFsypn', formt="wif_compressed"), "L35MWQyAYLjURUPcSYvFnVj4KwxXXL1PKkqdnPwrfT95a5QtFMhv")
+        self.assertEqual(w.privkey('15NuNdCwazxBd3y2MZin9qevuviA3pJe65', formt="wif_compressed"), "L46AzQn5yezvjNzgsNAPxZHCxm2rFXxDjrMzcnmBm1RJs4Gfp52P")
+        self.assertEqual(w.privkey('1B6yGxiPdW8y8Zp8TLVSFV2jdKDiy3fDWv', formt="wif_compressed"), "L4miHgBAdGnpTdXi2psXN1TUoXNASfzrF7RGQqVfzbUgzV5vmfzJ")
+
+    def test_electrum_seed_standard_testnet(self):
+        seed_words = 'cycle rocket west magnet parrot shuffle foot correct salt library feed song'
+        self.assertEqual(seed_type(seed_words), 'standard')
+
+        w = Bitcoin(testnet=True).electrum_wallet(seed_words)
+
+        self._check_seeded_keystore_sanity(w.keystore)
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
+
+        self.assertEqual(w.keystore.xprv, 'xprv9s21ZrQH143K32jECVM729vWgGq4mUDJCk1ozqAStTphzQtCTuoFmFafNoG1g55iCnBTXUzz3zWnDb5CVLGiFvmaZjuazHDL8a81cPQ8KL6')
+        self.assertEqual(w.keystore.xpub, 'xpub661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52CwBdDWroaZf8U')
+
+        self.assertEqual(w.keystore.xtype, 'standard')
+
+        self.assertEqual(w.new_receiving_address(), 'n2tiBwrzMwvXQwf7mxPUpqpNRwdyxwbNqT')
+        self.assertEqual(w.new_change_address(), 'myxcHbSfyKnmcN56xjzghckzx95XfYa75v')
+
+        self.assertEqual(w.receiving_addresses, ['n2tiBwrzMwvXQwf7mxPUpqpNRwdyxwbNqT'])
+        self.assertEqual(w.change_addresses, ['myxcHbSfyKnmcN56xjzghckzx95XfYa75v'])
+
+        self.assertEqual(w.new_receiving_addresses(2), ['mnq9rE9wvTkeYZjykRBnjQ5hpy5tQFS2VC', 'mjtrfgHvQ2PSQASe58h9yksFmvJrsmx3i7'])
+        self.assertEqual(w.new_change_addresses(2), ['mvxj7W7TKvfb1TiXoqkAzTnGdU8ie5Rmrv', 'mqcva1oNSXaDugHkAuTp5QF4VJpRroBguF'])
+
+        self.assertEqual(w.receiving_address(100), "moopS26mFMQdeyu8ycPQFXZS5mSYAbBT6r")
+
+        self.assertEqual(w.privkey('n2tiBwrzMwvXQwf7mxPUpqpNRwdyxwbNqT', formt="wif_compressed"), "cVKsMfe36VngkfZX3QaTEcCht54J1oP6RuTaKRkMakaFr7hRcH9c")
+        self.assertEqual(w.privkey('myxcHbSfyKnmcN56xjzghckzx95XfYa75v', formt="wif_compressed"), "cU1aCwWTN63kqjej19P4kJcXbL6LozguJe8deErUAatg55jcrjW4")
+        self.assertEqual(w.privkey('mnq9rE9wvTkeYZjykRBnjQ5hpy5tQFS2VC', formt="wif_compressed"), "cNbQs9vSL4pMEoP6mypR11pKyWU6XrQAu7g66cXNDqtpNhqNqKzr")
+        self.assertEqual(w.privkey('mjtrfgHvQ2PSQASe58h9yksFmvJrsmx3i7', formt="wif_compressed"), "cUTATKmwQihBtpTxFmyXKsnGazLFuz3uotWTjDDhG85K7oR9mKQs")
+        self.assertEqual(w.privkey('mvxj7W7TKvfb1TiXoqkAzTnGdU8ie5Rmrv', formt="wif_compressed"), "cTSLyKy1yQRjaurspxjP9pE7xBFwBn75Pnz6tpQNAZo5ppZ2qPvs")
+        self.assertEqual(w.privkey('mqcva1oNSXaDugHkAuTp5QF4VJpRroBguF', formt="wif_compressed"), "cV8hkbB24LV5d4zyREgejKxYRkfa786YK9ZjXFxBVi8hFE88Uqts")
+        self.assertEqual(w.privkey('moopS26mFMQdeyu8ycPQFXZS5mSYAbBT6r', formt="wif_compressed"), "cRCMQHdaJeA15bvRuHkPqzk46uikwpuzPUtLkMcraUHnx98BVnFH")
+
 
     def test_electrum_seed_segwit(self):
-        seed_words = 'sentence march such alter disorder office banner endless clump miracle olive club'
-        self.assertEqual(mnemonic.seed_type(seed_words), 'segwit')
+        seed_words = 'bitter grass shiver impose acquire brush forget axis eager alone wine silver'
+        self.assertEqual(seed_type(seed_words), 'segwit')
 
         w = Bitcoin().electrum_wallet(seed_words)
 
         self._check_seeded_keystore_sanity(w.keystore)
         self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        self.assertEqual(w.keystore.xprv, 'zprvAZD9X8PEspHJrYd5aDzr8RzgBibQcsHDdvWdhvidvWVPFdVjKb39oJreNwpVdV9aDQqDQAQoYLKj2iUUbCAJWfyctmsVN6Fy4UYKmFQPBcG')
-        self.assertEqual(w.keystore.xpub, 'zpub6nCVvdv8iBqc52hYgFXrVZwQjkRu2L1519SEWK8FUr2N8Rpss8MQM7B8ED9xcHw5hVvTNWWGLgnXZ2AWFp6A7DLQe3mbxhmiXniuzcF4g3i')
+        self.assertEqual(w.keystore.xprv, 'zprvAZswDvNeJeha8qZ8g7efN3FXYVJLaEUsE9TW6qXDEbVe74AZ75c2sZFZXPNFzxnhChDQ89oC8C5AjWwHmH1HeRKE1c4kKBQAmjUDdKDUZw2')
+        self.assertEqual(w.keystore.xpub, 'zpub6nsHdRuY92FsMKdbn9BfjBCG6X8pyhCibNP6uDvpnw2cyrVhecvHRMa3Ne8kdJZxjxgwnpbHLkcR4bfnhHy6auHPJyDTQ3kianeuVLdkCYQ')
 
         #self.assertEqual(w.txin_type, 'p2wpkh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af')
-        self.assertEqual(w.get_change_addresses()[0], 'bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p')
+        self.assertEqual(w.new_receiving_address(), 'bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af')
+        self.assertEqual(w.new_change_address(), 'bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p')
 
+        self.assertEqual(w.receiving_addresses, ['bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af'])
+        self.assertEqual(w.change_addresses, ['bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p'])
+
+        self.assertEqual(w.new_receiving_addresses(2), ['bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n', 'bc1qk8pyjanxrtv9039mz3muzjalfuk9r5xugm3803'])
+        self.assertEqual(w.new_change_addresses(2), ['bc1q6xwxcw6m9ga35687tnu5tstmsvmzjwdnzktemv', 'bc1qgl92qp6haea2ktxe93umzsyhv9z8u32xtvk3qk'])
+
+        self.assertEqual(w.receiving_address(100), "bc1ql6m8hpkst40p5g3fp6vkc69fysn8w9cpanuh09")
+
+        self.assertEqual(w.privkey('bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af', formt="wif_compressed"), "L9fSXYNxYWHJWUqrQ6yhZCAJXq6XsfvcJ1Y2EnMAZfLLRNVQswQj")
+        self.assertEqual(w.privkey('bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p', formt="wif_compressed"), "cU1aCwWTN63kqjej19P4kJcXbL6LozguJe8deErUAatg55jcrjW4")
+        self.assertEqual(w.privkey('bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n', formt="wif_compressed"), "cNbQs9vSL4pMEoP6mypR11pKyWU6XrQAu7g66cXNDqtpNhqNqKzr")
+        self.assertEqual(w.privkey('bc1qk8pyjanxrtv9039mz3muzjalfuk9r5xugm3803', formt="wif_compressed"), "cUTATKmwQihBtpTxFmyXKsnGazLFuz3uotWTjDDhG85K7oR9mKQs")
+        self.assertEqual(w.privkey('bc1q6xwxcw6m9ga35687tnu5tstmsvmzjwdnzktemv', formt="wif_compressed"), "cTSLyKy1yQRjaurspxjP9pE7xBFwBn75Pnz6tpQNAZo5ppZ2qPvs")
+        self.assertEqual(w.privkey('bc1qgl92qp6haea2ktxe93umzsyhv9z8u32xtvk3qk', formt="wif_compressed"), "cV8hkbB24LV5d4zyREgejKxYRkfa786YK9ZjXFxBVi8hFE88Uqts")
+        self.assertEqual(w.privkey('bc1ql6m8hpkst40p5g3fp6vkc69fysn8w9cpanuh09', formt="wif_compressed"), "cRCMQHdaJeA15bvRuHkPqzk46uikwpuzPUtLkMcraUHnx98BVnFH")
 
 
     def test_electrum_seed_segwit_testnet(self):

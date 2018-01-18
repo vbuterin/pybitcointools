@@ -26,9 +26,31 @@ class BaseCoin(object):
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
     hd_path = 0
-    xpriv_prefix = 0x0488ade4
-    xpub_prefix = 0x0488b21e
     wif_prefix = 0x80
+    wif_script_types = {
+        'p2pkh': 0,
+        'p2wpkh': 1,
+        'p2wpkh-p2sh': 2,
+        'p2sh': 5,
+        'p2wsh': 6,
+        'p2wsh-p2sh': 7
+    }
+    xprv_headers = {
+        'standard': 0x0488ade4,
+        'p2wpkh-p2sh': 0x049d7878,
+        'p2wsh-p2sh': 0x295b005,
+        'p2wpkh': 0x4b2430c,
+        'p2wsh': 0x2aa7a99
+    }
+    xpub_headers = {
+        'standard': 0x0488b21e,
+        'p2wpkh-p2sh': 0x049d7cb2,
+        'p2wsh-p2sh': 0x295b43f,
+        'p2wpkh': 0x4b24746,
+        'p2wsh': 0x2aa7ed3
+    }
+    electrum_xprv_headers = xprv_headers
+    electrum_xpub_headers = xpub_headers
 
 
     def __init__(self, testnet=False, **kwargs):
@@ -49,7 +71,6 @@ class BaseCoin(object):
             self.script_prefixes = magicbyte_to_prefix(magicbyte=self.script_magicbyte)
         else:
             self.script_prefixes = ()
-        self.bip39_prefixes = (encode(self.xpriv_prefix, 256, 4), encode(self.xpub_prefix, 256, 4))
 
     def unspent(self, *addrs):
         """
@@ -505,29 +526,22 @@ class BaseCoin(object):
             raise Exception("Merkle proof failed because transaction %s is not part of the main chain" % txhash)
         return mk_merkle_proof(blockinfo, hashes, i)
 
-    def privkey_to_wif(self, privkey):
-        return encode_privkey(privkey, formt="wif", vbyte=self.wif_prefix)
+    def encode_privkey(self, privkey, formt, script_type="p2pkh"):
+        return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
-    def privkey_to_wif_compressed(self, privkey):
-        return encode_privkey(privkey, formt="wif_compressed", vbyte=self.wif_prefix)
-
-    def wallet(self, seed, passphrase=None):
+    def wallet(self, seed, passphrase=None, **kwargs):
         ks = standard_from_bip39_seed(seed, passphrase, coin=self)
-        return HDWallet(ks)
+        return HDWallet(ks, **kwargs)
 
-    def p2sh_p2wpkh_wallet(self, seed, passphrase=None):
+    def p2sh_p2wpkh_wallet(self, seed, passphrase=None, **kwargs):
         if not self.segwit_supported:
             raise Exception("Segwit not enabled for this coin")
         ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
-        return HDWallet(ks)
+        return HDWallet(ks, **kwargs)
 
-    def p2wpkh_wallet(self, seed, passphrase=None):
+    def p2wpkh_wallet(self, seed, passphrase=None, **kwargs):
         raise Exception("p2wpkh_wallets not enabled yet. For segwit, use p2sh_p2wpkh_wallet")
 
-    def electrum_wallet(self, seed, passphrase=None):
+    def electrum_wallet(self, seed, passphrase=None, **kwargs):
         ks = from_electrum_seed(seed, passphrase, False, coin=self)
-        return HDWallet(ks)
-
-    def electrum_p2sh_wallet(self, seed, passphrase=None):
-        ks = from_electrum_seed(seed, passphrase, True, coin=self)
-        return HDWallet(ks)
+        return HDWallet(ks, **kwargs)

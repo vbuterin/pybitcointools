@@ -2,18 +2,18 @@ from .main import *
 from .keystore import xpubkey_to_address
 
 class HDWallet(object):
-    def __init__(self, keystore, num_addresses=0):
+
+    def __init__(self, keystore, num_addresses=0, last_receiving_index=0, last_change_index=0):
         self.coin = keystore.coin
         self.keystore = keystore
         self.addresses = {}
-        self.last_receiving_index = 0
-        self.last_change_index = 0
+        self.last_receiving_index = last_receiving_index
+        self.last_change_index = last_change_index
         self.new_receiving_addresses(num=num_addresses)
         self.new_change_addresses(num=num_addresses)
         self.is_watching_only = self.keystore.is_watching_only()
-        self.txin_type = 'p2pkh'
 
-    def privkey(self, address, formt="wif", password=None):
+    def privkey(self, address, formt="wif_compressed", password=None):
         if self.is_watching_only:
             return
         try:
@@ -22,7 +22,7 @@ class HDWallet(object):
             raise Exception("Address %s has not been generated yet. Generate new addresses with \
                             new_receiving_addresses or new_change_addresses methods" % address)
         pk, compressed = self.keystore.get_private_key(addr_derivation, password)
-        return decode_privkey(pk, formt)
+        return self.coin.encode_privkey(pk, formt)
 
     def export_privkeys(self, password=None):
         if self.is_watching_only:
@@ -33,42 +33,54 @@ class HDWallet(object):
         }
 
     def pubkey_receiving(self, index):
-        return self.keystore.derive_pubkey(False, index)
+        return self.keystore.derive_pubkey(0, index)
 
     def pubkey_change(self, index):
-        return self.keystore.derive_pubkey(True, index)
+        return self.keystore.derive_pubkey(1, index)
 
     def pubtoaddr(self, pubkey):
-        return xpubkey_to_address(pubkey, coin=self.coin)[1]
+        if self.keystore.xtype == "standard":
+            return self.coin.pubtoaddr(pubkey)
+        elif self.keystore.xtype == "p2wpkh":
+            return self.coin.pubtosegwit(pubkey)
 
     def receiving_address(self, index):
         pubkey = self.pubkey_receiving(index)
         address = self.pubtoaddr(pubkey)
-        self.addresses[address] = (False, index)
+        self.addresses[address] = (0, index)
         return address
 
     def change_address(self, index):
         pubkey = self.pubkey_change(index)
         address = self.pubtoaddr(pubkey)
-        self.addresses[address] = (True, index)
+        self.addresses[address] = (1, index)
         return address
 
     @property
     def receiving_addresses(self):
-        return [addr for addr in self.addresses.keys() if not self.addresses[addr]['change']]
+        return [addr for addr in self.addresses.keys() if not self.addresses[addr][0]]
 
     @property
     def change_addresses(self):
-        return [addr for addr in self.addresses.keys() if self.addresses[addr]['change']]
+        return [addr for addr in self.addresses.keys() if self.addresses[addr][0]]
 
-    def new_address_range(self, num):
-        return range(self.last_receiving_index, self.last_receiving_index+num)
+    def new_receiving_address_range(self, num):
+        index = self.last_receiving_index
+        return range(index, index+num)
+
+    def new_change_address_range(self, num):
+        index = self.last_change_index
+        return range(index, index+num)
 
     def new_receiving_addresses(self, num=10):
-        return list(map(self.receiving_address, self.new_address_range(num)))
+        addresses = list(map(self.receiving_address, self.new_receiving_address_range(num)))
+        self.last_receiving_index += num
+        return addresses
 
     def new_change_addresses(self, num=10):
-        return list(map(self.change_address, self.new_address_range(num)))
+        addresses = list(map(self.change_address, self.new_change_address_range(num)))
+        self.last_change_index += num
+        return addresses
 
     def new_receiving_address(self):
         return self.new_receiving_addresses(num=1)[0]
@@ -106,3 +118,6 @@ class HDWallet(object):
 
     def is_change(self, address):
         return address in self.change_addresses
+
+class HDNewSegwitWallet(HDWallet):
+    txin_type = 'p2wpkh'

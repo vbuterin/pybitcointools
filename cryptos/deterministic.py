@@ -164,7 +164,7 @@ def bip32_master_key(seed, prefixes=DEFAULT):
             from_string_to_bytes(seed), 
             hashlib.sha512
         ).digest()
-    return bip32_serialize((prefixes[0], 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'))
+    return bip32_serialize((prefixes[0], 0, b'\x00'*4, 0, I[32:], I[:32]+b'\x01'), prefixes)
 
 
 def bip32_bin_extract_key(data, prefixes=DEFAULT):
@@ -241,8 +241,8 @@ def parse_bip32_path(path):
     path = path.lstrip("m/").rstrip(".pub")
     if not path:
         return []
-    elif path.endswith("/"):
-        path += "0"
+    #elif path.endswith("/"):       incorrect for electrum segwit
+    #    path += "0"
     patharr = []
     for v in path.split('/'):
         if not v: 
