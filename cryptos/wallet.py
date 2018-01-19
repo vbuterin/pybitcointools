@@ -19,10 +19,10 @@ class HDWallet(object):
         try:
             addr_derivation = self.addresses[address]
         except KeyError:
-            raise Exception("Address %s has not been generated yet. Generate new addresses with \
-                            new_receiving_addresses or new_change_addresses methods" % address)
+            raise Exception(
+                "Address %s has not been generated yet. Generate new addresses with new_receiving_addresses or new_change_addresses methods" % address)
         pk, compressed = self.keystore.get_private_key(addr_derivation, password)
-        return self.coin.encode_privkey(pk, formt)
+        return self.coin.encode_privkey(pk, formt, script_type=self.keystore.xtype)
 
     def export_privkeys(self, password=None):
         if self.is_watching_only:
@@ -39,10 +39,12 @@ class HDWallet(object):
         return self.keystore.derive_pubkey(1, index)
 
     def pubtoaddr(self, pubkey):
-        if self.keystore.xtype == "standard":
+        if self.keystore.xtype == "p2pkh":
             return self.coin.pubtoaddr(pubkey)
         elif self.keystore.xtype == "p2wpkh":
             return self.coin.pubtosegwit(pubkey)
+        elif self.keystore.xtype == "p2wpkh-p2sh":
+            return self.coin.pubtop2w(pubkey)
 
     def receiving_address(self, index):
         pubkey = self.pubkey_receiving(index)
@@ -118,6 +120,23 @@ class HDWallet(object):
 
     def is_change(self, address):
         return address in self.change_addresses
+
+    def account(self, address, password=None):
+        derivation = self.addresses[address][0]
+        privkey = self.privkey(address, formt="wif_compressed", password=password)
+        pub = self.coin.privtopub(privkey)
+        derivation = "%s/%s'/%s" % (self.keystore.root_derivation, derivation[0], derivation[1])
+        return (derivation, privkey, pub, address)
+
+    def details(self, password=None):
+        return {
+            'type': "%s %s" % ("Electrum" if self.keystore.electrum else "BIP39", self.keystore.xtype),
+            'xkeys': (self.keystore.root_derivation, self.keystore.xpriv, self.keystore.xpub),
+            'xreceiving': (),
+            'xchange': (),
+            'receiving': [self.account(a, password=password) for a in self.receiving_addresses],
+            'change': [self.account(a, password=password) for a in self.change_addresses]
+        }
 
 class HDNewSegwitWallet(HDWallet):
     txin_type = 'p2wpkh'

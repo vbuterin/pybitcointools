@@ -50,10 +50,10 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self._check_seeded_keystore_sanity(w.keystore)
         self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
+        self.assertEqual(w.keystore.xtype, 'p2pkh')
+
         self.assertEqual(w.keystore.xprv, 'xprv9s21ZrQH143K32jECVM729vWgGq4mUDJCk1ozqAStTphzQtCTuoFmFafNoG1g55iCnBTXUzz3zWnDb5CVLGiFvmaZjuazHDL8a81cPQ8KL6')
         self.assertEqual(w.keystore.xpub, 'xpub661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52CwBdDWroaZf8U')
-
-        self.assertEqual(w.keystore.xtype, 'standard')
 
         self.assertEqual(w.new_receiving_address(), '1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf')
         self.assertEqual(w.new_change_address(), '1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D')
@@ -80,10 +80,10 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self._check_seeded_keystore_sanity(w.keystore)
         self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
+        self.assertEqual(w.keystore.xtype, 'p2pkh')
+
         self.assertEqual(w.keystore.xprv, 'xprv9s21ZrQH143K32jECVM729vWgGq4mUDJCk1ozqAStTphzQtCTuoFmFafNoG1g55iCnBTXUzz3zWnDb5CVLGiFvmaZjuazHDL8a81cPQ8KL6')
         self.assertEqual(w.keystore.xpub, 'xpub661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52CwBdDWroaZf8U')
-
-        self.assertEqual(w.keystore.xtype, 'standard')
 
         self.assertEqual(w.new_receiving_address(), 'n2tiBwrzMwvXQwf7mxPUpqpNRwdyxwbNqT')
         self.assertEqual(w.new_change_address(), 'myxcHbSfyKnmcN56xjzghckzx95XfYa75v')
@@ -104,7 +104,6 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self.assertEqual(w.privkey('mqcva1oNSXaDugHkAuTp5QF4VJpRroBguF', formt="wif_compressed"), "cV8hkbB24LV5d4zyREgejKxYRkfa786YK9ZjXFxBVi8hFE88Uqts")
         self.assertEqual(w.privkey('moopS26mFMQdeyu8ycPQFXZS5mSYAbBT6r', formt="wif_compressed"), "cRCMQHdaJeA15bvRuHkPqzk46uikwpuzPUtLkMcraUHnx98BVnFH")
 
-
     def test_electrum_seed_segwit(self):
         seed_words = 'bitter grass shiver impose acquire brush forget axis eager alone wine silver'
         self.assertEqual(seed_type(seed_words), 'segwit')
@@ -114,10 +113,10 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self._check_seeded_keystore_sanity(w.keystore)
         self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
+        self.assertEqual(w.keystore.xtype, 'p2wpkh')
+
         self.assertEqual(w.keystore.xprv, 'zprvAZswDvNeJeha8qZ8g7efN3FXYVJLaEUsE9TW6qXDEbVe74AZ75c2sZFZXPNFzxnhChDQ89oC8C5AjWwHmH1HeRKE1c4kKBQAmjUDdKDUZw2')
         self.assertEqual(w.keystore.xpub, 'zpub6nsHdRuY92FsMKdbn9BfjBCG6X8pyhCibNP6uDvpnw2cyrVhecvHRMa3Ne8kdJZxjxgwnpbHLkcR4bfnhHy6auHPJyDTQ3kianeuVLdkCYQ')
-
-        #self.assertEqual(w.txin_type, 'p2wpkh')
 
         self.assertEqual(w.new_receiving_address(), 'bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af')
         self.assertEqual(w.new_change_address(), 'bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p')
@@ -131,160 +130,217 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self.assertEqual(w.receiving_address(100), "bc1ql6m8hpkst40p5g3fp6vkc69fysn8w9cpanuh09")
 
         self.assertEqual(w.privkey('bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af', formt="wif_compressed"), "L9fSXYNxYWHJWUqrQ6yhZCAJXq6XsfvcJ1Y2EnMAZfLLRNVQswQj")
-        self.assertEqual(w.privkey('bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p', formt="wif_compressed"), "cU1aCwWTN63kqjej19P4kJcXbL6LozguJe8deErUAatg55jcrjW4")
-        self.assertEqual(w.privkey('bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n', formt="wif_compressed"), "cNbQs9vSL4pMEoP6mypR11pKyWU6XrQAu7g66cXNDqtpNhqNqKzr")
-        self.assertEqual(w.privkey('bc1qk8pyjanxrtv9039mz3muzjalfuk9r5xugm3803', formt="wif_compressed"), "cUTATKmwQihBtpTxFmyXKsnGazLFuz3uotWTjDDhG85K7oR9mKQs")
-        self.assertEqual(w.privkey('bc1q6xwxcw6m9ga35687tnu5tstmsvmzjwdnzktemv', formt="wif_compressed"), "cTSLyKy1yQRjaurspxjP9pE7xBFwBn75Pnz6tpQNAZo5ppZ2qPvs")
-        self.assertEqual(w.privkey('bc1qgl92qp6haea2ktxe93umzsyhv9z8u32xtvk3qk', formt="wif_compressed"), "cV8hkbB24LV5d4zyREgejKxYRkfa786YK9ZjXFxBVi8hFE88Uqts")
-        self.assertEqual(w.privkey('bc1ql6m8hpkst40p5g3fp6vkc69fysn8w9cpanuh09', formt="wif_compressed"), "cRCMQHdaJeA15bvRuHkPqzk46uikwpuzPUtLkMcraUHnx98BVnFH")
-
+        self.assertEqual(w.privkey('bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p', formt="wif_compressed"), "L8rPGyfyzdLLEzxuBeC87Jvpp8FKxwrRtmkZ2PkRmRjqxNF8TVwG")
+        self.assertEqual(w.privkey('bc1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nq604y2n', formt="wif_compressed"), "LDSB7EmiqX25GkFpzJi7cnNBhpyrUaGLSJiqGu8oKJcH7q91dwaL")
+        self.assertEqual(w.privkey('bc1qk8pyjanxrtv9039mz3muzjalfuk9r5xugm3803', formt="wif_compressed"), "LD8dYgymFBKz2mju2KsaKHe2AuisXCTSgaiRkHaVbrzuUsNkA24U")
+        self.assertEqual(w.privkey('bc1q6xwxcw6m9ga35687tnu5tstmsvmzjwdnzktemv', formt="wif_compressed"), "L7NeR6r9yU2n4zddxTCUpKYmzugYuouyLsCZR9naTqkBW6sjpxDM")
+        self.assertEqual(w.privkey('bc1qgl92qp6haea2ktxe93umzsyhv9z8u32xtvk3qk', formt="wif_compressed"), "L6mxN5yrGMdbVFM7ihxFMUi7fsj9gmC3GFqsCa2an25SKdyqpUyR")
+        self.assertEqual(w.privkey('bc1ql6m8hpkst40p5g3fp6vkc69fysn8w9cpanuh09', formt="wif_compressed"), "LAc21LGaLeN8bfAFwGHUFqPbu1cazb53ycaHWRBykrpwoVf5ZC3N")
 
     def test_electrum_seed_segwit_testnet(self):
-        seed_words = 'sentence march such alter disorder office banner endless clump miracle olive club'
-        self.assertEqual(mnemonic.seed_type(seed_words), 'segwit')
+        seed_words = 'bitter grass shiver impose acquire brush forget axis eager alone wine silver'
+        self.assertEqual(seed_type(seed_words), 'segwit')
 
-        b = Bitcoin(testnet=True)
-        w = b.electrum_wallet(seed_words)
+        w = Bitcoin(testnet=True).electrum_wallet(seed_words)
 
         self._check_seeded_keystore_sanity(w.keystore)
         self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        #self.assertEqual(w.keystore.xprv, 'zprvAZD9X8PEspHJrYd5aDzr8RzgBibQcsHDdvWdhvidvWVPFdVjKb39oJreNwpVdV9aDQqDQAQoYLKj2iUUbCAJWfyctmsVN6Fy4UYKmFQPBcG')
-        #self.assertEqual(w.keystore.xpub, 'zpub6nCVvdv8iBqc52hYgFXrVZwQjkRu2L1519SEWK8FUr2N8Rpss8MQM7B8ED9xcHw5hVvTNWWGLgnXZ2AWFp6A7DLQe3mbxhmiXniuzcF4g3i')
+        self.assertEqual(w.keystore.xtype, 'p2wpkh')
 
-        #self.assertEqual(w.txin_type, 'p2wpkh')
+        self.assertEqual(w.keystore.xprv, 'zprvAZswDvNeJeha8qZ8g7efN3FXYVJLaEUsE9TW6qXDEbVe74AZ75c2sZFZXPNFzxnhChDQ89oC8C5AjWwHmH1HeRKE1c4kKBQAmjUDdKDUZw2')
+        self.assertEqual(w.keystore.xpub, 'zpub6nsHdRuY92FsMKdbn9BfjBCG6X8pyhCibNP6uDvpnw2cyrVhecvHRMa3Ne8kdJZxjxgwnpbHLkcR4bfnhHy6auHPJyDTQ3kianeuVLdkCYQ')
 
-        #self.assertEqual(w.get_receiving_addresses()[0], 'tb1quga0krzj8y95r8lu40wcje5dj3uz83ve4uhaju')
-        #self.assertEqual(w.get_change_addresses()[0], 'tb1qy8uwwnlpmyxz8m3wh988sf9pf0fdtfdupwzvep')
+        self.assertEqual(w.new_receiving_address(), 'tb1q3g5tmkmlvxryhh843v4dz026avatc0zzfuvzx6')
+        self.assertEqual(w.new_change_address(), 'tb1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzjncg43j')
 
-        ins = [{'value': 103838800, 'output': 'd3ceac98c9ae8274bf16cb41cef875c065ac8ff10bf7723f581b24ef3f241229:1', 'new_segwit': True}]
-        outs = [{'address': 'tb1qy8uwwnlpmyxz8m3wh988sf9pf0fdtfdupwzvep', 'value': 50000}, {'address': 'tb1quga0krzj8y95r8lu40wcje5dj3uz83ve4uhaju', 'value': 103738800}]
+        self.assertEqual(w.receiving_addresses, ['tb1q3g5tmkmlvxryhh843v4dz026avatc0zzfuvzx6'])
+        self.assertEqual(w.change_addresses, ['tb1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzjncg43j'])
 
-        tx = b.mktx(ins, outs)
-        #tx = b.sign(tx, 0, "cWzvh67QKHKpLeemzJvXhYqfckTjL3BCS1Veu18q3waQjWTZC2cJ")
-        tx = b.sign(tx, 0, "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f")
-        tx = serialize(tx)
-        print(tx)
-        response = b.pushtx(tx)
-        print(response)
-        if hasattr(response, "text"):
-            print(response.text)
+        self.assertEqual(w.new_receiving_addresses(2), ['tb1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nqsfwh3q', 'tb1qk8pyjanxrtv9039mz3muzjalfuk9r5xuza255z'])
+        self.assertEqual(w.new_change_addresses(2), ['tb1q6xwxcw6m9ga35687tnu5tstmsvmzjwdngss2ql', 'tb1qgl92qp6haea2ktxe93umzsyhv9z8u32xp2dzm9'])
 
+        self.assertEqual(w.receiving_address(100), "tb1ql6m8hpkst40p5g3fp6vkc69fysn8w9cph48y5k")
 
-    def test_electrum_seed_old(self):
-        seed_words = 'powerful random nobody notice nothing important anyway look away hidden message over'
-        self.assertEqual(bitcoin.seed_type(seed_words), 'old')
+        self.assertEqual(w.privkey('tb1q3g5tmkmlvxryhh843v4dz026avatc0zzfuvzx6', formt="wif_compressed"), "ca2RzTNoyZyZfvK7nWnpvWfNA4PwY82JN3gVMCog4mzLg7ZXqxBk")
+        self.assertEqual(w.privkey('tb1q9pzjpjq4nqx5ycnywekcmycqz0wjp2nqsfwh3q', formt="wif_compressed"), "cdoAa9maGaiLSBj6NiXEz6sFL4HG92N2WLsJPKbJpRGHNaGEA4UC")
+        self.assertEqual(w.privkey('tb1qk8pyjanxrtv9039mz3muzjalfuk9r5xuza255z', formt="wif_compressed"), "cdVd1bycgF2FCDDAQjghgc95o92HBeZ8kcrtri316yeujcQTpjK1")
+        self.assertEqual(w.privkey('tb1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzjncg43j', formt="wif_compressed"), "cZDNjtfqRh2bQSSAa41FUdRtSMYjdPx7xou28pCwGYPrD7NVebpU")
+        self.assertEqual(w.privkey('tb1q6xwxcw6m9ga35687tnu5tstmsvmzjwdngss2ql', formt="wif_compressed"), "cXjdt1r1QXj3ES6uLs1cBe3qd8yxaG1fQuM2XaF5xxQBkr1FMkLc")
+        self.assertEqual(w.privkey('tb1qgl92qp6haea2ktxe93umzsyhv9z8u32xp2dzm9', formt="wif_compressed"), "cX8wpzyhhRKregpP77mNioDBJ72ZMDHjLHzLJzV6H8jSaP5JETEF")
+        self.assertEqual(w.privkey('tb1ql6m8hpkst40p5g3fp6vkc69fysn8w9cph48y5k', formt="wif_compressed"), "cay1UFGRmi4Pm6dXKg6bd9tfXEuzf3Ak3eikcqeVFyUx4EpkNrzL")
 
-        ks = keystore.from_seed(seed_words, '', False)
-
-        self._check_seeded_keystore_sanity(ks)
-        self.assertTrue(isinstance(ks, keystore.Old_KeyStore))
-
-        self.assertEqual(ks.mpk, 'e9d4b7866dd1e91c862aebf62a49548c7dbf7bcc6e4b7b8c9da820c7737968df9c09d5a3e271dc814a29981f81b3faaf2737b551ef5dcc6189cf0f8252c442b3')
-
-        w = self._create_standard_wallet(ks)
-        self.assertEqual(w.txin_type, 'p2pkh')
-
-        self.assertEqual(w.get_receiving_addresses()[0], '1FJEEB8ihPMbzs2SkLmr37dHyRFzakqUmo')
-        self.assertEqual(w.get_change_addresses()[0], '1KRW8pH6HFHZh889VDq6fEKvmrsmApwNfe')
-
-    def test_electrum_seed_2fa(self):
-        seed_words = 'kiss live scene rude gate step hip quarter bunker oxygen motor glove'
-        self.assertEqual(bitcoin.seed_type(seed_words), '2fa')
-
-        xprv1, xpub1, xprv2, xpub2 = trustedcoin.TrustedCoinPlugin.xkeys_from_seed(seed_words, '')
-
-        ks1 = keystore.from_xprv(xprv1)
-        self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xprv, 'xprv9uraXy9F3HP7i8QDqwNTBiD8Jf4bPD4Epif8cS8qbUbgeidUesyZpKmzfcSeHutsGfFnjgih7kzwTB5UQVRNB5LoXaNc8pFusKYx3KVVvYR')
-        self.assertEqual(ks1.xpub, 'xpub68qvwUg8sewQvcUgwxuTYr9rrgu5nfn6BwajQpYT9p8fXWxdCRHpN86UWruWJAD1ede8Sv8ERrTa22Gyc4SBfm7zFpcyoVWVBKCVwnw6s1J')
-        self.assertEqual(ks1.xpub, xpub1)
-
-        ks2 = keystore.from_xprv(xprv2)
-        self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
-        self.assertEqual(ks2.xprv, 'xprv9uraXy9F3HP7kKSiRAvLV7Nrjj7YzspDys7dvGLLu4tLZT49CEBxPWp88dHhVxvZ69SHrPQMUCWjj4Ka2z9kNvs1HAeEf3extGGeSWqEVqf')
-        self.assertEqual(ks2.xpub, 'xpub68qvwUg8sewQxoXBXCTLrFKbHkx3QLY5M63EiejxTQRKSFPHjmWCwK8byvZMM2wZNYA3SmxXoma3M1zxhGESHZwtB7SwrxRgKXAG8dCD2eS')
-        self.assertEqual(ks2.xpub, xpub2)
-
-        long_user_id, short_id = trustedcoin.get_user_id(
-            {'x1/': {'xpub': xpub1},
-             'x2/': {'xpub': xpub2}})
-        xpub3 = trustedcoin.make_xpub(trustedcoin.signing_xpub, long_user_id)
-        ks3 = keystore.from_xpub(xpub3)
-        self._check_xpub_keystore_sanity(ks3)
-        self.assertTrue(isinstance(ks3, keystore.BIP32_KeyStore))
-
-        w = self._create_multisig_wallet(ks1, ks2, ks3)
-        self.assertEqual(w.txin_type, 'p2sh')
-
-        self.assertEqual(w.get_receiving_addresses()[0], '35L8XmCDoEBKeaWRjvmZvoZvhp8BXMMMPV')
-        self.assertEqual(w.get_change_addresses()[0], '3PeZEcumRqHSPNN43hd4yskGEBdzXgY8Cy')
 
     def test_bip39_seed_bip44_standard(self):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/0'/0'")
+        w = Bitcoin().wallet(seed_words)
 
-        master_private_key = ks.get_master_private_key(None)
-        master_public_key = ks.get_master_public_key()
-        privkey = ks.get_private_key((False, 0), None)
-        pubkey = ks.get_pubkey_from_xpub(master_public_key, (False, 0))
-        pubkey2 = ks.derive_pubkey(False, 0)
-        self.assertEqual(pubkey, pubkey2)
-        self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xprv, 'xprv9zGLcNEb3cHUKizLVBz6RYeE9bEZAVPjH2pD1DEzCnPcsemWc3d3xTao8sfhfUmDLMq6e3RcEMEvJG1Et8dvfL8DV4h7mwm9J6AJsW9WXQD')
-        self.assertEqual(ks.xpub, 'xpub6DFh1smUsyqmYD4obDX6ngaxhd53Zx7aeFjoobebm7vbkT6f9awJWFuGzBT9FQJEWFBL7UyhMXtYzRcwDuVbcxtv9Ce2W9eMm4KXLdvdbjv')
+        self.assertEqual(w.keystore.xprv, 'xprv9zGLcNEb3cHUKizLVBz6RYeE9bEZAVPjH2pD1DEzCnPcsemWc3d3xTao8sfhfUmDLMq6e3RcEMEvJG1Et8dvfL8DV4h7mwm9J6AJsW9WXQD')
+        self.assertEqual(w.keystore.xpub, 'xpub6DFh1smUsyqmYD4obDX6ngaxhd53Zx7aeFjoobebm7vbkT6f9awJWFuGzBT9FQJEWFBL7UyhMXtYzRcwDuVbcxtv9Ce2W9eMm4KXLdvdbjv')
 
-        w = self._create_standard_wallet(ks)
+        self.assertEqual(w.keystore.xtype, 'p2pkh')
 
-        password = "abcd1234"
-        w.update_password(None, password)
-        ks.check_password(password)
-        w.check_password(password)
-        pkey = ks.get_private_key((False, 0), password)
+        self.assertEqual(w.new_receiving_address(), '16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo')
+        self.assertEqual(w.new_change_address(), '1GG5bVeWgAp5XW7JLCphse14QaC4qiHyWn')
+
+        self.assertEqual(w.receiving_addresses, ['16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo'])
+        self.assertEqual(w.change_addresses, ['1GG5bVeWgAp5XW7JLCphse14QaC4qiHyWn'])
+
+        self.assertEqual(w.new_receiving_addresses(2), ['1K9UsDbEEe2SfKUMTh8B7ZPyYLHeB3f2j7', '1DpbsAw25KyyKwG6oGPCZBPJK7WnL2bKZ9'])
+        self.assertEqual(w.new_change_addresses(2), ['15D5w9aZQpcmGfKoQrrVMHRYGdDzyFDkre', '17ABdZyMVWfU2tZEZWUAXPMsD8wTgcbmum'])
+
+        self.assertEqual(w.receiving_address(100), "14TUbjfoT4EKjdyjjUpP3LSBjXMGf87K2Q")
+
+        self.assertEqual(w.privkey('16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo', formt="wif_compressed"), "L422visYK6FZnmxowLYEof4ty8FvqEUS7YJuNi6Y2hWUqRuDt3qK")
+        self.assertEqual(w.privkey('1K9UsDbEEe2SfKUMTh8B7ZPyYLHeB3f2j7', formt="wif_compressed"), "L1HdAazBSe52DxsHv8tXwS1gPAMEXmCXPrUQRTCqd34naS6d28Mk")
+        self.assertEqual(w.privkey('1DpbsAw25KyyKwG6oGPCZBPJK7WnL2bKZ9', formt="wif_compressed"), "Kz9fHKgCQdYBgmHSFBMZmgAWUV7zkx6VvUUhS7LuxHaAZXkiG59v")
+        self.assertEqual(w.privkey('1GG5bVeWgAp5XW7JLCphse14QaC4qiHyWn', formt="wif_compressed"), "KxzBNXidRYKuwyeZmHPikUsN4eVXP4agnqbcXToQkMb5sBSahsL3")
+        self.assertEqual(w.privkey('15D5w9aZQpcmGfKoQrrVMHRYGdDzyFDkre', formt="wif_compressed"), "L59fod5uqjBgouaUMyTdq5Nt8Dho5xeZvxCuZLF8V77zXb7pLSMC")
+        self.assertEqual(w.privkey('17ABdZyMVWfU2tZEZWUAXPMsD8wTgcbmum', formt="wif_compressed"), "L4EyTu44oxXpVynitaUQ9Uf7Sw3EoYEGs1GFXaxb6KQATViskWZP")
+        self.assertEqual(w.privkey('14TUbjfoT4EKjdyjjUpP3LSBjXMGf87K2Q', formt="wif_compressed"), "L3n4ZyY1YWV8Kyyn8HbRZNgRoyucUJKyFsbdvjNX7vWr5iRfsyoY")
 
 
-        self.assertEqual(w.txin_type, 'p2pkh')
+    def test_bip39_seed_bip44_standard_testnet(self):
+        seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
+        self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        self.assertEqual(w.get_receiving_addresses()[0], '16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo')
-        self.assertEqual(w.get_change_addresses()[0], '1GG5bVeWgAp5XW7JLCphse14QaC4qiHyWn')
+        w = Bitcoin(testnet=True).wallet(seed_words)
+
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
+
+        self.assertEqual(w.keystore.xprv, 'tprv8ge9CLX5ncJTveX12FSB4BFuuybSL5czL7csLyhEiWTAfqSuSHcdm9DkZTeHjmnRg5YA4tkMpGLqS5irHFUj8hG3USykMt99CjtK8dPKKXW')
+        self.assertEqual(w.keystore.xpub, 'tpubDDLBLkZKvyz8p7Ynuu6mTav2V17NVQotuRDedVjY8nFZWKhg4gSDwdqcjbkwqyiMUrxXn4qcpkK2zrmS3nAViMN3iWkyai4VXz5vUJN7Qw8')
+
+        self.assertEqual(w.keystore.xtype, 'p2pkh')
+
+        self.assertEqual(w.new_receiving_address(), 'mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao')
+        self.assertEqual(w.new_change_address(), 'mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2')
+
+        self.assertEqual(w.receiving_addresses, ['mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao'])
+        self.assertEqual(w.change_addresses, ['mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2'])
+
+        self.assertEqual(w.new_receiving_addresses(2), ['mzmqnjPcfektxejUxSjiTAj5GW7Vt2QYtQ', 'mxrgiks6xVKRRiWpBqrQGoFiFY9y3QcFvq'])
+        self.assertEqual(w.new_change_addresses(2), ['n2M9d3U6bfLvGxZr5MDs3MLN9fHxn4bgLB', 'mp7Seq8Gm1QAQnHdib1NS6pxU5AbNLfzk5'])
+
+        self.assertEqual(w.receiving_address(100), "mgTxZQbaGif6Hsdj88D3vF7SqXP34mW7Y6")
+        self.assertEqual(len(w.receiving_addresses), 4)
+        self.assertEqual(len(w.change_addresses), 3)
+
+        self.assertEqual(w.privkey('mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao', formt="wif_compressed"), "cQrA8q59oRha45Epvd5JeUPcVByCU1rqtK7pUeJZpecnJ97c7qQ9")
+        self.assertEqual(w.privkey('mzmqnjPcfektxejUxSjiTAj5GW7Vt2QYtQ', formt="wif_compressed"), "cMx52abNoK83sjzNSFjiRRyiN2dhqE3eGXYUR61qjQBaguASWN8m")
+        self.assertEqual(w.privkey('mxrgiks6xVKRRiWpBqrQGoFiFY9y3QcFvq', formt="wif_compressed"), "cRj3R3KMc4CQc2JzRgpNXz3a7wMrY7nb3a4awqvWfdHesKzQbgFT")
+        self.assertEqual(w.privkey('mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2', formt="wif_compressed"), "cNsv9jpFsW22rkUoL9XFqTMMeEf4rzGu9Xm3LptGXoyWcDkZnbuE")
+        self.assertEqual(w.privkey('n2M9d3U6bfLvGxZr5MDs3MLN9fHxn4bgLB', formt="wif_compressed"), "cQJH9Q1ZCL3tEUWaQqtA9sgpUm2SJtUpQAxVatBSRTQ3GzXsUqJZ")
+        self.assertEqual(w.privkey('mp7Seq8Gm1QAQnHdib1NS6pxU5AbNLfzk5', formt="wif_compressed"), "cU6PiMbhUzScnGpVW4WBTbXV4oqbUzmaTtP8QWwPunWKWaYSSg9E")
+        self.assertEqual(w.privkey('mgTxZQbaGif6Hsdj88D3vF7SqXP34mW7Y6', formt="wif_compressed"), "cSup4gPigcwuDziBrAEhv6TxFFXg3kjXj8QVdLx34zX5v8ZcyZnK")
+
 
     def test_bip39_seed_bip49_p2sh_segwit(self):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/49'/0'/0'")
+        w = Bitcoin().p2wpkh_p2sh_wallet(seed_words)
 
-        self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xprv, 'yprvAJEYHeNEPcyBoQYM7sGCxDiNCTX65u4ANgZuSGTrKN5YCC9MP84SBayrgaMyZV7zvkHrr3HVPTK853s2SPk4EttPazBZBmz6QfDkXeE8Zr7')
-        self.assertEqual(ks.xpub, 'ypub6XDth9u8DzXV1tcpDtoDKMf6kVMaVMn1juVWEesTshcX4zUVvfNgjPJLXrD9N7AdTLnbHFL64KmBn3SNaTe69iZYbYCqLCCNPZKbLz9niQ4')
+        self.assertEqual(w.keystore.xprv, 'yprvAJEYHeNEPcyBoQYM7sGCxDiNCTX65u4ANgZuSGTrKN5YCC9MP84SBayrgaMyZV7zvkHrr3HVPTK853s2SPk4EttPazBZBmz6QfDkXeE8Zr7')
+        self.assertEqual(w.keystore.xpub, 'ypub6XDth9u8DzXV1tcpDtoDKMf6kVMaVMn1juVWEesTshcX4zUVvfNgjPJLXrD9N7AdTLnbHFL64KmBn3SNaTe69iZYbYCqLCCNPZKbLz9niQ4')
 
-        w = self._create_standard_wallet(ks)
-        self.assertEqual(w.txin_type, 'p2wpkh-p2sh')
+        self.assertEqual(w.keystore.xtype, 'p2wpkh-p2sh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], '35ohQTdNykjkF1Mn9nAVEFjupyAtsPAK1W')
-        self.assertEqual(w.get_change_addresses()[0], '3KaBTcviBLEJajTEMstsA2GWjYoPzPK7Y7')
+        self.assertEqual(w.new_receiving_address(), '35ohQTdNykjkF1Mn9nAVEFjupyAtsPAK1W')
+        self.assertEqual(w.new_change_address(), '3KaBTcviBLEJajTEMstsA2GWjYoPzPK7Y7')
+
+        self.assertEqual(w.receiving_addresses, ['35ohQTdNykjkF1Mn9nAVEFjupyAtsPAK1W'])
+        self.assertEqual(w.change_addresses, ['3KaBTcviBLEJajTEMstsA2GWjYoPzPK7Y7'])
+
+        self.assertEqual(w.new_receiving_addresses(2),
+                         ['3DitVjWr2LKgPwadXuEd3QXX76BNJXstzj', '3GMNcTdXjJEzkUrv3QaPn7iBCmVoLH3tV8'])
+        self.assertEqual(w.new_change_addresses(2),
+                         ['3KaBA2yTSn8e1F9LTT731Jr4cZXfVVGD37', '32s2nRytkeABETk2wGs7rez68LjPrNo8u5'])
+
+        self.assertEqual(w.receiving_address(100), "3CSGipmQKSevBFjfQmbqS2n1kedD1FfoXo")
+        self.assertEqual(len(w.receiving_addresses), 4)
+        self.assertEqual(len(w.change_addresses), 3)
+
+        self.assertEqual(w.privkey('35ohQTdNykjkF1Mn9nAVEFjupyAtsPAK1W', formt="wif_compressed"),
+                         "KyUdS5eoaKr7hhXgUnyTk6nyYZGArzSFy49xc32TsuYLAiAtDTzB")
+        self.assertEqual(w.privkey('3DitVjWr2LKgPwadXuEd3QXX76BNJXstzj', formt="wif_compressed"),
+                         "L5VccEBER99XTkEg1xtpCHaigfjjiH6DzGsJccnyY7eSaSJd85Yv")
+        self.assertEqual(w.privkey('3GMNcTdXjJEzkUrv3QaPn7iBCmVoLH3tV8', formt="wif_compressed"),
+                         "KwnEbt7APPfwnm378RDX99wTfxqbSY1SYYK6hiAZd1emuA5Q9Tna")
+        self.assertEqual(w.privkey('3CSGipmQKSevBFjfQmbqS2n1kedD1FfoXo', formt="wif_compressed"),
+                         "KxFZTZwLxiqkBkBqyxZ8CLz2ZEwVawX6jzAtnh5zvVW2YNTuKZnu")
+        self.assertEqual(w.privkey('3KaBTcviBLEJajTEMstsA2GWjYoPzPK7Y7', formt="wif_compressed"),
+                         "L4N6uquY9mPxc3HxwPVSFYekFpbmqMXwAdbYQNi9awJrJQ4cms8g")
+        self.assertEqual(w.privkey('3KaBA2yTSn8e1F9LTT731Jr4cZXfVVGD37', formt="wif_compressed"),
+                         "Kzb58wjceypSETV4CHqJr5a1fiWKZ4xhvAAQr4ZGmHwgZdHFuqW3")
+        self.assertEqual(w.privkey('32s2nRytkeABETk2wGs7rez68LjPrNo8u5', formt="wif_compressed"),
+                         "L5E56T1ZH1gZGVxqJZ5QexhM5KD55TRK5kaTmA9XhigKxwrSJvwD")
+
+
+    def test_bip39_seed_bip49_p2sh_segwit_testnet(self):
+        seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
+        self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
+
+        w = Bitcoin(testnet=True).p2wpkh_p2sh_wallet(seed_words)
+
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
+
+        self.assertEqual(w.keystore.xprv, 'uprv91cL9abSyRBCUSy1raBjwuWYcpB9f21B3KgCtbvhjYpRMv6d1zMmRSTChtv76Kx84tzktSwpfKXGtxDM9rSEVq1m2g1dz2PJHeiiukzTVzB')
+        self.assertEqual(w.keystore.xpub, 'upub5EbgZ68LonjVgw3UxbikK3THAr1e4Uj2QYbogzLKHtMQEiRmZXg1yEmgZALF6dFJKtf7t35eE1vcwiUPeujmhSG7pGz5fYAjgD5nTELevk8')
+
+        self.assertEqual(w.keystore.xtype, 'p2wpkh-p2sh')
+
+        self.assertEqual(w.new_receiving_address(), '2NCUmWfaix7dgepJzpHBa3NqHLVTrZbYn5A')
+        self.assertEqual(w.new_change_address(), '2NFbJUWbARWN83L18U6JG5HAjp2Lp4A738w')
+
+        self.assertEqual(w.receiving_addresses, ['2NCUmWfaix7dgepJzpHBa3NqHLVTrZbYn5A'])
+        self.assertEqual(w.change_addresses, ['2NFbJUWbARWN83L18U6JG5HAjp2Lp4A738w'])
+
+        self.assertEqual(w.new_receiving_addresses(2),
+                         ['2N8P2d23LRUrUGhjmFDHJkELchowAWx8oCP', '2Mt48CJ669Mge4n1nDQbhypoSeKAfhMcMME'])
+        self.assertEqual(w.new_change_addresses(2),
+                         ['2N52CRv9DQN9jP6mqrEJYh2aHSpzdqCDkT2', '2N8AnS2Z83hMarLbkxfxNqgcFyqb8d93jXz'])
+
+        self.assertEqual(w.receiving_address(100), "2NBZCTLMuxJzTT8KYusrAJuKX7uX7Rrn3yb")
+        self.assertEqual(len(w.receiving_addresses), 4)
+        self.assertEqual(len(w.change_addresses), 3)
+
+        self.assertEqual(w.privkey('2NCUmWfaix7dgepJzpHBa3NqHLVTrZbYn5A', formt="wif_compressed"),
+                         "cPtnJoaMd9i9Bu8n25CvzjzjarCcQovkBfY6MpNmP4pAbjzqXVd5")
+        self.assertEqual(w.privkey('2N8P2d23LRUrUGhjmFDHJkELchowAWx8oCP', formt="wif_compressed"),
+                         "cUZjQvXZ4ytNVtdnVmVHum4afTGP9Z13XaN4TtFeXVrWEyQMskTg")
+        self.assertEqual(w.privkey('2Mt48CJ669Mge4n1nDQbhypoSeKAfhMcMME', formt="wif_compressed"),
+                         "cVpKjSsujCYy599X9PEsa1t6gzKDM5KSJ1jq5jSPNKff4yaxjAAm")
+        self.assertEqual(w.privkey('2NFbJUWbARWN83L18U6JG5HAjp2Lp4A738w', formt="wif_compressed"),
+                         "cQzyrNGXvTkbkwKzMoAxUbcHozZtQXfNspMwbQoP9M3cs5S5YCFd")
+        self.assertEqual(w.privkey('2NFbJUWbARWN83L18U6JG5HAjp2Lp4A738w', formt="wif_compressed"),
+                         "cQzyrNGXvTkbkwKzMoAxUbcHozZtQXfNspMwbQoP9M3cs5S5YCFd")
+        self.assertEqual(w.privkey('2N52CRv9DQN9jP6mqrEJYh2aHSpzdqCDkT2', formt="wif_compressed"),
+                         "cQkmYkrwMpWo1koPykJ6LbLFtLmGN7P4SJkoFPdGvto3VzMmb7ZK")
+        self.assertEqual(w.privkey('2N8AnS2Z83hMarLbkxfxNqgcFyqb8d93jXz', formt="wif_compressed"),
+                         "cUyRoiviymD8b4MFkW9NB7tJ8o5FmVtrDGRo7syPT4FKSBDH3ME5")
 
     def test_bip39_seed_bip84_native_segwit(self):
-        # test case from bip84
         seed_words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/84'/0'/0'")
+        w = Bitcoin().p2wpkh_wallet(seed_words)
 
-        self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xprv, 'zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE')
-        self.assertEqual(ks.xpub, 'zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs')
+        self.assertEqual(w.keystore.xprv, 'zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE')
+        self.assertEqual(w.keystore.xpub, 'zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs')
 
-        w = self._create_standard_wallet(ks)
-        self.assertEqual(w.txin_type, 'p2wpkh')
+        self.assertEqual(w.keystore.xtype, 'p2wpkh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu')
-        self.assertEqual(w.get_change_addresses()[0], 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el')
+        self.assertEqual(w.new_receiving_addresses()[0], 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu')
+        self.assertEqual(w.new_change_addresses()[0], 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el')
 
     def test_electrum_multisig_seed_standard(self):
         seed_words = 'blast uniform dragon fiscal ensure vast young utility dinosaur abandon rookie sure'

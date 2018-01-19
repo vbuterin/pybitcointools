@@ -140,7 +140,7 @@ class Imported_KeyStore(Software_KeyStore):
     def import_privkey(self, sec, password=None):
         pubkey = bip32_privtopub(sec, self.bip39_prefixes)
         self.keypairs[pubkey] = pw_encode(sec, password)
-        return "standard", pubkey
+        return "p2pkh", pubkey
 
     def delete_imported_key(self, key):
         self.keypairs.pop(key)
@@ -214,7 +214,7 @@ class Deterministic_KeyStore(Software_KeyStore):
 
 class Xpub:
 
-    def __init__(self, coin):
+    def __init__(self):
         self.xpub = None
         self.xpub_receive = None
         self.xpub_change = None
@@ -268,7 +268,7 @@ class Xpub:
 class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
 
     def __init__(self, d, coin):
-        Xpub.__init__(self, coin)
+        Xpub.__init__(self)
         Deterministic_KeyStore.__init__(self, d, coin)
         self.xpub = d.get('xpub')
         self.xprv = d.get('xprv')
@@ -315,6 +315,7 @@ class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
     def add_xprv_from_seed(self, bip32_seed, xtype, derivation, electrum=False):
         self.root_derivation = derivation
         self.xtype = xtype
+        self.electrum = electrum
         self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
                                encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
         encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
@@ -431,8 +432,11 @@ def standard_from_bip39_seed(seed, passphrase, coin):
     derivation = "m/44'/%s'/0'" % coin.hd_path
     return from_bip39_seed(seed, passphrase, derivation, coin)
 
-
 def p2wpkh_from_bip39_seed(seed, passphrase, coin):
+    derivation = "m/84'/%s'/0'" % coin.hd_path
+    return from_bip39_seed(seed, passphrase, derivation, coin)
+
+def p2wpkh_p2sh_from_bip39_seed(seed, passphrase, coin):
     derivation = "m/49'/%s'/0'" % coin.hd_path
     return from_bip39_seed(seed, passphrase, derivation, coin)
 
@@ -444,7 +448,7 @@ def xtype_from_derivation(derivation):
     elif derivation.startswith("m/49'"):
         return 'p2wpkh-p2sh'
     else:
-        return 'standard'
+        return 'p2pkh'
 
 
 # extended pubkeys
@@ -519,7 +523,7 @@ def from_electrum_seed(seed, passphrase, is_p2sh, coin):
         bip32_seed = electrum_mnemonic_to_seed(seed, passphrase)
         if t == 'standard':
             der = "m/"
-            xtype = 'standard'
+            xtype = 'p2pkh'
         else:
             der = "m/1'/" if is_p2sh else "m/0'/"
             xtype = 'p2wsh' if is_p2sh else 'p2wpkh'
