@@ -12,6 +12,10 @@ class HDWallet(object):
         self.new_receiving_addresses(num=num_addresses)
         self.new_change_addresses(num=num_addresses)
         self.is_watching_only = self.keystore.is_watching_only()
+        if self.keystore.electrum:
+            self.script_type = self.keystore.xtype
+        else:
+            self.script_type = "p2pkh"
 
     def privkey(self, address, formt="wif_compressed", password=None):
         if self.is_watching_only:
@@ -22,7 +26,7 @@ class HDWallet(object):
             raise Exception(
                 "Address %s has not been generated yet. Generate new addresses with new_receiving_addresses or new_change_addresses methods" % address)
         pk, compressed = self.keystore.get_private_key(addr_derivation, password)
-        return self.coin.encode_privkey(pk, formt, script_type=self.keystore.xtype)
+        return self.coin.encode_privkey(pk, formt, script_type=self.script_type)
 
     def export_privkeys(self, password=None):
         if self.is_watching_only:
@@ -137,6 +141,3 @@ class HDWallet(object):
             'receiving': [self.account(a, password=password) for a in self.receiving_addresses],
             'change': [self.account(a, password=password) for a in self.change_addresses]
         }
-
-class HDNewSegwitWallet(HDWallet):
-    txin_type = 'p2wpkh'

@@ -204,41 +204,6 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         self.assertEqual(w.privkey('14TUbjfoT4EKjdyjjUpP3LSBjXMGf87K2Q', formt="wif_compressed"), "L3n4ZyY1YWV8Kyyn8HbRZNgRoyucUJKyFsbdvjNX7vWr5iRfsyoY")
 
 
-    def test_bip39_seed_bip44_standard_testnet(self):
-        seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
-        self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
-
-        w = Bitcoin(testnet=True).wallet(seed_words)
-
-        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
-
-        self.assertEqual(w.keystore.xprv, 'tprv8ge9CLX5ncJTveX12FSB4BFuuybSL5czL7csLyhEiWTAfqSuSHcdm9DkZTeHjmnRg5YA4tkMpGLqS5irHFUj8hG3USykMt99CjtK8dPKKXW')
-        self.assertEqual(w.keystore.xpub, 'tpubDDLBLkZKvyz8p7Ynuu6mTav2V17NVQotuRDedVjY8nFZWKhg4gSDwdqcjbkwqyiMUrxXn4qcpkK2zrmS3nAViMN3iWkyai4VXz5vUJN7Qw8')
-
-        self.assertEqual(w.keystore.xtype, 'p2pkh')
-
-        self.assertEqual(w.new_receiving_address(), 'mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao')
-        self.assertEqual(w.new_change_address(), 'mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2')
-
-        self.assertEqual(w.receiving_addresses, ['mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao'])
-        self.assertEqual(w.change_addresses, ['mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2'])
-
-        self.assertEqual(w.new_receiving_addresses(2), ['mzmqnjPcfektxejUxSjiTAj5GW7Vt2QYtQ', 'mxrgiks6xVKRRiWpBqrQGoFiFY9y3QcFvq'])
-        self.assertEqual(w.new_change_addresses(2), ['n2M9d3U6bfLvGxZr5MDs3MLN9fHxn4bgLB', 'mp7Seq8Gm1QAQnHdib1NS6pxU5AbNLfzk5'])
-
-        self.assertEqual(w.receiving_address(100), "mgTxZQbaGif6Hsdj88D3vF7SqXP34mW7Y6")
-        self.assertEqual(len(w.receiving_addresses), 4)
-        self.assertEqual(len(w.change_addresses), 3)
-
-        self.assertEqual(w.privkey('mxXZeGVPna3BhMKzFjee8ykZK5yN4F24ao', formt="wif_compressed"), "cQrA8q59oRha45Epvd5JeUPcVByCU1rqtK7pUeJZpecnJ97c7qQ9")
-        self.assertEqual(w.privkey('mzmqnjPcfektxejUxSjiTAj5GW7Vt2QYtQ', formt="wif_compressed"), "cMx52abNoK83sjzNSFjiRRyiN2dhqE3eGXYUR61qjQBaguASWN8m")
-        self.assertEqual(w.privkey('mxrgiks6xVKRRiWpBqrQGoFiFY9y3QcFvq', formt="wif_compressed"), "cRj3R3KMc4CQc2JzRgpNXz3a7wMrY7nb3a4awqvWfdHesKzQbgFT")
-        self.assertEqual(w.privkey('mrzKXhWb8RcmpPAn5Rx4bFHsVShdaeaLm2', formt="wif_compressed"), "cNsv9jpFsW22rkUoL9XFqTMMeEf4rzGu9Xm3LptGXoyWcDkZnbuE")
-        self.assertEqual(w.privkey('n2M9d3U6bfLvGxZr5MDs3MLN9fHxn4bgLB', formt="wif_compressed"), "cQJH9Q1ZCL3tEUWaQqtA9sgpUm2SJtUpQAxVatBSRTQ3GzXsUqJZ")
-        self.assertEqual(w.privkey('mp7Seq8Gm1QAQnHdib1NS6pxU5AbNLfzk5', formt="wif_compressed"), "cU6PiMbhUzScnGpVW4WBTbXV4oqbUzmaTtP8QWwPunWKWaYSSg9E")
-        self.assertEqual(w.privkey('mgTxZQbaGif6Hsdj88D3vF7SqXP34mW7Y6', formt="wif_compressed"), "cSup4gPigcwuDziBrAEhv6TxFFXg3kjXj8QVdLx34zX5v8ZcyZnK")
-
-
     def test_bip39_seed_bip49_p2sh_segwit(self):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
@@ -339,91 +304,81 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         self.assertEqual(w.keystore.xtype, 'p2wpkh')
 
-        self.assertEqual(w.new_receiving_addresses()[0], 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu')
-        self.assertEqual(w.new_change_addresses()[0], 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el')
+        self.assertEqual(w.new_receiving_address(), 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu')
+        self.assertEqual(w.new_change_address(), 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el')
 
-    def test_electrum_multisig_seed_standard(self):
-        seed_words = 'blast uniform dragon fiscal ensure vast young utility dinosaur abandon rookie sure'
-        self.assertEqual(bitcoin.seed_type(seed_words), 'standard')
+        self.assertEqual(w.receiving_addresses, ['bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu'])
+        self.assertEqual(w.change_addresses, ['bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el'])
 
-        ks1 = keystore.from_seed(seed_words, '', True)
-        self._check_seeded_keystore_sanity(ks1)
-        self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xprv, 'xprv9s21ZrQH143K3t9vo23J3hajRbzvkRLJ6Y1zFrUFAfU3t8oooMPfb7f87cn5KntgqZs5nipZkCiBFo5ZtaSD2eDo7j7CMuFV8Zu6GYLTpY6')
-        self.assertEqual(ks1.xpub, 'xpub661MyMwAqRbcGNEPu3aJQqXTydqR9t49Tkwb4Esrj112kw8xLthv8uybxvaki4Ygt9xiwZUQGeFTG7T2TUzR3eA4Zp3aq5RXsABHFBUrq4c')
+        self.assertEqual(w.new_receiving_addresses(2),
+                         ['bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', 'bc1qp59yckz4ae5c4efgw2s5wfyvrz0ala7rgvuz8z'])
+        self.assertEqual(w.new_change_addresses(2),
+                         ['bc1qggnasd834t54yulsep6fta8lpjekv4zj6gv5rf', 'bc1qn8alfh45rlsj44pcdt0f2cadtztgnz4gq3h3uf'])
 
-        # electrum seed: ghost into match ivory badge robot record tackle radar elbow traffic loud
-        ks2 = keystore.from_xpub('xpub661MyMwAqRbcGfCPEkkyo5WmcrhTq8mi3xuBS7VEZ3LYvsgY1cCFDbenT33bdD12axvrmXhuX3xkAbKci3yZY9ZEk8vhLic7KNhLjqdh5ec')
-        self._check_xpub_keystore_sanity(ks2)
-        self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
+        self.assertEqual(w.receiving_address(100), "bc1q2m7xsl8hf256as3s6e0pvcgz5n5a0de4ey30rl")
+        self.assertEqual(len(w.receiving_addresses), 4)
+        self.assertEqual(len(w.change_addresses), 3)
 
-        w = self._create_multisig_wallet(ks1, ks2)
-        self.assertEqual(w.txin_type, 'p2sh')
+        self.assertEqual(w.privkey('bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu', formt="wif_compressed"),
+                         "KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d")
+        self.assertEqual(w.privkey('bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', formt="wif_compressed"),
+                         "Kxpf5b8p3qX56DKEe5NqWbNUP9MnqoRFzZwHRtsFqhzuvUJsYZCy")
+        self.assertEqual(w.privkey('bc1qp59yckz4ae5c4efgw2s5wfyvrz0ala7rgvuz8z', formt="wif_compressed"),
+                         "L1WWMekCNikUJwrkmxqXWafFu3gmzJ777WpPGgz5Y1o7U11hrDDs")
+        self.assertEqual(w.privkey('bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el', formt="wif_compressed"),
+                         "KxuoxufJL5csa1Wieb2kp29VNdn92Us8CoaUG3aGtPtcF3AzeXvF")
+        self.assertEqual(w.privkey('bc1qggnasd834t54yulsep6fta8lpjekv4zj6gv5rf', formt="wif_compressed"),
+                         "KyDKM6os4SNpyCN79CGaZF91vVtzmnragXN7A3qAxVvFDws9jBqh")
+        self.assertEqual(w.privkey('bc1qn8alfh45rlsj44pcdt0f2cadtztgnz4gq3h3uf', formt="wif_compressed"),
+                         "KwQ1irwXPWRmfEH7CtyiFSA2dZ8TCrczAa7onpr3yNEEPrxGmnfS")
+        self.assertEqual(w.privkey('bc1q2m7xsl8hf256as3s6e0pvcgz5n5a0de4ey30rl', formt="wif_compressed"),
+                         "L2MQjNV27qN6eZy3msVu6KQw8iHzSGMwoNZV7SH9uL5mCnpLcxxw")
 
-        self.assertEqual(w.get_receiving_addresses()[0], '32ji3QkAgXNz6oFoRfakyD3ys1XXiERQYN')
-        self.assertEqual(w.get_change_addresses()[0], '36XWwEHrrVCLnhjK5MrVVGmUHghr9oWTN1')
-
-    def test_electrum_multisig_seed_segwit(self):
-        seed_words = 'snow nest raise royal more walk demise rotate smooth spirit canyon gun'
-        self.assertEqual(bitcoin.seed_type(seed_words), 'segwit')
-
-        ks1 = keystore.from_seed(seed_words, '', True)
-        self._check_seeded_keystore_sanity(ks1)
-        self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xprv, 'ZprvAjxLRqPiDfPDxXrm8JvcoCGRAW6xUtktucG6AMtdzaEbTEJN8qcECvujfhtDU3jLJ9g3Dr3Gz5m1ypfMs8iSUh62gWyHZ73bYLRWyeHf6y4')
-        self.assertEqual(ks1.xpub, 'Zpub6xwgqLvc42wXB1wEELTdALD9iXwStMUkGqBgxkJFYumaL2dWgNvUkjEDWyDFZD3fZuDWDzd1KQJ4NwVHS7hs6H6QkpNYSShfNiUZsgMdtNg')
-
-        # electrum seed: hedgehog sunset update estate number jungle amount piano friend donate upper wool
-        ks2 = keystore.from_xpub('Zpub6y4oYeETXAbzLNg45wcFDGwEG3vpgsyMJybiAfi2pJtNF3i3fJVxK2BeZJaw7VeKZm192QHvXP3uHDNpNmNDbQft9FiMzkKUhNXQafUMYUY')
-        self._check_xpub_keystore_sanity(ks2)
-        self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
-
-        w = self._create_multisig_wallet(ks1, ks2)
-        self.assertEqual(w.txin_type, 'p2wsh')
-
-        self.assertEqual(w.get_receiving_addresses()[0], 'bc1qvzezdcv6vs5h45ugkavp896e0nde5c5lg5h0fwe2xyfhnpkxq6gq7pnwlc')
-        self.assertEqual(w.get_change_addresses()[0], 'bc1qxqf840dqswcmu7a8v82fj6ej0msx08flvuy6kngr7axstjcaq6us9hrehd')
-
-    def test_bip39_multisig_seed_bip45_standard(self):
-        seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
+    def test_bip39_seed_bip84_native_segwit_testnet(self):
+        seed_words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks1 = keystore.from_bip39_seed(seed_words, '', "m/45'/0")
-        self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xprv, 'xprv9vyEFyXf7pYVv4eDU3hhuCEAHPHNGuxX73nwtYdpbLcqwJCPwFKknAK8pHWuHHBirCzAPDZ7UJHrYdhLfn1NkGp9rk3rVz2aEqrT93qKRD9')
-        self.assertEqual(ks1.xpub, 'xpub69xafV4YxC6o8Yiga5EiGLAtqR7rgNgNUGiYgw3S9g9pp6XYUne1KxdcfYtxwmA3eBrzMFuYcNQKfqsXCygCo4GxQFHfywxpUbKNfYvGJka')
+        w = Bitcoin(testnet=True).p2wpkh_wallet(seed_words)
 
-        # bip39 seed: tray machine cook badge night page project uncover ritual toward person enact
-        # der: m/45'/0
-        ks2 = keystore.from_xpub('xpub6B26nSWddbWv7J3qQn9FbwPPQktSBdPQfLfHhRK4375QoZq8fvM8rQey1koGSTxC5xVoMzNMaBETMUmCqmXzjc8HyAbN7LqrvE4ovGRwNGg')
-        self._check_xpub_keystore_sanity(ks2)
-        self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
+        self.assertTrue(isinstance(w.keystore, keystore.BIP32_KeyStore))
 
-        w = self._create_multisig_wallet(ks1, ks2)
-        self.assertEqual(w.txin_type, 'p2sh')
+        self.assertEqual(w.keystore.xprv,
+                         'tprv8fSjiqEQ8YG7Ro7gw2ScwcvweYuuWi1ZzGUtrPz918HvDtBzL5s2voFTrN4y3yUwj5cYD54pLhxk6NKCzHUjcka3zbKjbTEcsuAnkzbjhkL')
+        self.assertEqual(w.keystore.xpub,
+                         'tpubDC8msFGeGuwnKG9Upg7DM2b4DaRqg3CUZa5g8v2SRQ6K4NSkxUgd7HsL2XVWbVm39yBA4LAxysQAm397zwQSQoQgewGiYZqrA9DsP4zbQ1M')
 
-        self.assertEqual(w.get_receiving_addresses()[0], '3JPTQ2nitVxXBJ1yhMeDwH6q417UifE3bN')
-        self.assertEqual(w.get_change_addresses()[0], '3FGyDuxgUDn2pSZe5xAJH1yUwSdhzDMyEE')
+        self.assertEqual(w.keystore.xtype, 'p2wpkh')
 
-    def test_bip39_multisig_seed_p2sh_segwit(self):
-        # bip39 seed: pulse mixture jazz invite dune enrich minor weapon mosquito flight fly vapor
-        # der: m/49'/0'/0'
-        # NOTE: there is currently no bip43 standard derivation path for p2wsh-p2sh
-        ks1 = keystore.from_xprv('YprvAUXFReVvDjrPerocC3FxVH748sJUTvYjkAhtKop5VnnzVzMEHr1CHrYQKZwfJn1As3X4LYMav6upxd5nDiLb6SCjRZrBH76EFvyQAG4cn79')
-        self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xpub, 'Ypub6hWbqA2p47QgsLt5J4nxrR3ngu8xsPGb7PdV8CDh48KyNngNqPKSqertAqYhQ4umELu1UsZUCYfj9XPA6AdSMZWDZQobwF7EJ8uNrECaZg1')
+        self.assertEqual(w.new_receiving_address(), 'tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl')
+        self.assertEqual(w.new_change_address(), 'tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688')
 
-        # bip39 seed: slab mixture skin evoke harsh tattoo rare crew sphere extend balcony frost
-        # der: m/49'/0'/0'
-        ks2 = keystore.from_xpub('Ypub6iNDhL4WWq5kFZcdFqHHwX4YTH4rYGp8xbndpRrY7WNZFFRfogSrL7wRTajmVHgR46AT1cqUG1mrcRd7h1WXwBsgX2QvT3zFbBCDiSDLkau')
-        self._check_xpub_keystore_sanity(ks2)
-        self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
+        self.assertEqual(w.receiving_addresses, ['tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl'])
+        self.assertEqual(w.change_addresses, ['tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688'])
 
-        w = self._create_multisig_wallet(ks1, ks2)
-        self.assertEqual(w.txin_type, 'p2wsh-p2sh')
+        self.assertEqual(w.new_receiving_addresses(2),
+                         ['tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97', 'tb1qxdyjf6h5d6qxap4n2dap97q4j5ps6ua8sll0ct'])
+        self.assertEqual(w.new_change_addresses(2),
+                         ['tb1qkwgskuzmmwwvqajnyr7yp9hgvh5y45kg8wvdmd', 'tb1q2vma00td2g9llw8hwa8ny3r774rtt7aenfn5zu'])
 
-        self.assertEqual(w.get_receiving_addresses()[0], '35LeC45QgCVeRor1tJD6LiDgPbybBXisns')
-        self.assertEqual(w.get_change_addresses()[0], '39RhtDchc6igmx5tyoimhojFL1ZbQBrXa6')
+        self.assertEqual(w.receiving_address(100), "tb1q0gzpnp4yhr20p7tqdrqmm7872w0unmawzka9zu")
+        self.assertEqual(len(w.receiving_addresses), 4)
+        self.assertEqual(len(w.change_addresses), 3)
+
+        self.assertEqual(w.privkey('tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl', formt="wif_compressed"),
+                         "cTGhosGriPpuGA586jemcuH9pE9spwUmneMBmYYzrQEbY92DJrbo")
+        self.assertEqual(w.privkey('tb1qd7spv5q28348xl4myc8zmh983w5jx32cjhkn97', formt="wif_compressed"),
+                         "cQFUndrpAyMaE3HAsjMCXiT94MzfsABCREat1x7Qe3Mtq9KihD4V")
+        self.assertEqual(w.privkey('tb1qxdyjf6h5d6qxap4n2dap97q4j5ps6ua8sll0ct', formt="wif_compressed"),
+                         "cRe5KDj3rcZJAtZVmWe3G2rdGdXyKCjVbWBVDXqSg2WHq1qq6MNe")
+        self.assertEqual(w.privkey('tb1q9u62588spffmq4dzjxsr5l297znf3z6j5p2688', formt="wif_compressed"),
+                         "cQ5TcujvBuw5bZfEVJmXZw5Ac1mQ6ryAjHeDrJcmn6oDyhfva5by")
+        self.assertEqual(w.privkey('tb1qkwgskuzmmwwvqajnyr7yp9hgvh5y45kg8wvdmd', formt="wif_compressed"),
+                         "cVg4cGUL42Kf2XVPC5Uqa7ggsqqWHsKjnZgU6f7nARFoYCVxzh2Y")
+        self.assertEqual(w.privkey('tb1q2vma00td2g9llw8hwa8ny3r774rtt7aenfn5zu', formt="wif_compressed"),
+                         "cMqRXWvu4JoYcPHMEEJAA48XfmNaf77DH4Tyc9UdbGgKLLEiEqW9")
+        self.assertEqual(w.privkey('tb1q0gzpnp4yhr20p7tqdrqmm7872w0unmawzka9zu', formt="wif_compressed"),
+                         "cRkgP842XmEK8yr8uDA8QD5kXfBtoTyhjtvGkQTLeXPyZdFWUr2v")
+
 
 if __name__ == '__main__':
     unittest.main()
