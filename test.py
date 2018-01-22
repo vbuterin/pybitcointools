@@ -100,21 +100,15 @@ class TestElectrumWalletInternalConsistency(unittest.TestCase):
         priv = electrum_privkey(self.seed, 0)
         self.assertEqual(priv, self.priv0)
         self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 0))
-        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 0))
         priv = electrum_privkey(self.seed, 121)
         self.assertEqual(priv, self.priv121)
         self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 121))
-        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 121))
         priv = electrum_privkey(self.seed, 0, 1)
         self.assertEqual(priv, self.changepriv0)
         self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 0, 1))
-        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 0, 1))
         priv = electrum_privkey(self.seed, 345, 1)
         self.assertEqual(priv, self.changepriv345)
         self.assertEqual(coin.privtoaddr(priv), coin.electrum_address(self.seed, 345, 1))
-        self.assertEqual(coin.privtop2w(priv), coin.electrum_address_segwit(self.seed, 345, 1))
-        self.assertEqual(Dash().privtoaddr(priv), Dash().electrum_address(self.seed, 345, 1))
-        self.assertEqual(Litecoin().privtop2w(priv), Litecoin().electrum_address_segwit(self.seed, 345, 1))
 
     def test_master_public_key(self):
         coin = Bitcoin()
@@ -123,24 +117,19 @@ class TestElectrumWalletInternalConsistency(unittest.TestCase):
         privkey0 = electrum_privkey(self.seed_from_password, 0)
         self.assertEqual(pubkey0, privtopub(privkey0))
         self.assertEqual(coin.electrum_address(mpk, 0), coin.electrum_address(self.seed_from_password, 0))
-        self.assertEqual(coin.electrum_address_segwit(mpk, 0), coin.electrum_address_segwit(self.seed_from_password, 0))
         pubkey101 = electrum_pubkey(mpk, 101)
         privkey101 = electrum_privkey(self.seed_from_password, 101)
         self.assertEqual(pubkey101, privtopub(privkey101))
         self.assertEqual(coin.electrum_address(mpk, 101), coin.electrum_address(self.seed_from_password, 101))
-        self.assertEqual(coin.electrum_address_segwit(mpk, 101), coin.electrum_address_segwit(self.seed_from_password, 101))
         change_pubkey0 = electrum_pubkey(mpk, 0, 1)
         change_privkey0 = electrum_privkey(self.seed_from_password, 0, 1)
         self.assertEqual(change_pubkey0, privtopub(change_privkey0))
         self.assertEqual(coin.electrum_address(mpk, 0, 1), coin.electrum_address(self.seed_from_password, 0, 1))
-        self.assertEqual(coin.electrum_address_segwit(mpk, 0, 1), coin.electrum_address_segwit(self.seed_from_password, 0, 1))
         change_pubkey200 = electrum_pubkey(mpk, 200, 1)
         change_privkey200 = electrum_privkey(self.seed_from_password, 200, 1)
         self.assertEqual(change_pubkey200, privtopub(change_privkey200))
         self.assertEqual(coin.electrum_address(mpk, 0, 200), coin.electrum_address(self.seed_from_password, 0, 200))
-        self.assertEqual(coin.electrum_address_segwit(mpk, 0, 200), coin.electrum_address_segwit(self.seed_from_password, 0, 200))
         self.assertEqual(Dash().electrum_address(mpk, 0, 200), Dash().electrum_address(self.seed_from_password, 0, 200))
-        self.assertEqual(Litecoin().electrum_address_segwit(mpk, 0, 200), Litecoin().electrum_address_segwit(self.seed_from_password, 0, 200))
 
     def test_all(self):
         for i in range(3):
@@ -318,36 +307,13 @@ class TestBIP0032(unittest.TestCase):
     def setUpClass(cls):
         print("Beginning BIP0032 tests")
 
-    def test_bip32(self):
-        mnemonic = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
-        seed = mnemonic_to_seed(mnemonic)
-        self.assertEqual(safe_hexlify(seed), "1bd2baff3222cf0a49835007588c6a7f2895f1560b58356023c4bf92ed75107856fc6819558f260a9ccddf9511251cb398f5487ec2938d355a93a0ae50823eb9")
-        master_private_key = bip32_master_key(seed)
-        self.assertEqual(master_private_key, "xprv9s21ZrQH143K2XLDB6wEU9AUR6ifaVBtyYiupFfnWEQwYJbJwmbWSE5iXwwDcA4u7b1vPYzzBUrnfS94dJ4Y9swYowp4bNjAHa4LRL2ix3w")
-        first_privkey = 'cadad194f1dbbb40cfe4506a80bd3981bd4617881278108c19c34c920491ccb401'
-        first_pubkey = '0201f24c4b76d90df1e2828fb80c70ac15ec5875d86ae7fca50b9bb8e6599bcf0d'
-        first_address = "16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo"
-        #key = bip32_extract_key(bip32_ckd(master_private_key, "m/44'/0'/0'/0/"))
-        #key = bip32_descend(master_private_key, "m/44/0/0/0/")
-        key = bip32_extract_key(bip32_ckd(master_private_key, "m/44'/0'/0'/0/"))
-        self.assertEqual(first_privkey, key)
-        self.assertEqual(privtopub(key), first_pubkey)
-        self.assertEqual(first_address, privtoaddr(key))
-        self.assertEqual(pubtoaddr(first_pubkey), pubtoaddr(first_pubkey))
-        master_public_key = bip32_privtopub(master_private_key)
-        self.assertEqual(master_public_key, "xpub661MyMwAqRbcF1QgH8UEqH7Cy8Z9ywukLmeWce5Q4ZwvR6vTVJukz2QCPCo1xtVC4SmBzCHDPqPGPSdrEqfQa25jXARwuKaFQSqtvJL2wBq")
-        master_public_key = "xpub6De8MLm5JsnJc8gXP1VLE9T19XhfkxNzkxpRJS7MYwmBYLYUKhmyHUeMZDBjbANAimGMwFU9vMcGBV5RgUWoTZmYFJJWtdwLvkESQpMHco4"
-        key = bip32_descend(master_public_key, parse_bip32_path("m/44'/0'/0'/0/"))
-        #key = bip32_extract_key(bip32_ckd(master_public_key, "m/44'/0'/0'/0/", public=True))
-        self.assertEqual(first_pubkey, key)
-
-    def _full_derive(self, key, chain):
+    def _full_derive(self, key, chain, prefixes=(MAINNET_PRIVATE, MAINNET_PUBLIC)):
         if len(chain) == 0:
             return key
         elif chain[0] == 'pub':
-            return self._full_derive(bip32_privtopub(key), chain[1:])
+            return self._full_derive(bip32_privtopub(key, prefixes), chain[1:], prefixes)
         else:
-            return self._full_derive(bip32_ckd(key, chain[0]), chain[1:])
+            return self._full_derive(bip32_ckd(key, [chain[0]], prefixes), chain[1:], prefixes)
 
     def test_all(self):
         test_vectors = [
@@ -383,10 +349,10 @@ class TestBIP0032(unittest.TestCase):
             [[2**31, 1, 2**31 + 2, 'pub', 2, 1000000000], 'tpubDHNy3kAG39ThyiwwsgoKY4iRenXDRtce8qdCFJZXPMCJg5dsCUHayp84raLTpvyiNA9sXPob5rgqkKvkN8S7MMyXbnEhGJMW64Cf4vFAoaF']
         ]
 
-        mk = bip32_master_key(safe_from_hex('000102030405060708090a0b0c0d0e0f'), TESTNET_PRIVATE)
+        mk = bip32_master_key(safe_from_hex('000102030405060708090a0b0c0d0e0f'), (TESTNET_PRIVATE, TESTNET_PUBLIC))
 
         for tv in test_vectors:
-            left, right = self._full_derive(mk, tv[0]), tv[1]
+            left, right = self._full_derive(mk, tv[0], (TESTNET_PRIVATE, TESTNET_PUBLIC)), tv[1]
             self.assertEqual(
                 left,
                 right,
@@ -410,32 +376,32 @@ class TestBIP0032(unittest.TestCase):
         assert bip32_privtopub(bip32_ckd(master, "1")) == "xpub68Gmy5EVb2BdHTYHpekwGdcbBWax19w9HwA2DaADYvuCSSgt4YAErxxSN1KWSnmyqkwRNbnTj3XiUBKmHeC8rTjLRPjSULcDKQQgfgJDppq"
 
         # m/0/0
-        assert bip32_ckd(bip32_ckd(master, "0"), "0") == "xprv9ww7sMFLzJMzur2oEQDB642fbsMS4q6JRraMVTrM9bTWBq7NDS8ZpmsKVB4YF3mZecqax1fjnsPF19xnsJNfRp4RSyexacULXMKowSACTRc"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, "0"), "0")) == "xpub6AvUGrnEpfvJ8L7GLRkBTByQ9uBvUHp9o5VxHrFxhvzV4dSWkySpNaBoLR9FpbnwRmTa69yLHF3QfcaxbWT7gWdwws5k4dpmJvqpEuMWwnj"
+        assert bip32_ckd(master, "0/0") == "xprv9ww7sMFLzJMzur2oEQDB642fbsMS4q6JRraMVTrM9bTWBq7NDS8ZpmsKVB4YF3mZecqax1fjnsPF19xnsJNfRp4RSyexacULXMKowSACTRc"
+        assert bip32_ckd(master, "0/0", public=True) == "xpub6AvUGrnEpfvJ8L7GLRkBTByQ9uBvUHp9o5VxHrFxhvzV4dSWkySpNaBoLR9FpbnwRmTa69yLHF3QfcaxbWT7gWdwws5k4dpmJvqpEuMWwnj"
 
         # m/0'
-        assert bip32_ckd(master, 2**31) == "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7"
-        assert bip32_privtopub(bip32_ckd(master, 2**31)) == "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
+        assert bip32_ckd(master, [2**31]) == "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7"
+        assert bip32_privtopub(bip32_ckd(master, [2**31])) == "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw"
 
         # m/1'
-        assert bip32_ckd(master, 2**31 + 1) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
-        assert bip32_privtopub(bip32_ckd(master, 2**31 + 1)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
+        assert bip32_ckd(master, [2**31 + 1]) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
+        assert bip32_privtopub(bip32_ckd(master, [2**31 + 1])) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
 
         # m/1'
-        assert bip32_ckd(master, 1 + 2**31) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
-        assert bip32_privtopub(bip32_ckd(master, 1 + 2**31)) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
+        assert bip32_ckd(master, [1 + 2**31]) == "xprv9uHRZZhk6KAJFszJGW6LoUFq92uL7FvkBhmYiMurCWPHLJZkX2aGvNdRUBNnJu7nv36WnwCN59uNy6sxLDZvvNSgFz3TCCcKo7iutQzpg78"
+        assert bip32_privtopub(bip32_ckd(master, [1 + 2**31])) == "xpub68Gmy5EdvgibUN4mNXdMAcCZh4jpWiebYvh9WkKTkqvGD6tu4ZtXUAwuKSyF5DFZVmotf9UHFTGqSXo9qyDBSn47RkaN6Aedt9JbL7zcgSL"
 
         # m/0'/0
-        assert bip32_ckd(bip32_ckd(master, 2**31), "0") == "xprv9wTYmMFdV23N21MM6dLNavSQV7Sj7meSPXx6AV5eTdqqGLjycVjb115Ec5LgRAXscPZgy5G4jQ9csyyZLN3PZLxoM1h3BoPuEJzsgeypdKj"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2**31), "0")) == "xpub6ASuArnXKPbfEVRpCesNx4P939HDXENHkksgxsVG1yNp9958A33qYoPiTN9QrJmWFa2jNLdK84bWmyqTSPGtApP8P7nHUYwxHPhqmzUyeFG"
+        assert bip32_ckd(bip32_ckd(master, [2**31]), "0") == "xprv9wTYmMFdV23N21MM6dLNavSQV7Sj7meSPXx6AV5eTdqqGLjycVjb115Ec5LgRAXscPZgy5G4jQ9csyyZLN3PZLxoM1h3BoPuEJzsgeypdKj"
+        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, [2**31]), "0")) == "xpub6ASuArnXKPbfEVRpCesNx4P939HDXENHkksgxsVG1yNp9958A33qYoPiTN9QrJmWFa2jNLdK84bWmyqTSPGtApP8P7nHUYwxHPhqmzUyeFG"
 
         # m/0'/0'
-        assert bip32_ckd(bip32_ckd(master, 2**31), 2**31) == "xprv9wTYmMFmpgaLB5Hge4YtaGqCKpsYPTD9vXWSsmdZrNU3Y2i4WoBykm6ZteeCLCCZpGxdHQuqEhM6Gdo2X6CVrQiTw6AAneF9WSkA9ewaxtS"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(master, 2**31), 2**31)) == "xpub6ASuArnff48dPZN9k65twQmvsri2nuw1HkS3gA3BQi12Qq3D4LWEJZR3jwCAr1NhsFMcQcBkmevmub6SLP37bNq91SEShXtEGUbX3GhNaGk"
+        assert bip32_ckd(master, [2**31, 2**31]) == "xprv9wTYmMFmpgaLB5Hge4YtaGqCKpsYPTD9vXWSsmdZrNU3Y2i4WoBykm6ZteeCLCCZpGxdHQuqEhM6Gdo2X6CVrQiTw6AAneF9WSkA9ewaxtS"
+        assert bip32_privtopub(bip32_ckd(master, [2**31, 2**31])) == "xpub6ASuArnff48dPZN9k65twQmvsri2nuw1HkS3gA3BQi12Qq3D4LWEJZR3jwCAr1NhsFMcQcBkmevmub6SLP37bNq91SEShXtEGUbX3GhNaGk"
 
         # m/44'/0'/0'/0/0
-        assert bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2**31), 2**31), 2**31), 0), 0) == "xprvA4A9CuBXhdBtCaLxwrw64Jaran4n1rgzeS5mjH47Ds8V67uZS8tTkG8jV3BZi83QqYXPcN4v8EjK2Aof4YcEeqLt688mV57gF4j6QZWdP9U"
-        assert bip32_privtopub(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(bip32_ckd(master, 44 + 2**31), 2**31), 2**31), 0), 0)) == "xpub6H9VcQiRXzkBR4RS3tU6RSXb8ouGRKQr1f1NXfTinCfTxvEhygCiJ4TDLHz1dyQ6d2Vz8Ne7eezkrViwaPo2ZMsNjVtFwvzsQXCDV6HJ3cV"
+        assert bip32_ckd(master, [44 + 2**31, 2**31, 2**31, 0, 0]) == "xprvA4A9CuBXhdBtCaLxwrw64Jaran4n1rgzeS5mjH47Ds8V67uZS8tTkG8jV3BZi83QqYXPcN4v8EjK2Aof4YcEeqLt688mV57gF4j6QZWdP9U"
+        assert bip32_privtopub(bip32_ckd(master, [44 + 2**31, 2**31, 2**31, 0, 0])) == "xpub6H9VcQiRXzkBR4RS3tU6RSXb8ouGRKQr1f1NXfTinCfTxvEhygCiJ4TDLHz1dyQ6d2Vz8Ne7eezkrViwaPo2ZMsNjVtFwvzsQXCDV6HJ3cV"
 
 
 class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):

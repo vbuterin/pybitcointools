@@ -509,7 +509,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     def test_transaction_segwit(self):
         self.assertSegwitTransactionOK()
 
-    #@skip("Not possible to gather unspents")
+    @skip("Not possible to gather unspents")
     def test_transacton_new_segwit(self):
         self.assertNewSegwitTransactionOK()
 
@@ -586,10 +586,6 @@ class TestBitcoinTestnet(BaseCoinCase):
 
         result = c.send(privkey, receiver, send_value, fee=self.fee)
         self.assertPushTxOK(result)
-
-    def test_send_to_segwit(self):
-        coin = self.coin(testnet=self.testnet)
-        coin.send(self.privkeys[0], )
 
     def test_unspent(self):
         self.assertUnspentOK()

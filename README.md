@@ -38,12 +38,12 @@ https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Roadmap:
+* Change from explorers to electrumx servers
 * Correct fee detection algorithm
 * Bitcoin Gold support
-* Wallet class for private keys, electrum mnemonic and addresses(read-only)
+* Extend wallets to make transactions
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
-* Easily gather unspents and broadcast transactions based on a mnemonic
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
 * Seed-based multi-crypto wallet
 
@@ -197,6 +197,14 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, addr="3AGe5CkW5CKFAgKpQE82VSWkEjoxfDxMxQ")
     {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
 
+It's also possible to provide the send address in addition to the private key in which case segwit will be 
+auto-detected, so no need to know in advance if the address is segwit or not:
+    
+    >from cryptos import *
+    >c = Bitcoin()
+    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, addr="3AGe5CkW5CKFAgKpQE82VSWkEjoxfDxMxQ")
+    {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
+    
 ### 2-of-3 MultiSig Transaction example:
     > from cryptos import *
     > coin = Bitcoin(testnet=True)
@@ -249,7 +257,199 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
 
-### Load an Electrum words list wallet:
+### BIP39-BIP44 Standard Wallets:
+
+Aims to be compatible with https://iancoleman.io/bip39/. Good choice for supporting different coins and networks from 
+the same wallet words. Also compatible with electrum when bip39 option is selected.
+    
+    > from cryptos import *
+    > words = entropy_to_words(os.urandom(16))
+    > words
+    'practice display use aisle armor salon glue okay sphere rather belt mansion'  
+    > keystore.bip39_is_checksum_valid(words)
+    (True, True)
+    > coin = Bitcoin()
+    > wallet = coin.wallet(words)
+    > wallet.keystore.root_derivation
+    "m/44'/0'/0'"
+    > wallet.keystore.xprv      #Account Extended Private Key
+    'xprv9y1M42LhHxTuoQbCuySz4Ek6EB3guE4CiXDXhHQnR7LwgpUV7AxQVm7D4HpUWRStwUXFepQRz7av2iaAXXYoizT9JoqWE6qffxNdiMxFQtc'
+    > wallet.keystore.xpub      # Account Extended Public Key
+    'xpub6BzhTXsb8L2D1tfg1zyzRNgpnCtBJgn45k98VfpPySsvZcodeiGf3ZRguZLoS6VwEQ4iZ7Y4bq5A5eqyooyc4jC9beFTB3mmxrGwjRLa3pm'
+    > addr1 = wallet.new_receiving_address()
+    > addr1
+    '18q3EiCiKd5vydnaVwWEpAFyzfL2ftAZ1L'
+    > wallet.privkey(addr1)
+    'L4cKz3epcM3CAmwkSwJwZ2c4q5ukmSVWCrE9PqE46ybU3XyzfTYx'
+    > addr2 = wallet.new_change_address()
+    > addr2
+    '1BgkpwEDrTbCNduyR97EpW4zvFhEzWsyvi'
+    > wallet.privkey(addr2)
+    'L5Xmbnsen2cN36WxbuHkAixBmuJ8b3GZPmLtaRPf66p4gfnqHDqi'
+    > addr3 = wallet.new_change_address()
+    > addr3
+    '1KjxFsDP9SXAmKKD4ZgSep5kYaYgAGK3P9'
+    > priv3 = wallet.privkey(addr3)
+    > priv3
+    'L1ktR1kifTXLXoroLZiB3AF9UtKLRW2FmYnnR7VbPZBYkscgRkyn'
+    > assert coin.privtoaddr(priv3) == addr3
+    True
+    
+Dash example:
+
+    > from cryptos import *
+    > words = 'practice display use aisle armor salon glue okay sphere rather belt mansion'  
+    > coin = Dash()
+    > wallet = coin.wallet(words)
+    > wallet.keystore.root_derivation
+    "m/44'/5'/0'"
+    > wallet.keystore.xprv      #Account Extended Private Key
+    'xprv9yiTHjM4MPNQndsxkrvE2QgF36nvutGt3e9k5DjkjfAnNbqGm1wL77XV2xHiwnUfwcgAZUWkdpEnxRWELTrgXDVhvntNFwme1CqCgm1a91f'
+    > wallet.keystore.xpub      # Account Extended Public Key
+    'xpub6ChohEsxBkvi17xRrtTEPYcyb8dRKLzjQs5Lsc9NHzhmFQARJZFaeuqxtEMHaF4J8MzatWSYrmq2qAc3BaxFiKzEwX1AKQx5uWHZr3y8s82'
+    > addr1 = wallet.new_receiving_address()
+    > addr1
+    'Xea1GEenz6Toq5YQjvjz86MTT8ezT5ZwnY'
+    > wallet.privkey(addr1)
+    'XDbSZeVzBiHanwrSU5yripFd8Lq5tnrjxgvbaksNPhAExbS29aAa'
+    > addr2 = wallet.new_change_address()
+    > addr2
+    'XwYCR4CwafwoGe6P4H9LndaqAQkmE6xYix'
+    > wallet.privkey(addr2)
+    'XHwHKxVfhzPEGZGGfQ9uwKK2xQjavF2yNUkq7FGXFA6SyZv4jge1'
+    > addr3 = wallet.new_change_address()
+    > addr3
+    'XfZwJaFiBx4qLqnQydvqGyWDPciAtjFmgn'
+    > priv3 = wallet.privkey(addr3)
+    > priv3
+    'XCNac8eQE642wWKaxnWHLa1GW1Y1uppvT5uda3LYVXAJZAAdR1Fx'
+    > assert coin.privtoaddr(priv3) == addr3
+    True
+    
+### BIP39-BIP49 Segwit Wallets:
+
+    > from cryptos import *
+    > words = entropy_to_words(os.urandom(20))
+    > words
+    'jealous silver churn hedgehog border physical market parent hungry design cage lab drill clay attack' 
+    > keystore.bip39_is_checksum_valid(words)
+    (True, True)
+    > coin = Bitcoin()
+    > wallet = coin.p2wpkh_p2sh_wallet(words)
+    > wallet.keystore.root_derivation
+    "m/49'/0'/0'"
+    > wallet.keystore.xprv      #Account Extended Private Key
+    'yprvAHoU8z6164hTNdwpArPgn2bdNExmUu9HwxeyhUok8pLDNQSCzYo8rvD6tFvMKk4EQXF2UGzRea5FBHjrtcuYmuBB7Z6EoznKCPeUwXaZduB'
+    > wallet.keystore.xpub      # Account Extended Public Key
+    'ypub6WnpYVctvSFkb82HGsvh9AYMvGoFtMs9KBaaVsDMh9sCFCmMY67PQiXajW1FQq7AKsgvWGSrmZ82rquUpwcKR6Ey1sdMdeQWvgCKvABjWy8'
+    > addr1 = wallet.new_receiving_address()
+    > addr1
+    '38yA1L6u6NiADrafrqZKDt1fTRHpGC3E7g'
+    > wallet.privkey(addr1)
+    'Ky13njnYGrj5jowjUarqcmaRCG37zSwqRJkTj296cQsSvFtsV5a5'
+    > addr2 = wallet.new_change_address()
+    > addr2
+    '3B5f8vVBRTAh2krbd4PiCtpyn7LhFJBDdV'
+    > wallet.privkey(addr2)
+    'KzCNhiuvwQ1T6hXL21Act86HacauJGe1c8ttECqx1Fai6tPc1bEG'
+    > addr3 = wallet.new_change_address()
+    > addr3
+    '3NvrTctHm6dQc6G2p3XYciWH8H6Lfcz9Jc'
+    > wallet.privkey(addr3)
+    'KwdZhDopz3UVNW3Qso5UiyGkiDmayRZmAZdfAojvGsoP7da7HueX'
+    
+### BIP39-BIP84 New Segwit Wallets:
+
+    > from cryptos import *
+    > words = 'jealous silver churn hedgehog border physical market parent hungry design cage lab drill clay attack'
+    > coin = Bitcoin()
+    > wallet = coin.p2wpkh_wallet(words)
+    > wallet.keystore.root_derivation
+    "m/84'/0'/0'
+    > wallet.keystore.xprv      #Account Extended Private Key
+    'zprvAcSKXVdgJHh5vyEeC6HSVScUCHxrKEWkkFSE2YsLpTborr4y2rHMrmr66yvxkGVqiiwwUCqUVkPB7o5ThnK3Dybi5PEywikXbNKQcHNMYPd'
+    > wallet.keystore.xpub      # Account Extended Public Key
+    'zpub6qRfw1Aa8fFP9TK7J7pSraZCkKoLihEc7UMppwGxNo8njeQ7aPbcQaAZxFtnjCj9XveSJEnwV88YPyXXUCr3yRSSAKzibVCQB7AudUQn6Qg'
+    > addr1 = wallet.new_receiving_address()
+    > addr1
+    'bc1qkh6wwkyhfceuxq236pc9gtv2agfqnelzh5m94f'
+    > wallet.privkey(addr1)
+    'Kwnaq7cvD4CAnTcppou6wpUpMFx5yZRqkpZcy6bBvPVKp2FQzJNf'
+    > addr2 = wallet.new_change_address()
+    > addr2
+    'bc1qj3vc5ft8nuka447z7ecujksszq6cm2r8p750n9'
+    > wallet.privkey(addr2)
+    'L1QjmcLmeR5tbH62WxKoSdZBBHn69PuQSnLo2LaimnztsDANMP5M'
+    > addr3 = wallet.new_change_address()
+    > addr3
+    'bc1qft00enx8c6unn00pmfdgq36ftd0u0q4lk5ajpy'
+    > wallet.privkey(addr3)
+    'Kx91EteCnRmUPr8eibiEsAcFDyKJ2z9uAwGUQfMVw5ABQx7QyVgg'
+
+### Electrum wallets
+These aim to be compatible with the default Electrum wallet seed style. They do not have different derivation paths for different coins. 
+No checks have been made again any non-Bitcoin Electum wallet (e.g. Electrum Litecoin, Electron Cash)
+At this moment, there is no support generating the seed words Electrum requires (which contains versioning) so seed words need to be copied from Electrum.
+Electrum versioning allows for auto-detection of wallet type, .e.g standard or segwit.
+
+    > from cryptos import *
+    > seed_words = 'bitter grass shiver impose acquire brush forget axis eager alone wine silver'
+    > wallet = Bitcoin().electrum_wallet(seed_words)
+    > wallet.keystore.xtype
+    'p2wpkh'
+    > wallet.keystore.root_derivation
+    "m/0'/"
+    > wallet.keystore.xprv
+    'zprvAZswDvNeJeha8qZ8g7efN3FXYVJLaEUsE9TW6qXDEbVe74AZ75c2sZFZXPNFzxnhChDQ89oC8C5AjWwHmH1HeRKE1c4kKBQAmjUDdKDUZw2'
+    > wallet.keystore.xpub
+    'zpub6nsHdRuY92FsMKdbn9BfjBCG6X8pyhCibNP6uDvpnw2cyrVhecvHRMa3Ne8kdJZxjxgwnpbHLkcR4bfnhHy6auHPJyDTQ3kianeuVLdkCYQ'
+    > addr1 = wallet.new_receiving_address()
+    > addr1
+    'bc1q3g5tmkmlvxryhh843v4dz026avatc0zzr6h3af'
+    > wallet.privkey(addr1)
+    'L9fSXYNxYWHJWUqrQ6yhZCAJXq6XsfvcJ1Y2EnMAZfLLRNVQswQj'
+    > addr2 = wallet.new_change_address()
+    > addr2
+    'bc1qdy94n2q5qcp0kg7v9yzwe6wvfkhnvyzje7nx2p'
+    > wallet.privkey(addr2)
+    'L8rPGyfyzdLLEzxuBeC87Jvpp8FKxwrRtmkZ2PkRmRjqxNF8TVwG'
+    > addr3 = wallet.new_change_address()
+    > addr3
+    'bc1q6xwxcw6m9ga35687tnu5tstmsvmzjwdnzktemv'
+    > wallet.privkey(addr3)
+    'L7NeR6r9yU2n4zddxTCUpKYmzugYuouyLsCZR9naTqkBW6sjpxDM'
+
+###Watch wallets
+
+For security reasons the seed and xprv should ideally be held in cold storage only. If a web application needs to be 
+able to provide addresses on demand, the solution is to use a watch wallet.
+
+For example, let's take the Dash xpub from a previous example:
+
+    > from cryptos import *
+    > coin = Dash()
+    > xpub = 'xpub6ChohEsxBkvi17xRrtTEPYcyb8dRKLzjQs5Lsc9NHzhmFQARJZFaeuqxtEMHaF4J8MzatWSYrmq2qAc3BaxFiKzEwX1AKQx5uWHZr3y8s82'
+    > wallet = coin.watch_wallet(xpub)
+    > wallet.is_watching_only
+    True
+    > wallet.new_receiving_address()
+    'Xea1GEenz6Toq5YQjvjz86MTT8ezT5ZwnY'
+    > wallet.new_change_address()
+    'XwYCR4CwafwoGe6P4H9LndaqAQkmE6xYix'
+
+Full list of wallet methods:
+
+* wallet -> BIP 39 Standard
+* watch_wallet -> BIP 39 Standard, watch-only
+* p2wpkh_p2sh_wallet -> BIP 39 Segwit P2SH addresses, beginning with 3 for Bitcoin mainnet
+* watch_p2wpkh_p2sh_wallet -> BIP 39 Segwit P2SH addresses, watch-only
+* p2wpkh_wallet -> BIP 39 New Segwit Addresses, beginning with 'bc' for Bitcoin mainnet
+* watch_p2wpkh_wallet -> BIP New Segwit Address, watch-only
+* electrum_wallet -> detects p2kh or p2wpkh based on seed
+* watch_electrum_wallet -> Watch electrum standard wallet
+* watch_electrum_p2wpkh_wallet -> Watch electrum new segwit wallet
+
+### Old style Electrum words wallet:
     > import os
     > from cryptos import *
     > words = entropy_to_words(os.urandom(16))
@@ -264,46 +464,6 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     '04cf414f200cd090239f2116d90608a74eae34ae21103ca9eef7bd9579e48bed'
     > electrum_privkey(seed, 0, 1)      #Change address
     '9ca3631f813a6f81b70fbfc4384122bfe6fb159e6f7aea2811fe968c2a39d42a'
-    
-If an application only needs to receive coins and not spend, there is no need to have a copy of the words, seeds or 
-private keys on the server, as if the server is hacked, the coins will be stolen. Instead, store the master public key and
-generate addresses based on that. The wallet words can be used to spend the coins on a separate cold storage machine.
-
-    > import os
-    > from cryptos import *
-    > words = entropy_to_words(os.urandom(16))
-    > words
-    'shield industry dose token network define slow under omit castle dinosaur afford'
-    > seed = mnemonic_to_seed(words)
-    > seed
-    b'\xe1\xa2R\xddV\xd1\xed\x84\xdd\x82d\xe7\xd6\xdcII\xa4\x7f([\xc4\xaem\x0c\x8a\xe8F\x1b6\xd6\xab\xda}\x02\xa4>\x03=\x83\xae&\x14\x908\xcdc\x10U\xf9\xe7.<r~Lu\xb4\xff\xe5\xd1\x8eXOU'
-    > master_public_key = electrum_mpk(seed)
-    > master_public_key
-    '9ea7e2f83bbf1c3ece4b120ddc3f142117c6c9d82d1b08ad0f54a91f3f0b938c587cb3edf7d54eba1eacc205b3890296fd58ec1b155021ac4d829a1288b24ce1'
-    
-    # Safe to store the mpk on the web server and generate addresses on demand:
-    > from cryptos import *
-    > coin = Bitcoin()
-    > master_public_key = '9ea7e2f83bbf1c3ece4b120ddc3f142117c6c9d82d1b08ad0f54a91f3f0b938c587cb3edf7d54eba1eacc205b3890296fd58ec1b155021ac4d829a1288b24ce1'
-    > addr = coin.electrum_address(master_public_key, 0, 0)
-    > addr
-    '1GEHJopN3F5EgZozEbu6fyp4A6CQMAvyTZ'
-    > change_addr = coin.electrum_address(master_public_key, 0, 1)
-    > change_addr
-    '1AF6A7YD6fJnFUHX3mcmGeHs4MN9aFjp7X'
-    
-    # Then to recover the coins on the cold storage machine:
-    > words = 'shield industry dose token network define slow under omit castle dinosaur afford'
-    > seed = mnemonic_to_seed(words)
-    > priv = electrum_privkey(seed, 0, 0)
-    > priv
-    '1120fb42302e05fbbdd55fefb7bc3ae075ce77ae9328672ee46b1f4af1d68189'
-    > change_priv = electrum_privkey(seed, 0, 1)
-    > change_priv
-    '29a6f2d3de33f79bb6e39753ce2a366ff7e6034f62c2809cfe501f3bb2580fe5'
-    > assert privtoaddr(priv) == '1GEHJopN3F5EgZozEbu6fyp4A6CQMAvyTZ'
-    > assert privtoaddr(change_priv) == '1AF6A7YD6fJnFUHX3mcmGeHs4MN9aFjp7X'
-    
 
 ### The cryptotool command line interface:
 

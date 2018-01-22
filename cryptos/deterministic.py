@@ -141,22 +141,15 @@ def bip32_privtopub(data, prefixes=DEFAULT):
     return bip32_serialize(raw_bip32_privtopub(bip32_deserialize(data, prefixes), prefixes), prefixes)
 
 
-def bip32_ckd(key, path, prefixes=DEFAULT, **kwargs):
-    """Same as bip32_ckd but takes bip32_path or ints"""
-    # use keyword public=True or end path in .pub for public child derivation
-    #argz = map(str, args)
+def bip32_ckd(key, path, prefixes=DEFAULT, public=False):
     if isinstance(path, (list, tuple)):
-        path = map(str, path)
-        path = "/".join(path)    # no effect if "m/path/0"
+        pathlist = map(str, path)
     else:
         path = str(path)
-    if not (path.startswith("m/") and path.startswith("M/")):
-        path = "m/{0}".format(path)
-    is_public = path.startswith("M/") or path.endswith(".pub") or kwargs.get("public", False)
-    pathlist = parse_bip32_path(path)
-    for p in pathlist:
+        pathlist = parse_bip32_path(path)
+    for i, p in enumerate(pathlist):
         key = bip32_serialize(raw_bip32_ckd(bip32_deserialize(key, prefixes), p, prefixes), prefixes)
-    return key if not is_public else bip32_privtopub(key)
+    return key if not public else bip32_privtopub(key)
 
 def bip32_master_key(seed, prefixes=DEFAULT):
     I = hmac.new(

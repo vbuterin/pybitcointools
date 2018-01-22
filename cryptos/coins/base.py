@@ -310,24 +310,15 @@ class BaseCoin(object):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
             txobj.update({"marker": 0, "flag": 1, "witness": []})
-            segwit = any(i.get("segwit", False) for i in ins)
-            new_segwit = any(i.get("new_segwit", False) for i in ins)
-        else:
-            segwit = False
-            new_segwit = False
         for i in ins:
             input = {'script': "", "sequence": 4294967295}
             if isinstance(i, dict) and "output" in i:
                 input["outpoint"] = {"hash": i["output"][:64], "index": int(i["output"][65:])}
-                input['amount'] = i.get("value", None)
+                input['amount'] = i.get("value", 0)
                 if i.get("segwit", False):
                     input["segwit"] = True
                 elif i.get("new_segwit", False):
                     input["new_segwit"] = True
-                elif segwit:
-                    input.update({'segwit': True, 'amount': 0})
-                elif new_segwit:
-                    input.update({'new_segwit': True, 'amount': 0})
             else:
                 input["outpoint"] = {"hash": i[:64], "index": int(i[65:])}
                 input['amount'] = 0
@@ -535,6 +526,10 @@ class BaseCoin(object):
         ks = standard_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
+    def watch_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2pkh')
+        return HDWallet(ks, **kwargs)
+
     def p2wpkh_p2sh_wallet(self, seed, passphrase=None, **kwargs):
         if not self.segwit_supported:
             raise Exception("P2WPKH-P2SH segwit not enabled for this coin")
@@ -543,12 +538,28 @@ class BaseCoin(object):
         ks = p2wpkh_p2sh_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
+    def watch_p2wpkh_p2sh_wallet(self, xpub,**kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh-p2sh')
+        return HDWallet(ks, **kwargs)
+
     def p2wpkh_wallet(self, seed, passphrase=None, **kwargs):
         if not bip39_is_checksum_valid(seed) == (True, True):
             raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
         ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
+    def watch_p2wpkh_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh')
+        return HDWallet(ks, **kwargs)
+
     def electrum_wallet(self, seed, passphrase=None, **kwargs):
         ks = from_electrum_seed(seed, passphrase, False, coin=self)
+        return HDWallet(ks, **kwargs)
+
+    def watch_electrum_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2pkh', electrum=True)
+        return HDWallet(ks, **kwargs)
+
+    def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
         return HDWallet(ks, **kwargs)

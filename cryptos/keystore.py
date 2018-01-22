@@ -26,7 +26,6 @@
 
 from unicodedata import normalize
 
-#from . import wallet_utils as bitcoin
 from .wallet_utils import pw_encode, pw_decode, hfu, InvalidPassword
 from .mnemonic import *
 from .deterministic import *
@@ -42,6 +41,7 @@ class KeyStore(object):
         self.root_derivation = None
         self.bip39_prefixes = ()
         self.xtype = ''
+        self.electrum = False
 
     def has_seed(self):
         return False
@@ -312,6 +312,14 @@ class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
         self.xprv = xprv
         self.xpub = bip32_privtopub(xprv, self.bip39_prefixes)
 
+    def add_xpub(self, xpub, xtype, electrum=False):
+        self.xtype = xtype
+        self.electrum = electrum
+        self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
+                               encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
+        encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
+        self.xpub = xpub
+
     def add_xprv_from_seed(self, bip32_seed, xtype, derivation, electrum=False):
         self.root_derivation = derivation
         self.xtype = xtype
@@ -538,9 +546,9 @@ def from_private_key_list(text, coin):
         keystore.import_key(x, None)
     return keystore
 
-def from_xpub(xpub, coin):
+def from_xpub(xpub, coin, xtype, electrum=False):
     k = BIP32_KeyStore({}, coin)
-    k.xpub = xpub
+    k.add_xpub(xpub, xtype, electrum=electrum)
     return k
 
 def from_xprv(xprv, coin):
