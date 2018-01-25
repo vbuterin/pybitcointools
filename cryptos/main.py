@@ -217,7 +217,7 @@ def get_privkey_format(priv):
         elif len(bin_p) == 33: return 'wif_compressed'
         else: raise Exception("WIF does not represent privkey")
 
-def encode_privkey(priv, formt, vbyte=0):
+def encode_privkey(priv, formt, vbyte=128):
     if not isinstance(priv, int_types):
         return encode_privkey(decode_privkey(priv), formt, vbyte)
     if formt == 'decimal': return priv
@@ -226,9 +226,9 @@ def encode_privkey(priv, formt, vbyte=0):
     elif formt == 'hex': return encode(priv, 16, 64)
     elif formt == 'hex_compressed': return encode(priv, 16, 64)+'01'
     elif formt == 'wif':
-        return bin_to_b58check(encode(priv, 256, 32), 128+int(vbyte))
+        return bin_to_b58check(encode(priv, 256, 32), int(vbyte))
     elif formt == 'wif_compressed':
-        return bin_to_b58check(encode(priv, 256, 32)+b'\x01', 128+int(vbyte))
+        return bin_to_b58check(encode(priv, 256, 32) + b'\x01', int(vbyte))
     else: raise Exception("Invalid format!")
 
 def decode_privkey(priv,formt=None):
@@ -520,11 +520,11 @@ def ecdsa_raw_sign(msghash, priv):
     return v, r, s
 
 
-def ecdsa_sign(msg, priv):
+def ecdsa_sign(msg, priv, coin):
     v, r, s = ecdsa_raw_sign(electrum_sig_hash(msg), priv)
     sig = encode_sig(v, r, s)
     assert ecdsa_verify(msg, sig, 
-        privtopub(priv)), "Bad Sig!\t %s\nv = %d\n,r = %d\ns = %d" % (sig, v, r, s)
+        privtopub(priv), coin), "Bad Sig!\t %s\nv = %d\n,r = %d\ns = %d" % (sig, v, r, s)
     return sig
 
 
@@ -540,16 +540,16 @@ def ecdsa_raw_verify(msghash, vrs, pub):
 
 
 # For BitcoinCore, (msg = addr or msg = "") be default
-def ecdsa_verify_addr(msg, sig, addr):
-    assert is_address(addr)
+def ecdsa_verify_addr(msg, sig, addr, coin):
+    assert coin.is_address(addr)
     Q = ecdsa_recover(msg, sig)
     magic = get_version_byte(addr)
-    return (addr == pubtoaddr(Q, int(magic))) or (addr == pubtoaddr(compress(Q), int(magic)))
+    return (addr == coin.pubtoaddr(Q, int(magic))) or (addr == coin.pubtoaddr(compress(Q), int(magic)))
 
 
-def ecdsa_verify(msg, sig, pub):
-    if is_address(pub):
-        return ecdsa_verify_addr(msg, sig, pub)
+def ecdsa_verify(msg, sig, pub, coin):
+    if coin.is_address(pub):
+        return ecdsa_verify_addr(msg, sig, pub, coin)
     return ecdsa_raw_verify(electrum_sig_hash(msg), decode_sig(sig), pub)
 
 

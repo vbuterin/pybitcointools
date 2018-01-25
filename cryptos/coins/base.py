@@ -1,8 +1,9 @@
 from ..transaction import *
-from ..deterministic import electrum_pubkey
 from ..blocks import mk_merkle_proof
-from ..main import *
+from .. import segwit_addr
 from ..explorers import blockchain
+from ..keystore import *
+from ..wallet import *
 from ..py3specials import *
 from ..py2specials import *
 
@@ -18,11 +19,39 @@ class BaseCoin(object):
     segwit_supported = None
     magicbyte = None
     script_magicbyte = None
+    segwit_hrp = None
     explorer = blockchain
     is_testnet = False
     address_prefixes = ()
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
+    hd_path = 0
+    wif_prefix = 0x80
+    wif_script_types = {
+        'p2pkh': 0,
+        'p2wpkh': 1,
+        'p2wpkh-p2sh': 2,
+        'p2sh': 5,
+        'p2wsh': 6,
+        'p2wsh-p2sh': 7
+    }
+    xprv_headers = {
+        'p2pkh': 0x0488ade4,
+        'p2wpkh-p2sh': 0x049d7878,
+        'p2wsh-p2sh': 0x295b005,
+        'p2wpkh': 0x4b2430c,
+        'p2wsh': 0x2aa7a99
+    }
+    xpub_headers = {
+        'p2pkh': 0x0488b21e,
+        'p2wpkh-p2sh': 0x049d7cb2,
+        'p2wsh-p2sh': 0x295b43f,
+        'p2wpkh': 0x4b24746,
+        'p2wsh': 0x2aa7ed3
+    }
+    electrum_xprv_headers = xprv_headers
+    electrum_xpub_headers = xpub_headers
+
 
     def __init__(self, testnet=False, **kwargs):
         if testnet:
@@ -92,12 +121,11 @@ class BaseCoin(object):
         return privtoaddr(privkey, magicbyte=self.magicbyte)
 
     def electrum_address(self, masterkey, n, for_change=0):
+        """
+        For old electrum seeds
+        """
         pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
         return self.pubtoaddr(pubkey)
-
-    def electrum_address_segwit(self, masterkey, n, for_change=0):
-        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
-        return self.pubtop2w(pubkey)
 
     def is_address(self, addr):
         """
@@ -136,6 +164,10 @@ class BaseCoin(object):
         """
         Convert an output address to a script
         """
+        if self.segwit_hrp:
+            witver, witprog = segwit_addr.decode(self.segwit_hrp, addr)
+            if witprog is not None:
+                return mk_p2w_scripthash_script(witver, witprog)
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
         else:
@@ -152,9 +184,33 @@ class BaseCoin(object):
 
     def privtop2w(self, priv):
         """
-        Convert a private key to a pay to witness public key hash address (P2WPKH, required for segwit)
+        Convert a private key to a pay to witness public key hash address
         """
         return self.pubtop2w(privtopub(priv))
+
+    def hash_to_segwit_addr(self, hash):
+        """
+        Convert a hash to the new segwit address format outlined in BIP-0173
+        """
+        return segwit_addr.encode(self.segwit_hrp, 0, hash)
+
+    def privtosegwit(self, privkey):
+        """
+        Convert a private key to the new segwit address format outlined in BIP01743
+        """
+        return self.pubtosegwit(self.privtopub(privkey))
+
+    def pubtosegwit(self, pubkey):
+        """
+        Convert a public key to the new segwit address format outlined in BIP01743
+        """
+        return self.hash_to_segwit_addr(pubkey_to_hash(pubkey))
+
+    def script_to_p2wsh(self, script):
+        """
+        Convert a script to the new segwit address format outlined in BIP01743
+        """
+        return self.hash_to_segwit_addr(sha256(safe_from_hex(script)))
 
     def mk_multsig_address(self, *args):
         """
@@ -171,6 +227,8 @@ class BaseCoin(object):
         """
         if not self.segwit_supported:
             return False
+        if self.segwit_hrp and addr.startswith(self.segwit_hrp):
+            return True
         segwit_addr = self.privtop2w(priv)
         return segwit_addr == addr
 
@@ -185,14 +243,17 @@ class BaseCoin(object):
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
-        if txobj['ins'][i].get('segwit', False):
+        if txobj['ins'][i].get('segwit', False) or txobj['ins'][i].get('new_segwit', False):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not supported for %s" % self.display_name)
             pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
             sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
-            txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
+            if txobj['ins'][i].get('new_segwit', False):
+                txobj["ins"][i]["script"] = ''
+            else:
+                txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
             txobj["witness"].append({"number": 2, "scriptCode": serialize_script([sig, pub])})
         else:
             address = self.pubtoaddr(pub)
@@ -245,22 +306,19 @@ class BaseCoin(object):
                 (ins if is_inp(arg) else outs).append(arg)
 
         txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
-        if any(isinstance(i, dict) and i.get("segwit", False) for i in ins):
-            segwit = True
+        if any(isinstance(i, dict) and (i.get("segwit", False) or i.get("new_segwit", False)) for i in ins):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
             txobj.update({"marker": 0, "flag": 1, "witness": []})
-        else:
-            segwit = False
         for i in ins:
             input = {'script': "", "sequence": 4294967295}
             if isinstance(i, dict) and "output" in i:
                 input["outpoint"] = {"hash": i["output"][:64], "index": int(i["output"][65:])}
-                input['amount'] = i.get("value", None)
+                input['amount'] = i.get("value", 0)
                 if i.get("segwit", False):
                     input["segwit"] = True
-                elif segwit:
-                    input.update({'segwit': False, 'amount': 0})
+                elif i.get("new_segwit", False):
+                    input["new_segwit"] = True
             else:
                 input["outpoint"] = {"hash": i[:64], "index": int(i[65:])}
                 input['amount'] = 0
@@ -458,3 +516,50 @@ class BaseCoin(object):
         except ValueError:
             raise Exception("Merkle proof failed because transaction %s is not part of the main chain" % txhash)
         return mk_merkle_proof(blockinfo, hashes, i)
+
+    def encode_privkey(self, privkey, formt, script_type="p2pkh"):
+        return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
+
+    def wallet(self, seed, passphrase=None, **kwargs):
+        if not bip39_is_checksum_valid(seed) == (True, True):
+            raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
+        ks = standard_from_bip39_seed(seed, passphrase, coin=self)
+        return HDWallet(ks, **kwargs)
+
+    def watch_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2pkh')
+        return HDWallet(ks, **kwargs)
+
+    def p2wpkh_p2sh_wallet(self, seed, passphrase=None, **kwargs):
+        if not self.segwit_supported:
+            raise Exception("P2WPKH-P2SH segwit not enabled for this coin")
+        if not bip39_is_checksum_valid(seed) == (True, True):
+            raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
+        ks = p2wpkh_p2sh_from_bip39_seed(seed, passphrase, coin=self)
+        return HDWallet(ks, **kwargs)
+
+    def watch_p2wpkh_p2sh_wallet(self, xpub,**kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh-p2sh')
+        return HDWallet(ks, **kwargs)
+
+    def p2wpkh_wallet(self, seed, passphrase=None, **kwargs):
+        if not bip39_is_checksum_valid(seed) == (True, True):
+            raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
+        ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
+        return HDWallet(ks, **kwargs)
+
+    def watch_p2wpkh_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh')
+        return HDWallet(ks, **kwargs)
+
+    def electrum_wallet(self, seed, passphrase=None, **kwargs):
+        ks = from_electrum_seed(seed, passphrase, False, coin=self)
+        return HDWallet(ks, **kwargs)
+
+    def watch_electrum_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2pkh', electrum=True)
+        return HDWallet(ks, **kwargs)
+
+    def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs):
+        ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
+        return HDWallet(ks, **kwargs)

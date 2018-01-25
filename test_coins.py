@@ -13,6 +13,7 @@ class BaseCoinCase(unittest.TestCase):
     unspent_multiple = []
     addresses = []
     segwit_addresses = []
+    new_segwit_addresses = []
     multisig_address = ""
     privkeys = []
     txid = None
@@ -221,6 +222,60 @@ class BaseCoinCase(unittest.TestCase):
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
+    def assertNewSegwitTransactionOK(self):
+
+        c = self.coin(testnet=self.testnet)
+
+        #Enter unspents manually because blockchain.info doesn't support gathering unspents for new segwit addresses :(
+        from_addr_i = 0
+        sender = self.new_segwit_addresses[0]
+        unspents = [{'output': '17818e0d54629fe53a81dbac6503ea6aed48ce57501a79eda6ee8f6decdcfa58:0', 'value': 1090000}]
+        max_value = sum(o['value'] for o in unspents)
+
+        for u in unspents:
+            u['new_segwit'] = True
+
+        #Arbitrarily set send value, change value, receiver and change address
+        outputs_value = max_value - self.fee
+        send_value = int(outputs_value * 0.1)
+        change_value = int(outputs_value - send_value)
+
+        if sender == self.new_segwit_addresses[0]:
+            receiver = self.new_segwit_addresses[1]
+            change_address = self.new_segwit_addresses[2]
+        elif sender == self.new_segwit_addresses[1]:
+            receiver = self.new_segwit_addresses[2]
+            change_address = self.new_segwit_addresses[0]
+        else:
+            receiver = self.new_segwit_addresses[0]
+            change_address = self.new_segwit_addresses[1]
+
+        outs = [{'value': send_value, 'address': receiver},
+                {'value': change_value, 'address': change_address}]
+
+        #Create the transaction using all available unspents as inputs
+        tx = c.mktx(unspents, outs)
+
+        from_addr_i = 0
+        #For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
+        try:
+            privkey = self.privkeys[from_addr_i]
+        except IndexError:
+            privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
+
+        #Verify that the private key belongs to the sender address for this network
+        self.assertEqual(sender, c.privtosegwit(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+
+        #Sign each input with the given private key
+        for i in range(0, len(unspents)):
+            tx = c.sign(tx, i, privkey)
+
+        self.assertEqual(len(tx['witness']), len(unspents))
+        tx = serialize(tx)
+        print(tx)
+        #Push the transaction to the network
+        result = c.pushtx(tx)
+        self.assertPushTxOK(result)
 
     def assertTransactionOK(self):
 
@@ -408,6 +463,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     coin = coins.Bitcoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses = ["2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU", "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
+    new_segwit_addresses = ["tb1qcwzf2q6zedhcma23wk6gtp5r3vp3xradjc23st", "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r", "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
                    "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
@@ -452,6 +508,10 @@ class TestBitcoinTestnet(BaseCoinCase):
 
     def test_transaction_segwit(self):
         self.assertSegwitTransactionOK()
+
+    @skip("Not possible to gather unspents")
+    def test_transacton_new_segwit(self):
+        self.assertNewSegwitTransactionOK()
 
     def test_transaction_multisig(self):
         self.assertMultiSigTransactionOK()

@@ -83,12 +83,8 @@ def deserialize(tx):
         pos[0] += bytez
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
-    def get_int(bytez=1):
-        return tx[pos[0]]
-
     def read_var_int():
         pos[0] += 1
-
         val = from_byte_to_int(tx[pos[0] - 1])
         if val < 253:
             return val
@@ -213,7 +209,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
     #is_segwit = 'witness' in tx.keys()
-    is_segwit = tx['ins'][i].get('segwit', False)
+    is_segwit = tx['ins'][i].get('segwit', False) or tx['ins'][i].get('new_segwit', False)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
@@ -315,21 +311,87 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
+import binascii
+
+bfh = bytes.fromhex
+hfu = binascii.hexlify
+
+def bh2u(x):
+    """
+    str with hex representation of a bytes-like object
+
+    >>> x = bytes((1, 2, 10))
+    >>> bh2u(x)
+    '01020A'
+
+    :param x: bytes
+    :rtype: str
+    """
+    return hfu(x).decode('ascii')
+def rev_hex(s):
+    return bh2u(bfh(s)[::-1])
+
+def int_to_hex(i, length=1):
+    assert isinstance(i, int)
+    s = hex(i)[2:].rstrip('L')
+    s = "0"*(2*length - len(s)) + s
+    return rev_hex(s)
+
+def op_push(i):
+    if i<0x4c:
+        return int_to_hex(i)
+    elif i<0xff:
+        return '4c' + int_to_hex(i)
+    elif i<0xffff:
+        return '4d' + int_to_hex(i,2)
+    else:
+        return '4e' + int_to_hex(i,4)
+
+def push_script(x):
+    return op_push(len(x)//2) + x
+
+
 def mk_pubkey_script(addr):
+    """
+    Used in converting p2pkh address to input or output script
+    """
     return '76a914' + b58check_to_hex(addr) + '88ac'
 
 def mk_scripthash_script(addr):
+    """
+    Used in converting p2sh address to output script
+    """
     return 'a914' + b58check_to_hex(addr) + '87'
 
+def mk_p2w_scripthash_script(witver, witprog):
+    """
+    Used in converting a decoded pay to witness script hash address to output script
+    """
+    assert (0 <= witver <= 16)
+    OP_n = witver + 0x50 if witver > 0 else 0
+    return bytes_to_hex_string([OP_n]) + '14' + (bytes_to_hex_string(witprog))
+
 def mk_p2wpkh_redeemscript(pubkey):
+    """
+    Used in converting public key to p2wpkh script
+    """
     return '160014' + pubkey_to_hash_hex(pubkey)
 
 def mk_p2wpkh_script(pubkey):
+    """
+    Used in converting public key to p2wpkh script
+    """
     script = mk_p2wpkh_redeemscript(pubkey)[2:]
     return 'a914'+ hex_to_hash160(script) + '87'
 
 def mk_p2wpkh_scriptcode(pubkey):
+    """
+    Used in signing for tx inputs
+    """
     return '76a914' + pubkey_to_hash_hex(pubkey) + '88ac'
+
+def p2wpkh_nested_script(pubkey):
+    return '0014' + hash160(safe_from_hex(pubkey))
 
 # Output script to address representation
 
