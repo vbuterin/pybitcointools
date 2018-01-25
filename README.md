@@ -388,7 +388,7 @@ Dash example:
 
 ### Electrum wallets
 These aim to be compatible with the default Electrum wallet seed style. They do not have different derivation paths for different coins. 
-No checks have been made again any non-Bitcoin Electum wallet (e.g. Electrum Litecoin, Electron Cash)
+No checks have been made against any non-Bitcoin Electum wallet (e.g. Electrum Litecoin, Electron Cash)
 At this moment, there is no support generating the seed words Electrum requires (which contains versioning) so seed words need to be copied from Electrum.
 Electrum versioning allows for auto-detection of wallet type, .e.g standard or segwit.
 
@@ -419,10 +419,10 @@ Electrum versioning allows for auto-detection of wallet type, .e.g standard or s
     > wallet.privkey(addr3)
     'L7NeR6r9yU2n4zddxTCUpKYmzugYuouyLsCZR9naTqkBW6sjpxDM'
 
-###Watch wallets
+### Watch wallets
 
 For security reasons the seed and xprv should ideally be held in cold storage only. If a web application needs to be 
-able to provide addresses on demand, the solution is to use a watch wallet.
+able to provide addresses on demand, the solution is to use a watch wallet, generated from the xpub.
 
 For example, let's take the Dash xpub from a previous example:
 
@@ -466,15 +466,6 @@ Full list of wallet methods:
     '9ca3631f813a6f81b70fbfc4384122bfe6fb159e6f7aea2811fe968c2a39d42a'
 
 ### The cryptotool command line interface:
-
-    cryptotool random_electrum_seed
-    484ccb566edb66c65dd0fd2e4d90ef65
-
-    cryptotool electrum_privkey 484ccb566edb66c65dd0fd2e4d90ef65 0 0
-    593240c2205e7b7b5d7c13393b7c9553497854b75c7470b76aeca50cd4a894d7
-
-    cryptotool electrum_mpk 484ccb566edb66c65dd0fd2e4d90ef65
-    484e42865b8e9a6ea8262fd1cde666b557393258ed598d842e563ad9e5e6c70a97e387eefdef123c1b8b4eb21fe210c6216ad7cc1e4186fbbba70f0e2c062c25
 
     cryptotool bip32_master_key 21456t243rhgtucyadh3wgyrcubw3grydfbng
     xprv9s21ZrQH143K2napkeoHT48gWmoJa89KCQj4nqLfdGybyWHP9Z8jvCGzuEDv4ihCyoed7RFPNbc9NxoSF7cAvH9AaNSvepUaeqbSpJZ4rbT
