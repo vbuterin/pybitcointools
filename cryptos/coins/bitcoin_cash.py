@@ -11,18 +11,22 @@ class BitcoinCash(BaseCoin):
     wif_prefix = 0x80
     hd_path = 145
     explorer = blockdozer
-    hashcode = SIGHASH_ALL + SIGHASH_FORKID
+    hashcode = SIGHASH_ALL | SIGHASH_FORKID
     testnet_overrides = {
         'display_name': "Bitcoin Cash Testnet",
         'coin_symbol': "tbcc",
         'magicbyte': 111,
         'script_magicbyte': 196,
         'wif_prefix': 0xef,
-        'xpriv_prefix': 0x0488ade4,
-        'xpub_prefix': 0x0488b21e,
+        'xprv_headers': {
+            'p2pkh': 0x04358394,
+        },
+        'xpub_headers': {
+            'p2pkh': 0x043587cf,
+        },
         'hd_path': 1,
     }
 
-    def __init__(self, *args, hd_prefork=False, **kwargs):
-        super(BitcoinCash, self).__init__(*args, **kwargs)
-        self.hd_path = 0 if hd_prefork else self.hd_path
+    def __init__(self, legacy=False, testnet=False, **kwargs):
+        super(BitcoinCash, self).__init__(testnet=testnet, **kwargs)
+        self.hd_path = 0 if legacy and testnet else self.hd_path

@@ -25,6 +25,7 @@ class BaseCoin(object):
     address_prefixes = ()
     testnet_overrides = {}
     hashcode = SIGHASH_ALL
+    secondary_hashcode = None
     hd_path = 0
     wif_prefix = 0x80
     wif_script_types = {
@@ -71,6 +72,7 @@ class BaseCoin(object):
             self.script_prefixes = magicbyte_to_prefix(magicbyte=self.script_magicbyte)
         else:
             self.script_prefixes = ()
+        self.secondary_hashcode = self.secondary_hashcode or self.hashcode
 
     def unspent(self, *addrs):
         """
@@ -139,6 +141,12 @@ class BaseCoin(object):
         Check if addr is a a pay to script address
         """
         return not any(str(i) == addr[0] for i in self.address_prefixes)
+
+    def output_script_to_address(self, script):
+        """
+        Convert an output script to an address
+        """
+        return output_script_to_address(script, self.magicbyte)
 
     def scripttoaddr(self, script):
         """
@@ -249,7 +257,7 @@ class BaseCoin(object):
             pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
-            sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
+            sig = ecdsa_tx_sign(signing_tx, priv, self.secondary_hashcode)
             if txobj['ins'][i].get('new_segwit', False):
                 txobj["ins"][i]["script"] = ''
             else:
@@ -259,7 +267,7 @@ class BaseCoin(object):
             address = self.pubtoaddr(pub)
             script = mk_pubkey_script(address)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
-            sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
+            sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode, self.secondary_hashcode)
             txobj["ins"][i]["script"] = serialize_script([sig, pub])
             if "witness" in txobj.keys():
                 txobj["witness"].append({"number": 0, "scriptCode": ''})

@@ -22,6 +22,12 @@ Library now supports making and pushing raw transactions for:
 
 Transaction broadcast has been tested for all of these.
 
+* For the following, local operations such as making and signing transactions are supported but explorer dependant
+operations (unspent, pushtx, etc.) are not yet supported.:
+
+* Bitcoin Gold mainnet
+* Bitcoin Gold testnet
+
 Segregrated Witness transactions also supported for:
 * Bitcoin mainnet
 * Bitcoin testnet
@@ -34,6 +40,9 @@ Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f
 
 Litecoin: https://live.blockcypher.com/ltc/tx/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989/
 https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000/
+
+Bitcoin Gold mainnet and testnet is supported for making and signing transactions, however explorer-dependant operations 
+(unspent, pushtx, etc.) are not yet supported.
 
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
@@ -253,9 +262,19 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     > d = Dash(testnet=True)
     > d.privtoaddr(priv)
     'yc6xxkH4B1P4VRuviHUDBd3j4tAQpy4fzn'
-    d = Doge()
-    d.privtoaddr(priv)
+    > d = Doge()
+    > d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
+    > bg = BitcinGold()
+    > bg.privtoaddr(priv)
+    'GZdSXfsfkc7h5Dh6DVVhiqHUsRtCMQ9fxG'
+    > bg = BitcoinGold(legacy=True)
+    > bg.privtoaddr(priv)
+    '1GnX7YYimkWPzkPoHYqbJ4waxG6MN2cdSg'
+    > bg = BitcoinGold(testnet=True)
+    > bg.privtoaddr(priv)
+    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
+    
 
 ### BIP39-BIP44 Standard Wallets:
 

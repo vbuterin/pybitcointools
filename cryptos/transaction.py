@@ -214,7 +214,8 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     for inp in newtx["ins"]:
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
-    if is_segwit or hashcode == SIGHASH_ALL + SIGHASH_FORKID:
+    if is_segwit or hashcode >= SIGHASH_FORKID:
+        print("yes")
         return uahf_digest(newtx, i)
     elif hashcode == SIGHASH_NONE:
         newtx["outs"] = []
@@ -293,9 +294,10 @@ def bin_txhash(tx, hashcode=None):
     return binascii.unhexlify(txhash(tx, hashcode))
 
 
-def ecdsa_tx_sign(tx, priv, hashcode=SIGHASH_ALL):
+def ecdsa_tx_sign(tx, priv, hashcode=SIGHASH_ALL, secondary_hashcode=None):
+    secondary_hashcode = secondary_hashcode or hashcode
     rawsig = ecdsa_raw_sign(bin_txhash(tx, hashcode), priv)
-    return der_encode_sig(*rawsig)+encode(hashcode, 16, 2)
+    return der_encode_sig(*rawsig)+encode(secondary_hashcode, 16, 2)
 
 
 def ecdsa_tx_verify(tx, sig, pub, hashcode=SIGHASH_ALL):
@@ -311,46 +313,6 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
-import binascii
-
-bfh = bytes.fromhex
-hfu = binascii.hexlify
-
-def bh2u(x):
-    """
-    str with hex representation of a bytes-like object
-
-    >>> x = bytes((1, 2, 10))
-    >>> bh2u(x)
-    '01020A'
-
-    :param x: bytes
-    :rtype: str
-    """
-    return hfu(x).decode('ascii')
-def rev_hex(s):
-    return bh2u(bfh(s)[::-1])
-
-def int_to_hex(i, length=1):
-    assert isinstance(i, int)
-    s = hex(i)[2:].rstrip('L')
-    s = "0"*(2*length - len(s)) + s
-    return rev_hex(s)
-
-def op_push(i):
-    if i<0x4c:
-        return int_to_hex(i)
-    elif i<0xff:
-        return '4c' + int_to_hex(i)
-    elif i<0xffff:
-        return '4d' + int_to_hex(i,2)
-    else:
-        return '4e' + int_to_hex(i,4)
-
-def push_script(x):
-    return op_push(len(x)//2) + x
-
-
 def mk_pubkey_script(addr):
     """
     Used in converting p2pkh address to input or output script
@@ -362,6 +324,17 @@ def mk_scripthash_script(addr):
     Used in converting p2sh address to output script
     """
     return 'a914' + b58check_to_hex(addr) + '87'
+
+def output_script_to_address(script, magicbyte=0):
+    if script.startswith('76'):
+        script = script[6:]
+    else:
+        script = script[4:]
+    if script.endswith('88ac'):
+        script = script[:-4]
+    else:
+        script = script[:-2]
+    return bin_to_b58check(safe_from_hex(script), magicbyte=magicbyte)
 
 def mk_p2w_scripthash_script(witver, witprog):
     """
