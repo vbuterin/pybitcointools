@@ -208,13 +208,12 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
-    #is_segwit = 'witness' in tx.keys()
     is_segwit = tx['ins'][i].get('segwit', False) or tx['ins'][i].get('new_segwit', False)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
-    if is_segwit or hashcode >= SIGHASH_FORKID:
+    if is_segwit or hashcode & 255 == SIGHASH_ALL + SIGHASH_FORKID:
         return uahf_digest(newtx, i)
     elif hashcode == SIGHASH_NONE:
         newtx["outs"] = []
@@ -293,10 +292,9 @@ def bin_txhash(tx, hashcode=None):
     return binascii.unhexlify(txhash(tx, hashcode))
 
 
-def ecdsa_tx_sign(tx, priv, hashcode=SIGHASH_ALL, secondary_hashcode=None):
-    secondary_hashcode = secondary_hashcode or hashcode
+def ecdsa_tx_sign(tx, priv, hashcode=SIGHASH_ALL):
     rawsig = ecdsa_raw_sign(bin_txhash(tx, hashcode), priv)
-    return der_encode_sig(*rawsig)+encode(secondary_hashcode, 16, 2)
+    return der_encode_sig(*rawsig)+encode(hashcode & 255, 16, 2)
 
 
 def ecdsa_tx_verify(tx, sig, pub, hashcode=SIGHASH_ALL):

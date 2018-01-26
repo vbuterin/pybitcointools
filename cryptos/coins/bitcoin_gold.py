@@ -16,7 +16,6 @@ class BitcoinGold(BaseCoin):
     hd_path = 0
     explorer = btg_explorer
     hashcode = SIGHASH_ALL | SIGHASH_FORKID | FORKID_BTG << 8
-    secondary_hashcode = SIGHASH_ALL | SIGHASH_FORKID
     segwit_hrp = "bc"
     testnet_overrides = {
         'display_name': "Bitcoin Gold Testnet",

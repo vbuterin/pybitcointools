@@ -267,7 +267,7 @@ class BaseCoin(object):
             address = self.pubtoaddr(pub)
             script = mk_pubkey_script(address)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
-            sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode, self.secondary_hashcode)
+            sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
             txobj["ins"][i]["script"] = serialize_script([sig, pub])
             if "witness" in txobj.keys():
                 txobj["witness"].append({"number": 0, "scriptCode": ''})

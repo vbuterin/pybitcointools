@@ -23,7 +23,7 @@ Library now supports making and pushing raw transactions for:
 
 Transaction broadcast has been tested for all of these.
 
-* For the following, local operations such as making and signing transactions are supported but explorer dependant
+For the following, local operations such as making and signing transactions are supported but explorer dependant
 operations (unspent, pushtx, etc.) are not yet supported.:
 
 * Bitcoin Gold testnet
