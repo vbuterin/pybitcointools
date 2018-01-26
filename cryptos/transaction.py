@@ -215,7 +215,6 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
         inp["script"] = ""
     newtx["ins"][i]["script"] = script
     if is_segwit or hashcode >= SIGHASH_FORKID:
-        print("yes")
         return uahf_digest(newtx, i)
     elif hashcode == SIGHASH_NONE:
         newtx["outs"] = []
@@ -508,5 +507,4 @@ def select(unspent, value):
         raise Exception("Not enough funds")
     unspents = low[:i]
     actual_value = sum(unspent['value'] for unspent in unspents)
-    change = actual_value - value
     return low[:i]

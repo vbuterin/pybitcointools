@@ -1,20 +1,20 @@
 from .base import BaseCoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
-from ..explorers import blockdozer
+from ..explorers import btg_explorer
 from ..main import b58check_to_bin
 from ..py3specials import bin_to_b58check
 
 FORKID_BTG = 79
 
 class BitcoinGold(BaseCoin):
-    coin_symbol = "bcc"
+    coin_symbol = "btg"
     display_name = "Bitcoin Gold"
     segwit_supported = True
     magicbyte = 38
     script_magicbyte = 23
     wif_prefix = 0x80
     hd_path = 0
-    explorer = None
+    explorer = btg_explorer
     hashcode = SIGHASH_ALL | SIGHASH_FORKID | FORKID_BTG << 8
     secondary_hashcode = SIGHASH_ALL | SIGHASH_FORKID
     segwit_hrp = "bc"
@@ -54,33 +54,3 @@ class BitcoinGold(BaseCoin):
     def sh_address_from_btc(self, addr):
         pubkey_hash = b58check_to_bin(addr)
         return bin_to_b58check(pubkey_hash, self.script_magicbyte)
-
-    def unspent(self, *addrs):
-        """
-        Get unspent transactions for addresses
-        """
-        raise NotImplementedError("Explorer operations not supported for %s" % self.display_name)
-
-    def history(self, *addrs, **kwargs):
-        """
-        Get transaction history for addresses
-        """
-        raise NotImplementedError("Explorer operations not supported for %s" % self.display_name)
-
-    def fetchtx(self, tx):
-        """
-        Fetch a tx from the blockchain
-        """
-        raise NotImplementedError("Explorer operations not supported for %s" % self.display_name)
-
-    def txinputs(self, tx):
-        """
-        Fetch inputs of a transaction on the blockchain
-        """
-        raise NotImplementedError("Explorer operations not supported for %s" % self.display_name)
-
-    def pushtx(self, tx):
-        """
-        Push/ Broadcast a transaction to the blockchain
-        """
-        raise NotImplementedError("Explorer operations not supported for %s" % self.display_name)

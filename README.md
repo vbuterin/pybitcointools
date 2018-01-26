@@ -19,13 +19,13 @@ Library now supports making and pushing raw transactions for:
 * Dash mainnet
 * Dash testnet
 * Dogecoin mainnet
+* Bitcoin Gold mainnet (with replay protection)
 
 Transaction broadcast has been tested for all of these.
 
 * For the following, local operations such as making and signing transactions are supported but explorer dependant
 operations (unspent, pushtx, etc.) are not yet supported.:
 
-* Bitcoin Gold mainnet
 * Bitcoin Gold testnet
 
 Segregrated Witness transactions also supported for:
@@ -41,20 +41,16 @@ Bitcoin: https://blockchain.info/tx/9f3bd4fa14e424abd5623ba98877e33cfee3e7bd6f9f
 Litecoin: https://live.blockcypher.com/ltc/tx/b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989/
 https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000/
 
-Bitcoin Gold mainnet and testnet is supported for making and signing transactions, however explorer-dependant operations 
-(unspent, pushtx, etc.) are not yet supported.
-
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Roadmap:
 * Change from explorers to electrumx servers
 * Correct fee detection algorithm
-* Bitcoin Gold support
 * Extend wallets to make transactions
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
 * Desktop GUI for easy creation, signing and broadcasting of raw transactions
-* Seed-based multi-crypto wallet
+* Multi-crypto wallet GUI
 
 ### Advantages:
 
