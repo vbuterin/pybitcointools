@@ -49,8 +49,8 @@ class BaseCoinCase(unittest.TestCase):
 
     def assertUnspentOK(self):
         c = self.coin(testnet=self.testnet)
-        unspent_outputs = c.unspent(self.unspent_address)
-        self.assertUnorderedListEqual(unspent_outputs, self.unspent, 'output')
+        unspent_outputs = c.unspent(*self.unspent_address)
+        self.assertUnorderedListEqual(unspent_outputs, self.unspent, 'tx_hash')
 
     def assertParseArgsOK(self):
         addr_args = explorers.blockcypher.parse_addr_args(self.unspent_address)
@@ -272,7 +272,7 @@ class BaseCoinCase(unittest.TestCase):
 
         self.assertEqual(len(tx['witness']), len(unspents))
         tx = serialize(tx)
-        print(tx)
+
         #Push the transaction to the network
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
@@ -419,10 +419,16 @@ class TestBitcoin(BaseCoinCase):
     blockcypher_coin_symbol = "btc"
     testnet = False
 
-    unspent_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
+    unspent_address = ["12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR", "1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT"]
     unspent = [
-        {'output': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34:1', 'value': 5000000,},
-        {'output': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f:1', 'value': 16336000000}]
+        {'tx_hash': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34', 'tx_pos': 1, 'height': 114743,
+         'value': 5000000, 'address': '12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR'},
+        {'tx_hash': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f', 'tx_pos': 1, 'height': 116768,
+         'value': 16336000000, 'address': '12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR'},
+        {'tx_hash': 'fd232fe21b6ad7f096f3012e935467a7f2177258cdcd07c748502a5b1f31ccd5', 'tx_pos': 0, 'height': 187296,
+         'value': 8000000000, 'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT'},
+        {'tx_hash': 'a146923df9579f7c7b9a8f5ddf27e230e8d838117379bdf6b57113ce31bf52e0', 'tx_pos': 41, 'height': 248365,
+         'value': 100000, 'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT'}]
     min_latest_height = 503351
     txid = "fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690"
     txheight = 135235
@@ -456,6 +462,37 @@ class TestBitcoin(BaseCoinCase):
 
     def test_unspent(self):
         self.assertUnspentOK()
+
+    @skip
+    def test_asyncio_concurrent_times(self):
+        coin = self.coin(testnet=self.testnet)
+        c = coin.rpc_client
+        addresses = ["1GmWF2ZpJveAyF6uayZ8s5VHCkHTzatoQA", "1LMUeCtgAmrz1VPevBWnbuju1H1XYqT3tF",
+                     "1GN4Y1cnKuv35jkJsCqBX3iUe47fu8giHo", "1GN4Y1cnKuv35jkJsCqBX3iUe47fu8giHo",
+                     "1CcitR6EV2K5npTtqzi5igjKLzcWQvbRPq", "1CCtAT5kmqcs6bDVgqV777L65vEdTqGiQ7",
+                     "15tjqUpXSfvhPRABdBFEuPidCFnQP32Rar", "1GJ3antfMZ5Kb3dSyAL6GH2gqWXLkkhruB"]
+
+        from datetime import datetime
+
+        now = datetime.now()
+        coin.unspent(*addresses)
+        time_taken_together = datetime.now() - now
+
+        now = datetime.now()
+        coin.unspent(addresses[0])
+        coin.unspent(addresses[1])
+        coin.unspent(addresses[2])
+        coin.unspent(addresses[3])
+        coin.unspent(addresses[4])
+        coin.unspent(addresses[5])
+        coin.unspent(addresses[6])
+        coin.unspent(addresses[7])
+        time_taken_separate = datetime.now() - now
+
+        print('seperate', time_taken_separate)
+        print('together', time_taken_together)
+        self.assertGreater(time_taken_separate, time_taken_together)
+
 
 
 class TestBitcoinTestnet(BaseCoinCase):

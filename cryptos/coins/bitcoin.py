@@ -10,6 +10,9 @@ class Bitcoin(BaseCoin):
     magicbyte = 0
     script_magicbyte = 5
     segwit_hrp = "bc"
+    client_kwargs = {
+        'server_file': 'bitcoin.json',
+    }
 
     testnet_overrides = {
         'display_name': "Bitcoin Testnet",
@@ -19,6 +22,9 @@ class Bitcoin(BaseCoin):
         'segwit_hrp': 'tb',
         'hd_path': 1,
         'wif_prefix': 0xef,
+        'client_kwargs': {
+            'server_file': 'bitcoin_testnet.json',
+        },
         'xprv_headers': {
             'p2pkh': 0x04358394,
             'p2wpkh-p2sh': 0x044a4e28,

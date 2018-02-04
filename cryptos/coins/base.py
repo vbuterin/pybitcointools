@@ -2,6 +2,7 @@ from ..transaction import *
 from ..blocks import mk_merkle_proof
 from .. import segwit_addr
 from ..explorers import blockchain
+from ..electrumx_client.rpc import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
@@ -21,6 +22,16 @@ class BaseCoin(object):
     script_magicbyte = None
     segwit_hrp = None
     explorer = blockchain
+    client = ElectrumXClient
+    client_kwargs = {
+        'server_file': 'bitcoin.json',
+        'servers': (),
+        'host': None,
+        'port': 50001,
+        'timeout': 15,
+        'max_servers': 5,
+        'loop': None
+    }
     is_testnet = False
     address_prefixes = ()
     testnet_overrides = {}
@@ -73,12 +84,23 @@ class BaseCoin(object):
         else:
             self.script_prefixes = ()
         self.secondary_hashcode = self.secondary_hashcode or self.hashcode
+        self._rpc_client = None
+
+    @property
+    def rpc_client(self):
+        """
+        Connect to remove server
+        """
+        if not self._rpc_client:
+            self._rpc_client = self.client(**self.client_kwargs)
+        return self._rpc_client
+
 
     def unspent(self, *addrs):
         """
         Get unspent transactions for addresses
         """
-        return self.explorer.unspent(*addrs, coin_symbol=self.coin_symbol)
+        return self.rpc_client.unspent(*addrs)
 
     def history(self, *addrs, **kwargs):
         """

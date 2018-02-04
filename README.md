@@ -44,6 +44,7 @@ https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Roadmap:
+* Replaceable transactions
 * Change from explorers to electrumx servers
 * Correct fee detection algorithm
 * Extend wallets to make transactions
