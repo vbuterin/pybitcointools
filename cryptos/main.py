@@ -1,5 +1,4 @@
 #!/usr/bin/python
-from .py2specials import *
 from .py3specials import *
 import binascii
 import hashlib
@@ -604,3 +603,6 @@ def magicbyte_to_prefix(magicbyte):
     if first == last:
         return (first,)
     return (first, last)
+
+def script_to_scripthash(script):
+    return safe_hexlify(bin_sha256(safe_from_hex(script))[::-1])

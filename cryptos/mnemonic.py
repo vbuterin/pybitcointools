@@ -1,7 +1,6 @@
 import random
 from pbkdf2 import PBKDF2
 import hmac
-from .py2specials import *
 from .py3specials import *
 from .wallet_utils import is_new_seed
 from bisect import bisect_left

@@ -511,12 +511,42 @@ class TestBitcoinTestnet(BaseCoinCase):
     num_merkle_siblings = 5
     min_latest_height = 1258030
     multisig_address = "2ND6ptW19yaFEmBa5LtEDzjKc2rSsYyUvqA"
-    unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
-    unspent = [{'output': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c:0', 'value': 180000000}]
+    unspent_address = ["ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA", "2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy",
+                       "tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq"]
+    unspent = [
+        {'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'tx_pos': 0, 'height': 1238008,
+         'value': 180000000, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'},
+        {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'tx_pos': 1, 'height': 1275633,
+         'value': 173980000, 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
+        {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'tx_pos': 0, 'height': 1275633,
+         'value': 6000000, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq'}]
+    balances = [
+        {'confirmed': 180000000, 'unconfirmed': 0, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA', 'total': 180000000},
+        {'confirmed': 173980000, 'unconfirmed': 0, 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy',
+         'total': 173980000},
+        {'confirmed': 6000000, 'unconfirmed': 0, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq',
+         'total': 6000000}]
+    history = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008},
+                    {'tx_hash': 'e25d8f4036e44159b0364b45867e08ae47a57dda68ba800ba8abe1fb2dc54a40', 'height': 1275633},
+                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633},
+                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633}]
     txid = "1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c"
     txheight = 1238008
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
     tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
+
+    def test_balance(self):
+        coin = self.coin(testnet=self.testnet)
+        result = coin.get_balance(*self.unspent_address)
+        self.assertEqual(self.balances, result)
+
+    def test_unspent(self):
+        self.assertUnspentOK()
+
+    def test_history(self):
+        coin = self.coin(testnet=self.testnet)
+        result = coin.history(*self.unspent_address)
+        self.assertEqual(self.history, result)
 
     def test_block_info(self):
         self.assertBlockInfoOK()
@@ -623,9 +653,6 @@ class TestBitcoinTestnet(BaseCoinCase):
 
         result = c.send(privkey, receiver, send_value, fee=self.fee)
         self.assertPushTxOK(result)
-
-    def test_unspent(self):
-        self.assertUnspentOK()
 
 class TestLitecoin(BaseCoinCase):
     name = "Litecoin"

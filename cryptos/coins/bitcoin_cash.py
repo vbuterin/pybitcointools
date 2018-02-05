@@ -1,6 +1,5 @@
 from .base import BaseCoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
-from ..explorers import blockdozer
 
 class BitcoinCash(BaseCoin):
     coin_symbol = "bcc"
@@ -10,8 +9,10 @@ class BitcoinCash(BaseCoin):
     script_magicbyte = 5
     wif_prefix = 0x80
     hd_path = 145
-    explorer = blockdozer
     hashcode = SIGHASH_ALL | SIGHASH_FORKID
+    client_kwargs = {
+        'server_file': 'bitcoin_cash.json',
+    }
     testnet_overrides = {
         'display_name': "Bitcoin Cash Testnet",
         'coin_symbol': "tbcc",
@@ -25,6 +26,9 @@ class BitcoinCash(BaseCoin):
             'p2pkh': 0x043587cf,
         },
         'hd_path': 1,
+        'client_kwargs': {
+            'server_file': 'bitcoin_cash_testnet.json',
+        },
     }
 
     def __init__(self, legacy=False, testnet=False, **kwargs):

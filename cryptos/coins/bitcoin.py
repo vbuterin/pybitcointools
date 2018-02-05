@@ -6,7 +6,6 @@ class Bitcoin(BaseCoin):
     coin_symbol = "BTC"
     display_name = "Bitcoin"
     segwit_supported = True
-    explorer = blockchain
     magicbyte = 0
     script_magicbyte = 5
     segwit_hrp = "bc"

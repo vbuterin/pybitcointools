@@ -1,5 +1,4 @@
 from .base import BaseCoin
-from ..explorers import sochain
 
 class Litecoin(BaseCoin):
     coin_symbol = "LTC"
@@ -11,7 +10,9 @@ class Litecoin(BaseCoin):
     wif_prefix = 0xb0
     segwit_hrp = "ltc1"
     hd_path = 2
-    explorer = sochain
+    client_kwargs = {
+        'server_file': 'litecoin.json',
+    }
     testnet_overrides = {
         'display_name': "Litecoin Testnet",
         'coin_symbol': "LTCTEST",
@@ -20,6 +21,9 @@ class Litecoin(BaseCoin):
         'script_magicbyte': 196, #Old magicbyte still recognised by explorers,
         'segwit_hrp': "tltc1",
         'hd_path': 1,
+        'client_kwargs': {
+            'server_file': 'litecoin_testnet.json'
+        },
         'xpriv_prefix': 0x04358394,
         'xpub_prefix': 0x043587cf
     }

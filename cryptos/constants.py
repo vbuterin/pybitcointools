@@ -5,3 +5,5 @@ PROTOCOL_VERSION = '1.1'     # protocol version requested
 SEED_PREFIX      = '01'      # Standard wallet
 SEED_PREFIX_2FA  = '101'     # Two-factor authentication
 SEED_PREFIX_SW   = '100'     # Segwit wallet
+
+CLIENT_NAME = 'pycryptotools'

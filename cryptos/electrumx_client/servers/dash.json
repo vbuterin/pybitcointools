@@ -1,0 +1,6 @@
+{
+    "electrum.darkcointalk.org": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
+    "drk1.electrum-servers.us": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
+    "electrum.dash.siampm.com": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
+    "electrum-drk.club": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"}
+}

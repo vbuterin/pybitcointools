@@ -170,13 +170,13 @@ class JSONRPCv2(JSONRPC):
         must exist.  Errors must have 'code' and 'message' members.
         '''
         if 'error' in payload:
-            handler(None, cls.canonical_error(payload['error']))
+            handler(payload['id'], None, cls.canonical_error(payload['error']))
         elif 'result' in payload:
             handler(payload['id'], payload['result'], None)
         else:
             error = {'message': 'no error or result returned',
                      'code': JSONRPC.INVALID_RESPONSE}
-            handler(None, cls.canonical_error(error))
+            handler(payload['id'], None, cls.canonical_error(error))
 
     @classmethod
     def batch_size(cls, parts):

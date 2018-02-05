@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import binascii, re, copy
+import copy
 from .main import *
 from _functools import reduce
 

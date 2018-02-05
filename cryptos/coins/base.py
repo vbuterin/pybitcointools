@@ -1,7 +1,6 @@
 from ..transaction import *
 from ..blocks import mk_merkle_proof
 from .. import segwit_addr
-from ..explorers import blockchain
 from ..electrumx_client.rpc import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
@@ -21,7 +20,6 @@ class BaseCoin(object):
     magicbyte = None
     script_magicbyte = None
     segwit_hrp = None
-    explorer = blockchain
     client = ElectrumXClient
     client_kwargs = {
         'server_file': 'bitcoin.json',
@@ -95,36 +93,89 @@ class BaseCoin(object):
             self._rpc_client = self.client(**self.client_kwargs)
         return self._rpc_client
 
-
-    def unspent(self, *addrs):
+    def unspent_old(self, *addrs):
         """
         Get unspent transactions for addresses
         """
-        return self.rpc_client.unspent(*addrs)
+        return self.explorer.unspent(*addrs, coin_symbol=self.coin_symbol)
 
-    def history(self, *addrs, **kwargs):
+    def block_header(self, *heights):
+        return self.rpc_client.block_header(*heights)
+
+    def get_balance(self, *addrs):
+        """
+        Get address balances
+        """
+        addrs_scripthashes = {self.addrtoscripthash(addr):addr for addr in addrs}
+        return self.rpc_client.get_balance(addrs_scripthashes)
+
+    def filter_by_proof(self, *txs):
+        proven = [proof['tx_hash'] for proof in self.merkle_prove(*txs)]
+        return filter(lambda tx: tx['tx_hash'] in proven, txs)
+
+    def unspent(self, *addrs, merkle_proof=False):
+        """
+        Get unspent transactions for addresses
+        """
+        addrs_scripthashes = {self.addrtoscripthash(addr):addr for addr in addrs}
+        unspents = self.rpc_client.unspent(addrs_scripthashes)
+        if merkle_proof:
+            return self.filter_by_proof(*unspents)
+        return unspents
+
+    def history(self, *addrs, merkle_proof=False):
         """
         Get transaction history for addresses
         """
-        return self.explorer.history(*addrs, coin_symbol=self.coin_symbol)
+        addrs_scripthashes = {self.addrtoscripthash(addr):addr for addr in addrs}
+        txs = self.rpc_client.history(addrs_scripthashes)
+        if merkle_proof:
+            return self.filter_by_proof(*txs)
+        return txs
 
-    def fetchtx(self, tx):
+    def get_raw_tx(self, *tx_hashes):
         """
-        Fetch a tx from the blockchain
+        Fetch transactions from the blockchain
         """
-        return self.explorer.fetchtx(tx, coin_symbol=self.coin_symbol)
+        return self.rpc_client.get_txs(*tx_hashes)
 
-    def txinputs(self, tx):
+    def get_tx(self, *tx_hashes):
+        """
+        Fetch transactions from the blockchain and deserialise each to a dictionary
+        """
+        txs = self.get_raw_tx(*tx_hashes)
+        return [deserialize(tx) for tx in txs]
+
+    def get_merkle(self, *txs):
+        return self.rpc_client.get_merkle(*txs)
+
+    def get_all_merkle_info(self, *txinfos):
+        return self.rpc_client.get_all_merkle_data(txinfos)
+
+    def merkle_prove(self, *txinfos):
+        """
+        Prove that information returned from server about a transaction in the blockchain is valid. Only run on a
+        tx with at least 1 confirmation.
+        """
+        merkles = self.get_all_merkle_info(*txinfos)
+        proofs = []
+        for merkle_info in merkles:
+            proof = mk_merkle_proof(merkle_info['merkle_root'], merkle_info['merkle'], merkle_info['pos'])
+            if proof['proven']:
+                proofs.append(proof)
+        return proofs
+
+    def txinputs(self, tx_hash):
         """
         Fetch inputs of a transaction on the blockchain
         """
-        return self.explorer.txinputs(tx, coin_symbol=self.coin_symbol)
+        return self.get_tx(tx_hash)[0]['ins']
 
     def pushtx(self, tx):
         """
         Push/ Broadcast a transaction to the blockchain
         """
-        return self.explorer.pushtx(tx, coin_symbol=self.coin_symbol)
+        return self.rpc_client.broadcast_transaction(tx)
 
     def privtopub(self, privkey):
         """
@@ -202,6 +253,13 @@ class BaseCoin(object):
             return mk_scripthash_script(addr)
         else:
             return mk_pubkey_script(addr)
+
+    def addrtoscripthash(self, addr):
+        """
+        For electrumx requests
+        """
+        script = self.addrtoscript(addr)
+        return script_to_scripthash(script)
 
     def pubtop2w(self, pub):
         """
@@ -318,7 +376,7 @@ class BaseCoin(object):
 
         Make an unsigned transaction from inputs and outputs. Change is not automatically included so any difference
         in value between inputs and outputs will be given as a miner's fee (transactions with too high fees will
-        normally be blocked by the explorers)
+        normally be blocked by Electrumx)
 
         For Bitcoin Cash and other hard forks using SIGHASH_FORKID,
         ins must be a list of dicts with each containing the outpoint and value of the input.
@@ -500,15 +558,6 @@ class BaseCoin(object):
         argz = u2 + outs + [change_addr, fee]
         return self.mksend(*argz, segwit=segwit)
 
-    def block_height(self, txhash):
-        return self.explorer.block_height(txhash, coin_symbol=self.coin_symbol)
-
-    def current_block_height(self):
-        return self.explorer.current_block_height(coin_symbol=self.coin_symbol)
-
-    def block_info(self, height):
-        return self.explorer.block_info(height, coin_symbol=self.coin_symbol)
-
     def inspect(self, tx):
         if not isinstance(tx, dict):
             tx = deserialize(tx)
@@ -532,20 +581,6 @@ class BaseCoin(object):
             'outs': outs,
             'ins': ins
         }
-
-    def merkle_prove(self, txhash):
-        """
-        Prove that information an explorer returns about a transaction in the blockchain is valid. Only run on a
-        tx with at least 1 confirmation.
-        """
-        blocknum = self.block_height(txhash)
-        blockinfo = self.block_info(blocknum)
-        hashes = blockinfo.pop('tx_hashes')
-        try:
-            i = hashes.index(txhash)
-        except ValueError:
-            raise Exception("Merkle proof failed because transaction %s is not part of the main chain" % txhash)
-        return mk_merkle_proof(blockinfo, hashes, i)
 
     def encode_privkey(self, privkey, formt, script_type="p2pkh"):
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])

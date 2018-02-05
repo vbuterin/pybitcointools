@@ -1,6 +1,5 @@
 from .base import BaseCoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
-from ..explorers import btg_explorer
 from ..main import b58check_to_bin
 from ..py3specials import bin_to_b58check
 
@@ -14,15 +13,20 @@ class BitcoinGold(BaseCoin):
     script_magicbyte = 23
     wif_prefix = 0x80
     hd_path = 0
-    explorer = btg_explorer
     hashcode = SIGHASH_ALL | SIGHASH_FORKID | FORKID_BTG << 8
     segwit_hrp = "bc"
+    client_kwargs = {
+        'server_file': 'bitcoin_gold.json',
+    }
     testnet_overrides = {
         'display_name': "Bitcoin Gold Testnet",
         'coin_symbol': "tbcc",
         'magicbyte': 111,
         'script_magicbyte': 196,
         'wif_prefix': 0xef,
+        'client_kwargs': {
+            'server_file': 'bitcoin_gold_testnet.json',
+        },
         'xprv_headers': {
             'p2pkh': 0x04358394,
             'p2wpkh-p2sh': 0x044a4e28,

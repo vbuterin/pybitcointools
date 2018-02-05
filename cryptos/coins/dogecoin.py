@@ -10,7 +10,9 @@ class Doge(BaseCoin):
     script_magicbyte = 22
     to_wif = 0x9e
     hd_path = 3
-    explorer = sochain
+    client_kwargs = {
+        'server_file': 'doge.json',
+    }
     xpriv_prefix = 0x02facafd
     xpub_prefix = 0x02fac398
     testnet_overrides = {
@@ -19,6 +21,9 @@ class Doge(BaseCoin):
         'magicbyte': 113,
         'script_magicbyte': 196,
         'hd_path': 1,
+        'client_kwargs': {
+            'server_file': 'doge_testnet.json',
+        },
         'xpriv_prefix': 0x04358394,
         'xpub_prefix': 0x043587cf
     }
