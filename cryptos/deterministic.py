@@ -17,7 +17,7 @@ def electrum_mpk(seed):
     return privkey_to_pubkey(seed)[2:]
 
 # Accepts (seed or stretched seed), index and secondary index
-# (conventionally 0 for ordinary addresses, 1 for change) , returns privkey
+# (conventionally 0 for ordinary address_derivations, 1 for change) , returns privkey
 
 
 def electrum_privkey(seed, n, for_change=0):
@@ -28,7 +28,7 @@ def electrum_privkey(seed, n, for_change=0):
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
-# (conventionally 0 for ordinary addresses, 1 for change) , returns pubkey
+# (conventionally 0 for ordinary address_derivations, 1 for change) , returns pubkey
 
 
 def electrum_pubkey(masterkey, n, for_change=0):

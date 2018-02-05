@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Reference implementation for Bech32 and segwit addresses."""
+"""Reference implementation for Bech32 and segwit address_derivations."""
 
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"

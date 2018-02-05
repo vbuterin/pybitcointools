@@ -5,7 +5,7 @@ from ..electrumx_client.rpc import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
-from ..py2specials import *
+
 
 class BaseCoin(object):
     """
@@ -36,6 +36,11 @@ class BaseCoin(object):
     hashcode = SIGHASH_ALL
     secondary_hashcode = None
     hd_path = 0
+    signature_sizes = {
+        'p2pkh': 213,
+        'p2w_p2sh': 46 + (213 / 4),
+        'p2wpkh': (214 / 4),
+    }
     wif_prefix = 0x80
     wif_script_types = {
         'p2pkh': 0,
@@ -93,11 +98,37 @@ class BaseCoin(object):
             self._rpc_client = self.client(**self.client_kwargs)
         return self._rpc_client
 
-    def unspent_old(self, *addrs):
+    def estimate_fee_per_kb(self, numblocks=1):
         """
-        Get unspent transactions for addresses
+        Get estimated fee kb to get transaction confirmed within numblocks number of blocks
         """
-        return self.explorer.unspent(*addrs, coin_symbol=self.coin_symbol)
+        return self.rpc_client.estimate_fee(numblocks)
+
+    def tx_size(self, txobj):
+        """
+        Get transaction size in bytes
+        """
+        tx = serialize(txobj)
+        size = len(tx) / 2
+        for input in txobj['inputs']:
+            if input.get('new_segwit', False):
+                size += self.signature_sizes['p2wpkh']
+            elif input.get('segwit', False):
+                size += self.signature_sizes['p2w_p2sh']
+            else:
+                size += self.signature_sizes['p2pkh']
+        return size
+
+    def estimate_fee(self, txobj, numblocks=1):
+        """
+        Get estimated fee to get transaction confirmed within numblocks number of blocks.
+        txobj is a pre-signed transaction object
+        """
+        num_bytes = self.tx_size(txobj)
+        per_kb = self.estimate_fee_per_kb(numblocks=numblocks)
+        return num_bytes / 1000 * per_kb
+
+
 
     def block_header(self, *heights):
         return self.rpc_client.block_header(*heights)
@@ -115,7 +146,7 @@ class BaseCoin(object):
 
     def unspent(self, *addrs, merkle_proof=False):
         """
-        Get unspent transactions for addresses
+        Get unspent transactions for address_derivations
         """
         addrs_scripthashes = {self.addrtoscripthash(addr):addr for addr in addrs}
         unspents = self.rpc_client.unspent(addrs_scripthashes)
@@ -125,7 +156,7 @@ class BaseCoin(object):
 
     def history(self, *addrs, merkle_proof=False):
         """
-        Get transaction history for addresses
+        Get transaction history for address_derivations
         """
         addrs_scripthashes = {self.addrtoscripthash(addr):addr for addr in addrs}
         txs = self.rpc_client.history(addrs_scripthashes)
@@ -133,17 +164,17 @@ class BaseCoin(object):
             return self.filter_by_proof(*txs)
         return txs
 
-    def get_raw_tx(self, *tx_hashes):
+    def get_raw_txs(self, *tx_hashes):
         """
         Fetch transactions from the blockchain
         """
         return self.rpc_client.get_txs(*tx_hashes)
 
-    def get_tx(self, *tx_hashes):
+    def get_txs(self, *tx_hashes):
         """
-        Fetch transactions from the blockchain and deserialise each to a dictionary
+        Fetch transactions from the blockchain and deserialise each one to a dictionary
         """
-        txs = self.get_raw_tx(*tx_hashes)
+        txs = self.get_raw_txs(*tx_hashes)
         return [deserialize(tx) for tx in txs]
 
     def get_merkle(self, *txs):
@@ -195,31 +226,43 @@ class BaseCoin(object):
         """
         return privtoaddr(privkey, magicbyte=self.magicbyte)
 
-    def electrum_address(self, masterkey, n, for_change=0):
-        """
-        For old electrum seeds
-        """
-        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
-        return self.pubtoaddr(pubkey)
+    def encode_privkey(self, privkey, formt, script_type="p2pkh"):
+        return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
-    def is_address(self, addr):
-        """
-        Check if addr is a valid address for this chain
-        """
-        all_prefixes = ''.join(list(self.address_prefixes) + list(self.script_prefixes))
-        return any(str(i) == addr[0] for i in all_prefixes)
+    def is_p2pkh(self, addr):
+        return any(str(i) == addr[0] for i in self.address_prefixes)
 
     def is_p2sh(self, addr):
         """
         Check if addr is a a pay to script address
         """
-        return not any(str(i) == addr[0] for i in self.address_prefixes)
+        return any(str(i) == addr[0] for i in self.script_prefixes)
+
+    def is_new_segwit(self, addr):
+        return self.segwit_hrp and addr.startswith(self.segwit_hrp)
+
+    def is_address(self, addr):
+        """
+        Check if addr is a valid address for this chain
+        """
+        return self.is_p2sh(addr) or self.is_p2sh(addr) or self.is_new_segwit(addr)
+
+    def is_segwit(self, priv, addr):
+        """
+        Check if addr was generated from priv using segwit script
+        """
+        if not self.segwit_supported:
+            return False
+        if self.is_new_segwit(addr):
+            return True
+        segwit_addr = self.privtop2w(priv)
+        return segwit_addr == addr
 
     def output_script_to_address(self, script):
         """
         Convert an output script to an address
         """
-        return output_script_to_address(script, self.magicbyte)
+        return output_script_to_address(script, self.magicbyte, self.script_magicbyte, self.segwit_hrp)
 
     def scripttoaddr(self, script):
         """
@@ -228,9 +271,9 @@ class BaseCoin(object):
         if re.match('^[0-9a-fA-F]*$', script):
             script = binascii.unhexlify(script)
         if script[:3] == b'\x76\xa9\x14' and script[-2:] == b'\x88\xac' and len(script) == 25:
-            return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash addresses
+            return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash address_derivations
         else:
-            # BIP0016 scripthash addresses
+            # BIP0016 scripthash address_derivations
             return bin_to_b58check(script[2:-1], self.script_magicbyte)
 
     def p2sh_scriptaddr(self, script):
@@ -309,17 +352,6 @@ class BaseCoin(object):
         address = self.p2sh_scriptaddr(script)
         return script, address
 
-    def is_segwit(self, priv, addr):
-        """
-        Check if addr was generated from priv using segwit script
-        """
-        if not self.segwit_supported:
-            return False
-        if self.segwit_hrp and addr.startswith(self.segwit_hrp):
-            return True
-        segwit_addr = self.privtop2w(priv)
-        return segwit_addr == addr
-
     def sign(self, txobj, i, priv):
         """
         Sign a transaction input with index using a private key
@@ -331,9 +363,13 @@ class BaseCoin(object):
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
-        if txobj['ins'][i].get('segwit', False) or txobj['ins'][i].get('new_segwit', False):
+        if txobj['ins'][i].get('segwit', False) or self.is_segwit(priv, txobj['ins'][i].get('address', 'xxxxxxx')):
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not supported for %s" % self.display_name)
+            if 'witness' not in txobj.keys():
+                txobj.update({"marker": 0, "flag": 1, "witness": []})
+                for j in range(0, i):
+                    txobj["witness"].append({"number": 0, "scriptCode": ''})
             pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
@@ -355,14 +391,15 @@ class BaseCoin(object):
 
     def signall(self, txobj, priv):
         """
-        Sign all inputs to a transaction using a private key
+        Sign all inputs to a transaction using a private key.
+        Priv is either a private key or a dictionary of address keys and private key values
         """
         if not isinstance(txobj, dict):
             txobj = deserialize(txobj)
         if isinstance(priv, dict):
-            for e, i in enumerate(txobj["ins"]):
-                k = priv["%s:%d" % (i["outpoint"]["hash"], i["outpoint"]["index"])]
-                txobj = self.sign(txobj, e, k)
+            for i, inp in enumerate(txobj["ins"]):
+                k = priv[inp['address']]
+                txobj = self.sign(txobj, i, k)
         else:
             for i in range(len(txobj["ins"])):
                 txobj = self.sign(txobj, i, priv)
@@ -371,8 +408,8 @@ class BaseCoin(object):
     def multisign(self, tx, i, script, pk):
         return multisign(tx, i, script, pk, self.hashcode)
 
-    def mktx(self, *args):
-        """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
+    def mktx(self, ins, outs, locktime=0, sequence=0xFFFFFFFF):
+        """[in0, in1...],[out0, out1...]
 
         Make an unsigned transaction from inputs and outputs. Change is not automatically included so any difference
         in value between inputs and outputs will be given as a miner's fee (transactions with too high fees will
@@ -381,102 +418,63 @@ class BaseCoin(object):
         For Bitcoin Cash and other hard forks using SIGHASH_FORKID,
         ins must be a list of dicts with each containing the outpoint and value of the input.
 
-        Inputs originally received with segwit must be a dict in the format: {'outpoint': "txhash:index", value:0, "segwit": True}
-
-        For other transactions, inputs can be dicts containing only outpoints or strings in the outpoint format.
-        Outpoint format: txhash:index
+        Inputs on a segwit address must be a dict in the format: {'outpoint': "txhash:index", value:0, "segwit": True}
         """
-        ins, outs = [], []
-        for arg in args:
-            if isinstance(arg, list):
-                for a in arg: (ins if is_inp(a) else outs).append(a)
-            else:
-                (ins if is_inp(arg) else outs).append(arg)
 
-        txobj = {"locktime": 0, "version": 1, "ins": [], "outs": []}
-        if any(isinstance(i, dict) and (i.get("segwit", False) or i.get("new_segwit", False)) for i in ins):
+        txobj = {"locktime": locktime, "version": 1, "ins": [], "outs": []}
+        for inp in ins:
+            if self.segwit_supported and 'segwit' not in inp.keys() or 'new_segwit' not in inp.keys():
+                address = inp.get('address', None)
+                if address:
+                    if self.is_new_segwit(address):
+                       inp['new_segwit'] = True
+                    elif self.is_p2pkh(address):
+                        inp['new_segwit'] = False
+                        inp['segwit'] = False
+                    elif self.is_p2sh(address):
+                        inp['new_segwit'] = False   #Segwit needs to be explicitly set for p2wpkh-p2sh
+                if inp['new_segwit']:
+                    inp['segwit'] = True
+            inp.update({
+                'script': '',
+                'sequence': int(inp.get('sequence', sequence))
+            })
+
+        segwit = any(inp.get('segwit', False) for inp in ins)
+
+        if segwit:
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
             txobj.update({"marker": 0, "flag": 1, "witness": []})
-        for i in ins:
-            input = {'script': "", "sequence": 4294967295}
-            if isinstance(i, dict) and "output" in i:
-                input["outpoint"] = {"hash": i["output"][:64], "index": int(i["output"][65:])}
-                input['amount'] = i.get("value", 0)
-                if i.get("segwit", False):
-                    input["segwit"] = True
-                elif i.get("new_segwit", False):
-                    input["new_segwit"] = True
-            else:
-                input["outpoint"] = {"hash": i[:64], "index": int(i[65:])}
-                input['amount'] = 0
-            txobj["ins"].append(input)
-        for o in outs:
-            if isinstance(o, string_or_bytes_types):
-                addr = o[:o.find(':')]
-                val = int(o[o.find(':')+1:])
-                o = {}
-                if re.match('^[0-9a-fA-F]*$', addr):
-                    o["script"] = addr
-                else:
-                    o["address"] = addr
-                o["value"] = val
 
-            outobj = {}
-            if "address" in o:
-                outobj["script"] = self.addrtoscript(o["address"])
-            elif "script" in o:
-                outobj["script"] = o["script"]
+        for out in outs:
+            address = out.get('address', None)
+            script = out.get('script', None)
+            if address:
+                out["script"] = self.addrtoscript(address)
+            elif "script" in out:
+                out["script"] = script
             else:
                 raise Exception("Could not find 'address' or 'script' in output.")
-            outobj["value"] = o["value"]
-            txobj["outs"].append(outobj)
         return txobj
 
-    def mksend(self, *args, segwit=False):
-        """[in0, in1...],[out0, out1...] or in0, in1 ... out0 out1 ...
+    def mksend(self, ins, outs, change=None, fee=10000):
+        """[in0, in1...],[out0, out1...]
 
         Make an unsigned transaction from inputs, outputs change address and fee. A change output will be added with
-        change sent to the change address.
+        change sent to the change address..
 
-        For Bitcoin Cash and other hard forks using SIGHASH_FORKID and segwit,
-        ins must be a list of dicts with each containing the outpoint and value of the input.
-
-        For other transactions, inputs can be dicts containing only outpoints or strings in the outpoint format.
-        Outpoint format: txhash:index
         """
-        argz, change, fee = args[:-2], args[-2], int(args[-1])
-        ins, outs = [], []
-        for arg in argz:
-            if isinstance(arg, list):
-                for a in arg:
-                    (ins if is_inp(a) else outs).append(a)
-            else:
-                (ins if is_inp(arg) else outs).append(arg)
-            if segwit:
-                for i in ins:
-                    i['segwit'] = True
-        isum = sum([i["value"] for i in ins])
-        osum, outputs2 = 0, []
-        for o in outs:
-            if isinstance(o, string_types):
-                o2 = {
-                    "address": o[:o.find(':')],
-                    "value": int(o[o.find(':') + 1:])
-                }
-            else:
-                o2 = o
-            outputs2.append(o2)
-            osum += o2["value"]
-
+        isum = sum(inp['value'] for inp in ins)
+        osum = sum(out['value'] for out in outs)
         if isum < osum + fee:
             raise Exception("Not enough money")
         elif isum > osum + fee + 5430:
-            outputs2 += [{"address": change, "value": isum - osum - fee}]
+            outs += [{"address": change, "value": isum - osum - fee}]
 
-        return self.mktx(ins, outputs2)
+        return self.mktx(ins, outs)
 
-    def preparesignedtx(self, privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None):
+    def preparesignedtx(self, privkey, frm, to, value, fee=10000, change_addr=None):
         """
         Prepare a tx with a specific amount from address belonging to private key to another address, returning change to the
         from address or change address, if set.
@@ -486,9 +484,10 @@ class BaseCoin(object):
         private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        return self.preparesignedmultitx(privkey, to + ":" + str(value), fee, change_addr=change_addr, segwit=segwit, addr=addr)
+        outs = [{'address': to, 'value': value}]
+        return self.preparesignedmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr)
 
-    def send(self, privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None):
+    def send(self, privkey, frm, to, value, fee=10000, change_addr=None,):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
         from address or change address, if set.
@@ -498,9 +497,10 @@ class BaseCoin(object):
         private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        return self.sendmultitx(privkey, to + ":" + str(value), fee, change_addr=change_addr, segwit=segwit, addr=addr)
+        outs = [{'address': to, 'value': value}]
+        return self.sendmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr)
 
-    def preparesignedmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
+    def preparesignedmultitx(self, privkey, frm, outs, fee=50000, change_addr=None):
         """
         Prepare transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
@@ -509,19 +509,12 @@ class BaseCoin(object):
         private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        if addr:
-            frm =  addr
-            if self.segwit_supported:
-                segwit = self.is_segwit(privkey, addr)
-        elif segwit:
-            frm = self.privtop2w(privkey)
-        else:
-            frm = self.privtoaddr(privkey)
-        tx = self.preparemultitx(frm, *args, change_addr=change_addr, segwit=segwit)
+        segwit =  self.is_segwit(privkey, frm)
+        tx = self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
         tx2 = self.signall(tx, privkey)
         return tx2
 
-    def sendmultitx(self, privkey, *args, change_addr=None, segwit=False, addr=None):
+    def sendmultitx(self, privkey, addr, outs, change_addr=None, fee=50000):
         """
         Send transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
@@ -530,33 +523,28 @@ class BaseCoin(object):
         private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        tx = self.preparesignedmultitx(privkey, *args, change_addr=change_addr, segwit=segwit, addr=addr)
+        tx = self.preparesignedmultitx(privkey, addr, outs, fee=fee, change_addr=change_addr)
         return self.pushtx(tx)
 
-    def preparetx(self, frm, to, value, fee, change_addr=None, segwit=False):
+    def preparetx(self, frm, to, value, fee=50000, change_addr=None, segwit=False):
         """
-        Prepare a transaction using from and to addresses, value and a fee, with change sent back to from address
+        Prepare a transaction using from and to address_derivations, value and a fee, with change sent back to from address
         """
-        tovalues = to + ":" + str(value)
-        return self.preparemultitx(frm, tovalues, fee, change_addr=change_addr, segwit=segwit)
+        outs = [{'address': to, 'value': value}]
+        return self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
 
-    def preparemultitx(self, frm, *args, change_addr=None, segwit=False):
+    def preparemultitx(self, frm, outs, fee=50000, change_addr=None, segwit=False):
         """
         Prepare transaction with multiple outputs, with change sent to from address
-        Requires from address, to_address:value pairs and fees
         """
-        tv, fee = args[:-1], int(args[-1])
-        outs = []
-        outvalue = 0
-        for a in tv:
-            outs.append(a)
-            outvalue += int(a.split(":")[1])
-
-        u = self.unspent(frm)
-        u2 = select(u, int(outvalue) + int(fee))
+        outvalue = sum(out['value'] for out in outs)
+        unspents = self.unspent(frm)
+        unspents2 = select(unspents, int(outvalue) + int(fee))
+        if segwit:
+            for unspent in unspents2:
+                unspent['segwit'] = segwit
         change_addr = change_addr or frm
-        argz = u2 + outs + [change_addr, fee]
-        return self.mksend(*argz, segwit=segwit)
+        return self.mksend(unspents2, outs, fee=fee, change=change_addr)
 
     def inspect(self, tx):
         if not isinstance(tx, dict):
@@ -564,9 +552,9 @@ class BaseCoin(object):
         isum = 0
         ins = {}
         for _in in tx['ins']:
-            h = _in['outpoint']['hash']
-            i = _in['outpoint']['index']
-            prevout = deserialize(self.fetchtx(h))['outs'][i]
+            h = _in['tx_hash']
+            i = _in['tx_pos']
+            prevout = self.get_txs(h)[0]['outs'][i]
             isum += prevout['value']
             a = self.scripttoaddr(prevout['script'])
             ins[a] = ins.get(a, 0) + prevout['value']
@@ -581,9 +569,6 @@ class BaseCoin(object):
             'outs': outs,
             'ins': ins
         }
-
-    def encode_privkey(self, privkey, formt, script_type="p2pkh"):
-        return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def wallet(self, seed, passphrase=None, **kwargs):
         if not bip39_is_checksum_valid(seed) == (True, True):

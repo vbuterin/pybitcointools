@@ -1,6 +1,8 @@
 #!/usr/bin/python
+import binascii
 import copy
 from .main import *
+from . import segwit_addr
 from _functools import reduce
 
 ### Hex to bin converter and vice versa for objects
@@ -112,8 +114,8 @@ def deserialize(tx):
     for i in range(ins):
         obj["ins"].append({
             "outpoint": {
-                "hash": read_bytes(32)[::-1],
-                "index": read_as_int(4)
+                "tx_hash": read_bytes(32)[::-1],
+                "tx_pos": read_as_int(4)
             },
             "script": read_var_string(),
             "sequence": read_as_int(4)
@@ -152,8 +154,8 @@ def serialize(txobj, include_witness=True):
         o.append(encode_1_byte(txobj["flag"]))
     o.append(num_to_var_int(len(txobj["ins"])))
     for inp in txobj["ins"]:
-        o.append(inp["outpoint"]["hash"][::-1])
-        o.append(encode_4_bytes(inp["outpoint"]["index"]))
+        o.append(inp["tx_hash"][::-1])
+        o.append(encode_4_bytes(inp["tx_pos"]))
         o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
         o.append(encode_4_bytes(inp["sequence"]))
     o.append(num_to_var_int(len(txobj["outs"])))
@@ -178,8 +180,8 @@ def uahf_digest(txobj, i):
 
     serialized_ins = []
     for inp in txobj["ins"]:
-        serialized_ins.append(inp["outpoint"]["hash"][::-1])
-        serialized_ins.append(encode_4_bytes(inp["outpoint"]["index"]))
+        serialized_ins.append(inp["tx_hash"][::-1])
+        serialized_ins.append(encode_4_bytes(inp["tx_pos"]))
     inputs_hashed = dbl_sha256_list(serialized_ins)
     o.append(inputs_hashed)
 
@@ -187,10 +189,10 @@ def uahf_digest(txobj, i):
     o.append(sequences)
 
     inp = txobj['ins'][i]
-    o.append(inp["outpoint"]["hash"][::-1])
-    o.append(encode_4_bytes(inp["outpoint"]["index"]))
+    o.append(inp["tx_hash"][::-1])
+    o.append(encode_4_bytes(inp["tx_pos"]))
     o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
-    o.append(encode_8_bytes(inp['amount']))
+    o.append(encode_8_bytes(inp['value']))
     o.append(encode_4_bytes(inp['sequence']))
 
     serialized_outs = []
@@ -208,7 +210,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
-    is_segwit = tx['ins'][i].get('segwit', False) or tx['ins'][i].get('new_segwit', False)
+    is_segwit = tx['ins'][i].get('segwit', False)
     newtx = copy.deepcopy(tx)
     for inp in newtx["ins"]:
         inp["script"] = ""
@@ -322,16 +324,22 @@ def mk_scripthash_script(addr):
     """
     return 'a914' + b58check_to_hex(addr) + '87'
 
-def output_script_to_address(script, magicbyte=0):
-    if script.startswith('76'):
-        script = script[6:]
-    else:
-        script = script[4:]
-    if script.endswith('88ac'):
-        script = script[:-4]
-    else:
-        script = script[:-2]
-    return bin_to_b58check(safe_from_hex(script), magicbyte=magicbyte)
+def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp=None):
+    if script.startswith('76a914') and script.endswith('88ac'):
+        script = script[6:][:-4]
+        return bin_to_b58check(safe_from_hex(script), magicbyte=magicbyte)
+    elif script.startswith('a914') and script.endswith('87'):
+        script = script[4:][:-2]
+        return bin_to_b58check(safe_from_hex(script), magicbyte=script_magicbyte)
+    elif script.startswith('0') and segwit_hrp:
+        return decode_p2w_scripthash_script(script, 0, segwit_hrp)
+    elif script.startswith('6a'):
+        return binascii.unhexlify("Arbitrary Data: %s" % script[2:].decode('utf-8', 'ignore'))
+    raise Exception('Unable to convert script to an address: %s' % script)
+
+def decode_p2w_scripthash_script(script, witver, segwit_hrp):
+    witprog = safe_from_hex(script[4:])
+    return segwit_addr.encode(segwit_hrp, witver, witprog)
 
 def mk_p2w_scripthash_script(witver, witprog):
     """
@@ -441,8 +449,8 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],M
     N = len(pubs)
     return serialize_script([M]+pubs+[N]+[0xae])
 
-# Signing and verifying
 
+# Signing and verifying
 
 def verify_tx_input(tx, i, script, sig, pub):
     if re.match('^[0-9a-fA-F]*$', tx):
@@ -465,7 +473,6 @@ def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     modtx = signature_form(tx, i, script, hashcode)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
-
 def apply_multisignatures(txobj, i, script, *args):
     # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
     sigs = args[0] if isinstance(args[0], list) else list(args)
@@ -485,15 +492,11 @@ def apply_multisignatures(txobj, i, script, *args):
     txobj["ins"][i]["script"] = safe_hexlify(serialize_script([None]+sigs+script_blob))
     return serialize(txobj)
 
-
-def is_inp(arg):
-    return len(arg) > 64 or "output" in arg or "outpoint" in arg
-
-def select(unspent, value):
+def select(unspents, value):
     value = int(value)
-    high = [u for u in unspent if u["value"] >= value]
+    high = [u for u in unspents if u["value"] >= value]
     high.sort(key=lambda u: u["value"])
-    low = [u for u in unspent if u["value"] < value]
+    low = [u for u in unspents if u["value"] < value]
     low.sort(key=lambda u: -u["value"])
     if len(high):
         return [high[0]]
@@ -503,6 +506,4 @@ def select(unspent, value):
         i += 1
     if tv < value:
         raise Exception("Not enough funds")
-    unspents = low[:i]
-    actual_value = sum(unspent['value'] for unspent in unspents)
     return low[:i]

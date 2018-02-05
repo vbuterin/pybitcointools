@@ -78,7 +78,7 @@ def pushtx(tx, coin_symbol="BTC"):
                 }
     return response
 
-# Gets the transaction output history of a given set of addresses,
+# Gets the transaction output history of a given set of address_derivations,
 # including whether or not they have been spent
 def history(*args, coin_symbol="BTC"):
     # Valid input formats: history([addr1, addr2,addr3])

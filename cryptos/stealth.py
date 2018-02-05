@@ -31,7 +31,7 @@ def uncover_pay_privkey(scan_privkey, spend_privkey, ephem_pubkey):
 
 # Address encoding
 
-# Functions for basic stealth addresses,
+# Functions for basic stealth address_derivations,
 # i.e. one scan key, one spend key, no prefix
 
 

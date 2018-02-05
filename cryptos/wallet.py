@@ -1,17 +1,19 @@
 from .main import *
-from .keystore import xpubkey_to_address
+from .transaction import select
 
 class HDWallet(object):
 
-    def __init__(self, keystore, num_addresses=0, last_receiving_index=0, last_change_index=0):
+    def __init__(self, keystore, transaction_history=None, num_addresses=0, last_receiving_index=0, last_change_index=0):
         self.coin = keystore.coin
         self.keystore = keystore
-        self.addresses = {}
+        self.address_derivations = {}
         self.last_receiving_index = last_receiving_index
         self.last_change_index = last_change_index
         self.new_receiving_addresses(num=num_addresses)
         self.new_change_addresses(num=num_addresses)
         self.is_watching_only = self.keystore.is_watching_only()
+        self.transaction_history = transaction_history or []
+        self.used_addresses = self.get_used_addresses()
         if self.keystore.electrum:
             self.script_type = self.keystore.xtype
         else:
@@ -21,10 +23,10 @@ class HDWallet(object):
         if self.is_watching_only:
             return
         try:
-            addr_derivation = self.addresses[address]
+            addr_derivation = self.address_derivations[address]
         except KeyError:
             raise Exception(
-                "Address %s has not been generated yet. Generate new addresses with new_receiving_addresses or new_change_addresses methods" % address)
+                "Address %s has not been generated yet. Generate new address_derivations with new_receiving_addresses or new_change_addresses methods" % address)
         pk, compressed = self.keystore.get_private_key(addr_derivation, password)
         return self.coin.encode_privkey(pk, formt, script_type=self.script_type)
 
@@ -53,22 +55,26 @@ class HDWallet(object):
     def receiving_address(self, index):
         pubkey = self.pubkey_receiving(index)
         address = self.pubtoaddr(pubkey)
-        self.addresses[address] = (0, index)
+        self.address_derivations[address] = (0, index)
         return address
 
     def change_address(self, index):
         pubkey = self.pubkey_change(index)
         address = self.pubtoaddr(pubkey)
-        self.addresses[address] = (1, index)
+        self.address_derivations[address] = (1, index)
         return address
 
     @property
+    def addresses(self):
+        return self.address_derivations.keys()
+
+    @property
     def receiving_addresses(self):
-        return [addr for addr in self.addresses.keys() if not self.addresses[addr][0]]
+        return [addr for addr in self.address_derivations.keys() if not self.address_derivations[addr][0]]
 
     @property
     def change_addresses(self):
-        return [addr for addr in self.addresses.keys() if self.addresses[addr][0]]
+        return [addr for addr in self.address_derivations.keys() if self.address_derivations[addr][0]]
 
     def new_receiving_address_range(self, num):
         index = self.last_receiving_index
@@ -94,39 +100,110 @@ class HDWallet(object):
     def new_change_address(self):
         return self.new_change_addresses(num=1)[0]
 
+    def get_balances(self):
+        return self.coin.get_balance(*self.addresses)
+
     def balance(self):
-        raise NotImplementedError
+        balances = self.get_balances()
+        confirmed_balance = sum(b['confirmed'] for b in balances)
+        unconfirmed_balance = sum(b['unconfirmed'] for b in balances)
+        return {
+            'total': confirmed_balance + unconfirmed_balance,
+            'unconfirmed': unconfirmed_balance,
+            'confirmed': confirmed_balance
+        }
 
-    def unspent(self):
-        raise NotImplementedError
+    def unspent(self, addresses=None, merkle_proof=False):
+        addresses = addresses or self.addresses
+        return self.coin.unspent(*addresses, merkle_proof=merkle_proof)
 
-    def select(self):
-        raise NotImplementedError
+    def select_unspents(self, value, addresses=None, merkle_proof=False):
+        unspents = self.unspent(addresses=addresses, merkle_proof=merkle_proof)
+        return select(unspents, value)
 
-    def history(self):
-        raise NotImplementedError
+    def history(self, addresses=None, merkle_proof=False):
+        addresses = addresses or self.addresses
+        return self.coin.history(*addresses, merkle_proof=merkle_proof)
 
-    def sign(self, tx, password=None):
+    def get_used_addresses(self):
+        return list(set([tx['addr'] for tx in self.transaction_history]))
+
+    def synchronise(self):
+        tx_hashes = [tx['tx_hash'] for tx in self.transaction_history]
+        txs = self.history()
+        new_txs = [tx for tx in txs if tx['tx_hash'] not in tx_hashes]
+        self.transaction_history += self.coin.filter_by_proof(*new_txs)
+        self.used_addresses = self.get_used_addresses()
+
+    def sign(self, txobj, password=None):
         if self.is_watching_only:
             return
-        raise NotImplementedError
+        pkeys_for = [inp['address'] for inp in txobj['ins']]
+        privkeys = {address: self.privkey('address', password) for address in pkeys_for}
+        return self.coin.signall(txobj, privkeys)
 
-    def mksend(self, outs):
-        raise NotImplementedError
+    def select_receive_address(self):
+        try:
+            return next(addr for addr in self.receiving_addresses if addr not in self.used_addresses)
+        except StopIteration:
+            return self.new_receiving_address()
 
-    def sign_message(self, message, address, password=None):
-        if self.is_watching_only:
-            return
-        raise NotImplementedError
+    def select_change_address(self):
+        try:
+            return next(addr for addr in self.receiving_addresses if addr not in self.used_addresses)
+        except StopIteration:
+            return self.new_change_address()
+
+    def pushtx(self, tx_hex):
+        return self.coin.pushtx(tx_hex)
+
+    def preparemultitx(self, outs, fee=50000, change_addr=None, addresses=None):
+        change = change_addr or self.select_change_address()
+        value = sum(out['value'] for out in outs) + fee
+        ins = self.select_unspents(value, addresses=addresses)
+        if self.coin.segwit_supported:
+            if self.keystore.xtype == 'p2pkh':
+                for i in ins:
+                    i['segwit'] = False
+                    i['new_segwit'] = False
+            elif self.keystore.xtype == "p2wpkh-p2sh":
+                for i in ins:
+                    i['segwit'] = True
+                    i['new_segwit'] = False
+            elif self.keystore.xtype == 'p2wpkh':
+                for i in ins:
+                    i['segwit'] = True
+                    i['new_segwit'] = True
+        return self.coin.mksend(ins, outs, fee=fee, change=change)
+
+    def preparetx(self, to, value, fee=50000, change_addr=None, addresses=None):
+        outs = [{'address': to, 'value': value}]
+        return self.preparemultitx(outs, fee=fee, change_addr=change_addr, addresses=addresses)
+
+    def preparesignedtx(self, to, value, fee=50000, change_addr=None, addresses=addresses, password=None):
+        txobj = self.preparetx(to, value, fee=fee, change_addr=change_addr, addresses=addresses)
+        return self.sign(txobj, password=password)
+
+    def preparesignedmultitx(self, outs, fee=50000, change_addr=None, addresses=None, password=None):
+        txobj = self.preparemultitx(outs, fee=fee, change_addr=change_addr, addresses=addresses)
+        return self.sign(txobj, password=password)
+
+    def send(self, to, value, fee=50000, change_addr=None, addresses=None, password=None):
+        tx = self.preparesignedtx(to, value, fee=fee, change_addr=change_addr, addresses=addresses, password=password)
+        return self.pushtx(tx)
+
+    def sendmultitx(self, outs, fee=50000, change_addr=None, addresses=None, password=None):
+        tx = self.preparesignedmultitx(outs, fee=fee, change_addr=change_addr, addresses=addresses, password=password)
+        return self.pushtx(tx)
 
     def is_mine(self, address):
-        return address in self.addresses.keys()
+        return address in self.address_derivations.keys()
 
     def is_change(self, address):
         return address in self.change_addresses
 
     def account(self, address, password=None):
-        derivation = self.addresses[address][0]
+        derivation = self.address_derivations[address][0]
         privkey = self.privkey(address, formt="wif_compressed", password=password)
         pub = self.coin.privtopub(privkey)
         derivation = "%s/%s'/%s" % (self.keystore.root_derivation, derivation[0], derivation[1])

@@ -66,7 +66,7 @@ class BaseCoinCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three addresses currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins and choose that as the sender
         segwit_max_value = 0
         segwit_sender = self.segwit_addresses[0]
         segwit_from_addr_i = 0
@@ -159,7 +159,7 @@ class BaseCoinCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three addresses currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.segwit_addresses[0]
         from_addr_i = 0
@@ -226,7 +226,7 @@ class BaseCoinCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Enter unspents manually because blockchain.info doesn't support gathering unspents for new segwit addresses :(
+        #Enter unspents manually because blockchain.info doesn't support gathering unspents for new segwit address_derivations :(
         from_addr_i = 0
         sender = self.new_segwit_addresses[0]
         unspents = [{'output': '17818e0d54629fe53a81dbac6503ea6aed48ce57501a79eda6ee8f6decdcfa58:0', 'value': 1090000}]
@@ -281,7 +281,7 @@ class BaseCoinCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three addresses currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -503,7 +503,7 @@ class TestBitcoinTestnet(BaseCoinCase):
     new_segwit_addresses = ["tb1qcwzf2q6zedhcma23wk6gtp5r3vp3xradjc23st", "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r", "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
     fee = 54400
     blockcypher_coin_symbol = "btc-testnet"
     testnet = True
@@ -587,7 +587,7 @@ class TestBitcoinTestnet(BaseCoinCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three addresses currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -625,7 +625,7 @@ class TestBitcoinTestnet(BaseCoinCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three addresses currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -700,7 +700,7 @@ class TestLitecoinTestnet(BaseCoinCase):
     segwit_addresses = ["2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU", "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
     fee = 54400
     blockcypher_coin_symbol = None
     testnet = True
@@ -792,7 +792,7 @@ class TestDashTestnet(BaseCoinCase):
     addresses = ["ye9FSaGnHH5A2cjJ9s2y9XTgyJZefB5huz", "yTXgT2aA32Y35VQ6N9KpFqKJKKdbidgKeZ", "ySPomQ35mpKiV89LDdAM3URFSibNiXEC4J"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
     fee = 54400
     blockcypher_coin_symbol = None
     testnet = True
@@ -874,7 +874,7 @@ class TestDogeTestnet(BaseCoinCase):
     addresses = ['nn1xreE17QZVwuxxVY3N497SygcBPsm15j', 'nbQPs6XNsA2NzndkhpLDASy4Khg8ZfhUfj', 'naGXBTzJbwp4QRNzZJAjx651T6duZy2kgV']
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
     fee = 54400
     blockcypher_coin_symbol = None
     testnet = True
@@ -922,7 +922,7 @@ class TestBitcoinCashTestnet(BaseCoinCase):
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above addresses in same order
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
     fee = 54400
     blockcypher_coin_symbol = None
     testnet = True
