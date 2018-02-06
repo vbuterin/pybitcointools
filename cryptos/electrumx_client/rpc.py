@@ -17,6 +17,7 @@ import random
 import os
 from .. import constants
 from functools import partial
+from datetime import datetime, timedelta
 
 from .jsonrpc import JSONSession, JSONRPCv2
 
@@ -63,6 +64,7 @@ class ElectrumXClient(RPCClient):
                  protocol_version=(constants.PROTOCOL_VERSION, constants.PROTOCOL_VERSION),
                  client_name=constants.CLIENT_NAME, loop=None):
         super().__init__()
+        self.cache = {'fees': {}}
         self.client_name = client_name
         self.protocol_version = protocol_version
         if loop:
@@ -178,6 +180,15 @@ class ElectrumXClient(RPCClient):
 
     def estimate_fee(self, numblocks):
         return self.run_command(self._estimate_fee(numblocks))
+
+    def estimate_fee_cached(self, numblocks, cache=10):
+        now = datetime.now()
+        if numblocks in self.cache['fees'] and self.cache['fees'][numblocks]['expiry'] <= now:
+            return self.cache['fees'][numblocks]['fee']
+        fee = self.estimate_fee(numblocks)
+        interval = timedelta(minutes=cache)
+        self.cache['fees'][numblocks] = {'fee': fee, 'expiry': now + interval}
+        return fee
 
     def _relay_fee(self):
         return 'blockchain.relayfee', ()

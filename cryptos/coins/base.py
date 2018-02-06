@@ -36,6 +36,7 @@ class BaseCoin(object):
     hashcode = SIGHASH_ALL
     secondary_hashcode = None
     hd_path = 0
+    block_interval = 10
     signature_sizes = {
         'p2pkh': 213,
         'p2w_p2sh': 46 + (213 / 4),
@@ -88,6 +89,7 @@ class BaseCoin(object):
             self.script_prefixes = ()
         self.secondary_hashcode = self.secondary_hashcode or self.hashcode
         self._rpc_client = None
+        self.fees = {}
 
     @property
     def rpc_client(self):
@@ -98,11 +100,13 @@ class BaseCoin(object):
             self._rpc_client = self.client(**self.client_kwargs)
         return self._rpc_client
 
-    def estimate_fee_per_kb(self, numblocks=1):
+    def estimate_fee_per_kb(self, numblocks=1, cache=None):
         """
         Get estimated fee kb to get transaction confirmed within numblocks number of blocks
         """
-        return self.rpc_client.estimate_fee(numblocks)
+        if cache is None:
+            cache = self.block_interval
+        return self.rpc_client.estimate_fee_cached(numblocks, cache=cache)
 
     def tx_size(self, txobj):
         """
@@ -119,18 +123,19 @@ class BaseCoin(object):
                 size += self.signature_sizes['p2pkh']
         return size
 
-    def estimate_fee(self, txobj, numblocks=1):
+    def estimate_fee(self, txobj, numblocks=1, cache=None):
         """
         Get estimated fee to get transaction confirmed within numblocks number of blocks.
         txobj is a pre-signed transaction object
         """
         num_bytes = self.tx_size(txobj)
-        per_kb = self.estimate_fee_per_kb(numblocks=numblocks)
+        per_kb = self.estimate_fee_per_kb(numblocks=numblocks, cache=cache)
         return num_bytes / 1000 * per_kb
 
-
-
     def block_header(self, *heights):
+        """
+        Return block header data for the given heights
+        """
         return self.rpc_client.block_header(*heights)
 
     def get_balance(self, *addrs):
@@ -141,6 +146,9 @@ class BaseCoin(object):
         return self.rpc_client.get_balance(addrs_scripthashes)
 
     def filter_by_proof(self, *txs):
+        """
+        Return only transactions with verified merkle proof
+        """
         proven = [proof['tx_hash'] for proof in self.merkle_prove(*txs)]
         return filter(lambda tx: tx['tx_hash'] in proven, txs)
 
@@ -458,13 +466,13 @@ class BaseCoin(object):
                 raise Exception("Could not find 'address' or 'script' in output.")
         return txobj
 
-    def mksend(self, ins, outs, change=None, fee=10000):
+    def mktx_with_change(self, ins, outs, change=None, fee=50000, fee_for_blocks=0, locktime=0, sequence=0xFFFFFFFF):
         """[in0, in1...],[out0, out1...]
 
         Make an unsigned transaction from inputs, outputs change address and fee. A change output will be added with
         change sent to the change address..
-
         """
+        change = change or ins[0]['address']
         isum = sum(inp['value'] for inp in ins)
         osum = sum(out['value'] for out in outs)
         if isum < osum + fee:
@@ -472,68 +480,17 @@ class BaseCoin(object):
         elif isum > osum + fee + 5430:
             outs += [{"address": change, "value": isum - osum - fee}]
 
+        txobj = self.mktx(ins, outs, locktime=locktime, sequence=sequence)
+
+        if fee_for_blocks:
+            fee = self.estimate_fee(txobj, numblocks=fee_for_blocks)
+            for out in txobj['outs']:
+                if out['address'] == change:
+                    out['value'] = isum - osum - fee
+
         return self.mktx(ins, outs)
 
-    def preparesignedtx(self, privkey, frm, to, value, fee=10000, change_addr=None):
-        """
-        Prepare a tx with a specific amount from address belonging to private key to another address, returning change to the
-        from address or change address, if set.
-        Requires private key, target address, value and optionally the change address and fee
-        segwit paramater specifies that the inputs belong to a segwit address
-        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
-        which support segwit, overriding the segwit kw
-        """
-        outs = [{'address': to, 'value': value}]
-        return self.preparesignedmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr)
-
-    def send(self, privkey, frm, to, value, fee=10000, change_addr=None,):
-        """
-        Send a specific amount from address belonging to private key to another address, returning change to the
-        from address or change address, if set.
-        Requires private key, target address, value and optionally the change address and fee
-        segwit paramater specifies that the inputs belong to a segwit address
-        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
-        which support segwit, overriding the segwit kw
-        """
-        outs = [{'address': to, 'value': value}]
-        return self.sendmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr)
-
-    def preparesignedmultitx(self, privkey, frm, outs, fee=50000, change_addr=None):
-        """
-        Prepare transaction with multiple outputs, with change sent back to from addrss
-        Requires private key, address:value pairs and optionally the change address and fee
-        segwit paramater specifies that the inputs belong to a segwit address
-        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
-        which support segwit, overriding the segwit kw
-        """
-        segwit =  self.is_segwit(privkey, frm)
-        tx = self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
-        tx2 = self.signall(tx, privkey)
-        return tx2
-
-    def sendmultitx(self, privkey, addr, outs, change_addr=None, fee=50000):
-        """
-        Send transaction with multiple outputs, with change sent back to from addrss
-        Requires private key, address:value pairs and optionally the change address and fee
-        segwit paramater specifies that the inputs belong to a segwit address
-        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
-        which support segwit, overriding the segwit kw
-        """
-        tx = self.preparesignedmultitx(privkey, addr, outs, fee=fee, change_addr=change_addr)
-        return self.pushtx(tx)
-
-    def preparetx(self, frm, to, value, fee=50000, change_addr=None, segwit=False):
-        """
-        Prepare a transaction using from and to address_derivations, value and a fee, with change sent back to from address
-        """
-        outs = [{'address': to, 'value': value}]
-        return self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
-
-    def preparemultitx(self, frm, outs, fee=50000, change_addr=None, segwit=False):
+    def preparemultitx(self, frm, outs, fee=50000, change_addr=None, fee_for_blocks=0, segwit=False):
         """
         Prepare transaction with multiple outputs, with change sent to from address
         """
@@ -544,7 +501,67 @@ class BaseCoin(object):
             for unspent in unspents2:
                 unspent['segwit'] = segwit
         change_addr = change_addr or frm
-        return self.mksend(unspents2, outs, fee=fee, change=change_addr)
+        return self.mktx_with_change(unspents2, outs, fee=fee, change=change_addr, fee_for_blocks=fee_for_blocks)
+
+    def preparetx(self, frm, to, value, fee=50000, change_addr=None, segwit=False):
+        """
+        Prepare a transaction using from and to address_derivations, value and a fee, with change sent back to from address
+        """
+        outs = [{'address': to, 'value': value}]
+        return self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
+
+    def preparesignedmultitx(self, privkey, frm, outs, fee=50000, change_addr=None, fee_for_blocks=0):
+        """
+        Prepare transaction with multiple outputs, with change sent back to from addrss
+        Requires private key, address:value pairs and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        segwit =  self.is_segwit(privkey, frm)
+        tx = self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit, fee_for_blocks=fee_for_blocks)
+        tx2 = self.signall(tx, privkey)
+        return tx2
+
+    def preparesignedtx(self, privkey, frm, to, value, fee=50000, change_addr=None, fee_for_blocks=0):
+        """
+        Prepare a tx with a specific amount from address belonging to private key to another address, returning change to the
+        from address or change address, if set.
+        Requires private key, target address, value and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        outs = [{'address': to, 'value': value}]
+        return self.preparesignedmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr,
+                                         fee_for_blocks=fee_for_blocks)
+
+    def sendmultitx(self, privkey, addr, outs, change_addr=None, fee=50000, fee_for_blocks=0):
+        """
+        Send transaction with multiple outputs, with change sent back to from addrss
+        Requires private key, address:value pairs and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        tx = self.preparesignedmultitx(privkey, addr, outs, fee=fee, change_addr=change_addr, fee_for_blocks=fee_for_blocks)
+        return self.pushtx(tx)
+
+    def send(self, privkey, frm, to, value, fee=50000, change_addr=None, fee_for_blocks=0):
+        """
+        Send a specific amount from address belonging to private key to another address, returning change to the
+        from address or change address, if set.
+        Requires private key, target address, value and optionally the change address and fee
+        segwit paramater specifies that the inputs belong to a segwit address
+        addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins
+        which support segwit, overriding the segwit kw
+        """
+        outs = [{'address': to, 'value': value}]
+        return self.sendmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr, fee_for_blocks=fee_for_blocks)
 
     def inspect(self, tx):
         if not isinstance(tx, dict):

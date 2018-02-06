@@ -122,14 +122,19 @@ def bip32_deserialize(data, prefixes=DEFAULT):
 
 
 def is_xprv(text, prefixes=DEFAULT):
-    vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
-    return vbytes == prefixes[0]
+    try:
+        vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
+        return vbytes == prefixes[0]
+    except:
+        return False
 
 
 def is_xpub(text, prefixes=DEFAULT):
-    vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
-    return vbytes == prefixes[1]
-
+    try:
+        vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
+        return vbytes == prefixes[1]
+    except:
+        return False
 
 def raw_bip32_privtopub(rawtuple, prefixes=DEFAULT):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple
