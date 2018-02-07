@@ -313,8 +313,8 @@ class JSONSessionBase(util.LoggedClass):
         self.pause = False
         # Handling of incoming items
         self.items = collections.deque()
-        self.items_events ={}
-        self.items_event = asyncio.Event()
+        #self.items_event = asyncio.Event()
+        self.items_events = {}
         self.batch_results = []
         # Handling of outgoing requests
         self.next_request_id = 0
@@ -667,8 +667,8 @@ class JSONSessionBase(util.LoggedClass):
         '''
         id_ = self.next_request_id
         self.next_request_id += 1
-        self.send_binary(self.request_bytes(id_, method, params))
         self.items_events[id_] = asyncio.Event()
+        self.send_binary(self.request_bytes(id_, method, params))
         self._pending_reqs[(self, id_)] = (handler, time.time() + timeout)
         return id_
 

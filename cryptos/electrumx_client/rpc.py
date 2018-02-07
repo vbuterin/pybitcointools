@@ -42,8 +42,9 @@ class RPCClient(JSONSession):
         del self.items_events[id_]
         return self.result.pop(id_)
 
-    def send_rpc_request(self, method, params):
-        handler = partial(self.handle_response, method, params)
+    def send_rpc_request(self, method, params, callback=None):
+        callback = callback or self.handle_response
+        handler = partial(callback, method, params)
         return self.send_request(handler, method, params)
 
     def handle_response(self, method, params, id_, data, error):
@@ -93,7 +94,7 @@ class ElectrumXClient(RPCClient):
         if self.use_ssl and not 's' in server.keys():
             return False
         elif not self.use_ssl and not 't' in server.keys():
-            return  False
+            return False
         return server.get('usable', True)
 
     def choose_random_server(self):
@@ -111,6 +112,8 @@ class ElectrumXClient(RPCClient):
         try:
             transport, self.rpc_client = TCPConnection(RPCClient, self.host, self.port, self.use_ssl, self.loop,
                                                        self.config_path).create_connection()
+            if not transport or not self.rpc_client:
+                self.change_server()
             self.connection_made(transport)
             try:
                 result = self.server_version()
@@ -242,6 +245,12 @@ class ElectrumXClient(RPCClient):
     def server_features(self):
         return self.run_command(self.server_features())
 
+    def _subscribe_to_peers(self):
+        return 'server.peers.subscribe', ()
+
+    def subcribe_to_peers(self):
+        return self.run_command(self.subcribe_to_peers())
+
     def _get_balance(self, scripthash):
         return "blockchain.scripthash.get_balance", (scripthash,)
 
@@ -320,3 +329,34 @@ class ElectrumXClient(RPCClient):
     def get_txs(self, *tx_hashes):
         requests = [self._get_tx(tx_hash) for tx_hash in tx_hashes]
         return self.rpc_multiple_send_and_wait(requests)
+
+    def rpc_subscribe(self, requests, callback):
+        ids = []
+        for request in requests:
+            method, params = request
+            ids.append(self.send_rpc_request(method, params, callback))
+        return ids
+
+    def _subscribe_to_scripthash(self, scripthash):
+        return 'blockchain.scripthash.subscribe', (scripthash,)
+
+    def subscribe_to_scripthashes(self, addrs_scripthashes, callback):
+        requests = [self._subscribe_to_scripthash(scripthash) for scripthash in addrs_scripthashes.keys()]
+        def handle_scripthash_notify(method, params, id_, data, error):
+            if error:
+                raise Exception(error)
+            scripthash = data[0]
+            address = addrs_scripthashes[scripthash]
+            callback(address, data[1])
+        return self.rpc_subscribe(requests, handle_scripthash_notify)
+
+    def _subscribe_to_block_headers(self):
+        return 'blockchain.headers.subscribe', ()
+
+    def subscribe_to_block_headers(self, callback):
+        request = self._subscribe_to_block_headers()
+        def handle_block_headers_notify(method, params, id_, data, error):
+            if error:
+                raise Exception(error)
+            callback(data)
+        return self.rpc_subscribe([request], handle_block_headers_notify)

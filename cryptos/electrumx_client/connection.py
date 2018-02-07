@@ -12,10 +12,8 @@ class TCPConnection:
         self.config_path = config_path
         self.loop = loop
         self.protocol_class = protocol_class
-        self.host, = host
-        self.port = port
-        self.host = str(self.host)
-        self.port = int(self.port)
+        self.host = str(host)
+        self.port = int(port)
         self.use_ssl = use_ssl
         self.daemon = True
 
@@ -55,12 +53,25 @@ class TCPConnection:
 
         return context
 
-    def create_tcp_connection(self, **kwargs):
+    def get_simple_socket(self):
         try:
-            coro = self.loop.create_tcp_connection(self.protocol_class, host=self.host, port=self.port, **kwargs)
-            return self.loop.run_until_complete(coro)
-        except:
-            return None, None
+            l = socket.getaddrinfo(self.host, self.port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except socket.gaierror:
+            return
+        for res in l:
+            try:
+                s = socket.socket(res[0], socket.SOCK_STREAM)
+                s.settimeout(10)
+                s.connect(res[4])
+                s.settimeout(2)
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                return s
+            except BaseException as _e:
+                continue
+
+    def create_tcp_connection(self, **kwargs):
+        coro = self.loop.create_connection(self.protocol_class, host=self.host, port=self.port, **kwargs)
+        return self.loop.run_until_complete(coro)
 
     def create_ssl_connection(self):
         base_cert_path = os.path.join(self.config_path, 'certs')
@@ -72,29 +83,33 @@ class TCPConnection:
             # try with CA first
             try:
                 context = self.get_ssl_context(cert_reqs=ssl.CERT_REQUIRED, ca_certs=ca_path)
-                transport, client = self.create_tcp_connection(ssl=context, do_handshake_on_connect=True)
+                transport, client = self.create_tcp_connection(ssl=context)
             except ssl.SSLError as e:
                 transport = None
                 client = None
-            except:
-                return None, None
 
-            cert = transport.get_extra_info('peercert')
-            if transport and self.check_host_name(cert, self.host):
+            if transport:
+                cert = transport.get_extra_info('peercert')
+                self.check_host_name(cert, self.host)
                 return (transport, client)
 
             # get server certificate.
             # Do not use ssl.get_server_certificate because it does not work with proxy
             try:
                 context = self.get_ssl_context(cert_reqs=ssl.CERT_NONE, ca_certs=None)
-                transport, client = self.create_tcp_connection(ssl=context, do_handshake_on_connect=True)
+                socket = self.get_simple_socket()
+                if not socket:
+                    return None, None
+                socket = context.wrap_socket(socket)
             except ssl.SSLError as e:
                 return None, None
-            except:
-                return None, None
 
-            dercert = transport.get_extra_info('socket').get_peercert(True)
-            transport.close()
+            dercert = socket.getpeercert(True)
+
+            socket.close()
+
+            if not dercert:
+                return None, None
 
             cert = ssl.DER_cert_to_PEM_cert(dercert)
             # workaround android bug
@@ -106,15 +121,11 @@ class TCPConnection:
             temporary_path = None
             is_new = False
 
+        context = self.get_ssl_context(cert_reqs=ssl.CERT_REQUIRED,
+                                       ca_certs=(temporary_path if is_new else cert_path))
         try:
-            context = self.get_ssl_context(cert_reqs=ssl.CERT_REQUIRED,
-                                           ca_certs=(temporary_path if is_new else cert_path))
             transport, client = self.create_tcp_connection(ssl=context)
-        except socket.timeout:
-            return None, None
-        except ssl.SSLError as e:
-            return None, None
-        except BaseException as e:
+        except ssl.SSLError:
             return None, None
 
         if is_new:

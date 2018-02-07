@@ -138,6 +138,31 @@ class BaseCoin(object):
         """
         return self.rpc_client.block_header(*heights)
 
+    def subscribe_to_block_headers(self, callback):
+        """
+        Run callback when a new block is added to the blockchain
+        Callback should be in the format:
+
+        def on_block_headers(header):
+            pass
+
+        """
+        return self.rpc_client.subscribe_to_block_headers(callback)
+
+    def subscribe_to_addresses(self, addrs, callback):
+        """
+        Subscribe to a list of addresses for changes.
+        Run a callback when a an action related to one of the addresses occurs, such as a new transaction
+
+        Callback should be in the format:
+
+        def on_address_notify(address, status):
+           pass
+
+        """
+        addrs_scripthashes = {self.addrtoscripthash(addr): addr for addr in addrs}
+        return self.rpc_client.subscribe_to_scripthashes(addrs_scripthashes, callback)
+
     def get_balance(self, *addrs):
         """
         Get address balances
