@@ -15,6 +15,9 @@ import asyncio
 import json
 import random
 import os
+import ssl
+from .connection import TCPConnection
+from ..utils import user_dir
 from .. import constants
 from functools import partial
 from datetime import datetime, timedelta
@@ -60,13 +63,15 @@ def read_json(path, default):
 
 class ElectrumXClient(RPCClient):
 
-    def __init__(self, server_file="bitcoin.json", servers=(), host=None, port=50001, timeout=15, max_servers=5,
-                 protocol_version=(constants.PROTOCOL_VERSION, constants.PROTOCOL_VERSION),
-                 client_name=constants.CLIENT_NAME, loop=None):
+    def __init__(self, server_file="bitcoin.json", servers=(), host=None, port=50002, use_ssl=True, timeout=15,
+                 max_servers=5, protocol_version=(constants.PROTOCOL_VERSION, constants.PROTOCOL_VERSION),
+                 client_name=constants.CLIENT_NAME, loop=None, config_path=None):
         super().__init__()
+        self.use_ssl = use_ssl
         self.cache = {'fees': {}}
         self.client_name = client_name
         self.protocol_version = protocol_version
+        self.config_path = config_path or user_dir(self.client_name)
         if loop:
             self.loop = loop
         else:
@@ -76,7 +81,7 @@ class ElectrumXClient(RPCClient):
         self.max_servers = max_servers
         if not servers:
             servers = read_json(server_file, {})
-        self.servers = {host: servers[host] for host in servers.keys() if servers[host].get('usable', True)}
+        self.servers = {host: servers[host] for host in servers.keys() if self.server_is_usable(servers[host])}
         self.host = host
         self.port = port
         self.rpc_client = None
@@ -84,9 +89,18 @@ class ElectrumXClient(RPCClient):
             self.host, self.port = self.choose_random_server()
         self.connect_to_server()
 
+    def server_is_usable(self, server):
+        if self.use_ssl and not 's' in server.keys():
+            return False
+        elif not self.use_ssl and not 't' in server.keys():
+            return  False
+        return server.get('usable', True)
+
     def choose_random_server(self):
         host = random.choice(list(self.servers.keys()))
         try:
+            if self.use_ssl:
+                return host, self.servers[host]['s']
             return host, self.servers[host]['t']
         except KeyError:
             del self.servers[host]
@@ -95,20 +109,22 @@ class ElectrumXClient(RPCClient):
     def connect_to_server(self):
         print(self.host, self.port)
         try:
-            coro = self.loop.create_connection(RPCClient, self.host, self.port)
-            transport, self.rpc_client = self.loop.run_until_complete(coro)
+            transport, self.rpc_client = TCPConnection(RPCClient, self.host, self.port, self.use_ssl, self.loop,
+                                                       self.config_path).create_connection()
+            self.connection_made(transport)
             try:
                 result = self.server_version()
                 self.server_software = result[0]
                 self.server_protocol_version = result[1]
             except RPCResponseExecption:
                 self.change_server()
-        except OSError:
+        except (OSError, ssl.SSLError):
             self.change_server()
 
     def change_server(self):
-        if self.rpc_client:
-            self.rpc_client.close_connection()
+        if self.transport:
+            self.close_connection()
+            self.transport = None
         if self.host not in self.failed_hosts:
             self.failed_hosts.append(self.host)
         if len(self.failed_hosts) >= self.max_servers:

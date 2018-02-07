@@ -28,7 +28,7 @@ class BaseCoin(object):
         'port': 50001,
         'timeout': 15,
         'max_servers': 5,
-        'loop': None
+        'use_ssl': True
     }
     is_testnet = False
     address_prefixes = ()

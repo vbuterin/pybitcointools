@@ -670,7 +670,7 @@ class JSONSessionBase(util.LoggedClass):
         self.send_binary(self.request_bytes(id_, method, params))
         self.items_events[id_] = asyncio.Event()
         self._pending_reqs[(self, id_)] = (handler, time.time() + timeout)
-        return  id_
+        return id_
 
     def send_notification(self, method, params=None):
         '''Send a notification.'''
