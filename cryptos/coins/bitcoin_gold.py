@@ -6,7 +6,7 @@ from ..py3specials import bin_to_b58check
 FORKID_BTG = 79
 
 class BitcoinGold(BaseCoin):
-    coin_symbol = "btg"
+    coin_symbol = "BTC"
     display_name = "Bitcoin Gold"
     segwit_supported = True
     magicbyte = 38

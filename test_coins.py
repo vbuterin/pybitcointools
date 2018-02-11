@@ -535,6 +535,17 @@ class TestBitcoinTestnet(BaseCoinCase):
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
     tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
 
+    def test_subscribe_block_headers(self):
+        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
+        coin.subscribe_to_block_headers(callback=print)
+        print("sleeping")
+
+    def test_subscribe_address(self):
+        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
+        coin.subscribe_to_addresses(['mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu'], callback=print)
+        print("sleeping")
+        time.sleep(1000)
+
     def test_balance(self):
         coin = self.coin(testnet=self.testnet)
         result = coin.get_balance(*self.unspent_address)

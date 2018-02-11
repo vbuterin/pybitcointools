@@ -1,11 +1,14 @@
 from ..transaction import *
 from ..blocks import mk_merkle_proof
 from .. import segwit_addr
-from ..electrumx_client.rpc import ElectrumXClient
+from ..electrumx_client.rpc_async import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
+from ..exchanges.shapeshift import ShapeShiftIO
 
+class ShapeshiftInvalidAddressException(Exception):
+    pass
 
 class BaseCoin(object):
     """
@@ -68,15 +71,18 @@ class BaseCoin(object):
     electrum_xprv_headers = xprv_headers
     electrum_xpub_headers = xpub_headers
 
-
-    def __init__(self, testnet=False, **kwargs):
+    def __init__(self, testnet=False, shapeshift_api_key=None, **kwargs):
+        self.shapeshift = ShapeShiftIO(api_key=shapeshift_api_key)
         if testnet:
             self.is_testnet = True
             for k, v in self.testnet_overrides.items():
                 setattr(self, k, v)
         # override default attributes from kwargs
         for key, value in kwargs.items():
-            setattr(self, key, value)
+            if isinstance(value, dict):
+                getattr(self, key).update(value)
+            else:
+                setattr(self, key, value)
         if not self.enabled:
             if self.is_testnet:
                 raise NotImplementedError("Due to explorer limitations, testnet support for this coin has not been implemented yet!")
@@ -138,7 +144,7 @@ class BaseCoin(object):
         """
         return self.rpc_client.block_header(*heights)
 
-    def subscribe_to_block_headers(self, callback):
+    def subscribe_to_block_headers(self, callback=None):
         """
         Run callback when a new block is added to the blockchain
         Callback should be in the format:
@@ -147,9 +153,9 @@ class BaseCoin(object):
             pass
 
         """
-        return self.rpc_client.subscribe_to_block_headers(callback)
+        self.rpc_client.subscribe_to_block_headers(callback=callback)
 
-    def subscribe_to_addresses(self, addrs, callback):
+    def subscribe_to_addresses(self, addrs, callback=None):
         """
         Subscribe to a list of addresses for changes.
         Run a callback when a an action related to one of the addresses occurs, such as a new transaction
@@ -161,7 +167,7 @@ class BaseCoin(object):
 
         """
         addrs_scripthashes = {self.addrtoscripthash(addr): addr for addr in addrs}
-        return self.rpc_client.subscribe_to_scripthashes(addrs_scripthashes, callback)
+        self.rpc_client.subscribe_to_scripthashes(addrs_scripthashes, callback=callback)
 
     def get_balance(self, *addrs):
         """
@@ -655,3 +661,70 @@ class BaseCoin(object):
     def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs):
         ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
         return HDWallet(ks, **kwargs)
+
+    def shapeshift_rate(self, coin):
+        return self.shapeshift.rate(self.coin_symbol, coin.coin_symbol)
+
+    def shapeshift_limit(self, coin):
+        return self.shapeshift.limit(self.coin_symbol, coin.coin_symbol)
+
+    def shapeshift_market(self, coin):
+        return self.shapeshift.market_info(self.coin_symbol, coin.coin_symbol)
+
+    def create_shift(self, coin, withdrawal_address, returnAddress, amount_to_receive=None):
+        data = self.shapeshift.validate_address(withdrawal_address, coin)
+        if not data['isValid']:
+            raise ShapeshiftInvalidAddressException(data['error'])
+        if amount_to_receive:
+            return self.shapeshift.send_amount(self.coin_symbol, coin, amount_to_receive, withdrawal_address,
+                                               returnAddress)
+        return self.shapeshift.shift(self.coin_symbol, coin, withdrawal_address, returnAddress)
+
+    def shift_frm_amount(self, coin, withdrawal_address, privkey, address, frm_amount, refund_address=None,
+                       fee=50000, fee_for_blocks=1):
+        """
+        Shapeshift to another coin, setting the amount according to the amount to send with this coin
+        coin is the symbol of the coin to receive
+        withdrawal address is the address of the other coin to receive
+        privkey and address are for this coin's account to send
+        frm_amount is the amount to send from this wallet
+        refund_address will be used as the change address for this coin and also to receive a refund if there is
+        an issue with the transaction on shapeshift
+        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
+        """
+        return_address = refund_address or address
+        data = self.create_shift(coin, withdrawal_address, return_address)
+        deposit_address = data['deposit']
+        self.send(privkey, address, deposit_address, frm_amount, fee=fee, change_addr=return_address,
+                  fee_for_blocks=fee_for_blocks)
+        return self.shapeshift.tx_status(deposit_address)
+
+    def shift_quote(self, coin, amount):
+        """
+        Return a quote from shapeshift of how much is needed to be sent to receive the specified amount
+        """
+        return self.shapeshift.send_amount_quote_only(self.coin_symbol, coin, amount)
+
+    def shift_to_amount(self, coin, withdrawal_address, privkey, address, receive_amount, refund_address=None,
+                       fee=50000, fee_for_blocks=1):
+        """
+        Shapeshift to another coin, setting the amount to the amount of the other coin to receive
+                withdrawal address is the address of the other coin to receive
+        coin is the symbol of the coin to receive
+        withdrawal address is the address of the other coin to receive
+        privkey and address are for this coin's account to send
+        receive_amount is the amount of the other coin to receive
+        refund_address will be used as the change address for this coin and also to receive a refund if there is
+        an issue with the transaction on shapeshift
+        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
+        """
+        return_address = refund_address or address
+        data = self.create_shift(coin, withdrawal_address, return_address, amount_to_receive=receive_amount)
+        deposit_address = data['deposit']
+        deposit_amount = data['depositAmount']
+        self.send(privkey, address, deposit_address, deposit_amount, fee=fee, change_addr=return_address,
+                  fee_for_blocks=fee_for_blocks)
+        return self.shapeshift.tx_status(deposit_address)
+
+    def cancel_shifts(self, address):
+        return self.shapeshift.cancel_pending(address)

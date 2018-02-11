@@ -281,7 +281,7 @@ class JSONSessionBase(util.LoggedClass):
         '''Trigger timeouts where necessary for all pending requests.'''
         now = time.time()
         keys = [key for key, value in cls._pending_reqs.items()
-                if value[1] < now]
+                if value[1] and value[1] < now]
         cls._timeout_requests(keys)
 
     @classmethod
@@ -315,6 +315,8 @@ class JSONSessionBase(util.LoggedClass):
         self.items = collections.deque()
         #self.items_event = asyncio.Event()
         self.items_events = {}
+        # Handle subscriptions
+        self.subscription_handlers = collections.deque()
         self.batch_results = []
         # Handling of outgoing requests
         self.next_request_id = 0
@@ -322,6 +324,7 @@ class JSONSessionBase(util.LoggedClass):
         self.max_buffer_size = 1000000
         self.max_send = 50000
         self.close_after_send = False
+
 
     def pause_writing(self):
         '''Transport calls when the send buffer is full.'''
@@ -426,6 +429,7 @@ class JSONSessionBase(util.LoggedClass):
         process_batch as appropriate.
         Messages that cannot be decoded are logged and dropped.
         '''
+        print(payload)
         try:
             payload = payload.decode()
         except UnicodeDecodeError as e:
@@ -453,8 +457,17 @@ class JSONSessionBase(util.LoggedClass):
             self.send_error('empty batch', JSONRPC.INVALID_REQUEST)
             return
 
-        self.items.append(payload)
-        self.items_events[payload['id']].set()
+        id_ = payload.get('id', None)
+        if id_ is not None:
+            self.items.append(payload)
+            self.items_events[payload['id']].set()
+        else:
+            for item in self.subscription_handlers:
+                if item[1] == payload.get('method'):
+                    if not item[2] or item[2] == payload['params'][0]:
+                        handler = item[3]
+                        handler(bool(payload.get('id', False)), payload['result'], None)
+                        break
 
     async def process_batch(self, batch, count):
         '''Processes count items from the batch according to the JSON 2.0
@@ -629,6 +642,7 @@ class JSONSessionBase(util.LoggedClass):
         '''Underlying transport calls this when new data comes in.
         Look for newline separators terminating full requests.
         '''
+        print(data)
         if self.is_closing():
             return
         self.using_bandwidth(len(data))
@@ -669,7 +683,15 @@ class JSONSessionBase(util.LoggedClass):
         self.next_request_id += 1
         self.items_events[id_] = asyncio.Event()
         self.send_binary(self.request_bytes(id_, method, params))
-        self._pending_reqs[(self, id_)] = (handler, time.time() + timeout)
+        expiry_time = time.time() + timeout if timeout else None
+        self._pending_reqs[(self, id_)] = (handler, time.time() + expiry_time)
+        return id_
+
+    def send_subscription(self, initial_handler, notify_handler, method, params=None, timeout=30):
+        '''Sends a request and arranges for handler to be called when each response comes in
+        '''
+        id_ = self.send_request(initial_handler, method, params, timeout=timeout)
+        self.subscription_handlers.append((id_, method, params, notify_handler))
         return id_
 
     def send_notification(self, method, params=None):
