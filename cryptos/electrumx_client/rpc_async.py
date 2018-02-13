@@ -211,11 +211,15 @@ class ElectrumXClient:
         get_merkle_requests = self._get_merkle(*txs)
         results = self.rpc_multiple_send_and_wait(block_header_requests + get_merkle_requests)
         merkles = []
-        for result in results:
-            if 'merkle' in result.keys():
-                block_header = next(r for r in results if r['height'] == results['block_height'])
+        block_header_responses = [r['data'] for r in results if 'merkle_root' in r['data'].keys()]
+        merkle_responses = [r['data'] for r in results if 'merkle' in r['data'].keys()]
+        for result in merkle_responses:
+            block_headers = [r for r in block_header_responses if r['block_height'] == result['block_height']]
+            if block_headers:
+                block_header = block_headers[0]
                 result['merkle_root'] = block_header['merkle_root']
                 merkles.append(result)
+                break
         return merkles
 
     def run_command(self, request):

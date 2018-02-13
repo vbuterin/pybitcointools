@@ -126,8 +126,9 @@ class BaseCoin(object):
         """
         tx = serialize(txobj)
         size = len(tx) / 2
-        for input in txobj['inputs']:
-            if input.get('new_segwit', False):
+        addresses = txobj.get('addresses', [])
+        for i, input in enumerate(txobj['ins']):
+            if addresses and self.is_new_segwit(addresses[i]):
                 size += self.signature_sizes['p2wpkh']
             elif input.get('segwit', False):
                 size += self.signature_sizes['p2w_p2sh']
@@ -142,7 +143,7 @@ class BaseCoin(object):
         """
         num_bytes = self.tx_size(txobj)
         per_kb = self.estimate_fee_per_kb(numblocks=numblocks, cache=cache)
-        return num_bytes / 1000 * per_kb
+        return int(num_bytes * per_kb * 100000000)
 
     def block_header(self, *heights):
         """
@@ -230,7 +231,7 @@ class BaseCoin(object):
         return self.rpc_client.get_merkle(*txs)
 
     def get_all_merkle_info(self, *txinfos):
-        return self.rpc_client.get_all_merkle_data(txinfos)
+        return self.rpc_client.get_all_merkle_data(*txinfos)
 
     def merkle_prove(self, *txinfos):
         """
@@ -244,6 +245,10 @@ class BaseCoin(object):
             if proof['proven']:
                 proofs.append(proof)
         return proofs
+
+    def merkle_prove_txids(self, *txhashes):
+        txs = self.get_txs(*txhashes)
+        return self.merkle_prove(*txs)
 
     def pushtx(self, tx):
         """
@@ -509,16 +514,17 @@ class BaseCoin(object):
             raise Exception("Not enough money")
         elif isum > osum + fee + 5430:
             outs += [{"address": change, "value": isum - osum - fee}]
-
+        orig_outs = [out.copy() for out in outs]
+        orig_ins = [inp.copy() for inp in ins]
         txobj = self.mktx(ins, outs, locktime=locktime, sequence=sequence)
 
         if fee_for_blocks:
             fee = self.estimate_fee(txobj, numblocks=fee_for_blocks)
-            for out in txobj['outs']:
+            for out in orig_outs:
                 if out['address'] == change:
                     out['value'] = isum - osum - fee
 
-        return self.mktx(ins, outs)
+        return self.mktx(orig_ins, orig_outs, locktime=locktime, sequence=sequence)
 
     def preparemultitx(self, frm, outs, fee=50000, change_addr=None, fee_for_blocks=0, segwit=False):
         """
@@ -533,12 +539,12 @@ class BaseCoin(object):
         change_addr = change_addr or frm
         return self.mktx_with_change(unspents2, outs, fee=fee, change=change_addr, fee_for_blocks=fee_for_blocks)
 
-    def preparetx(self, frm, to, value, fee=50000, change_addr=None, segwit=False):
+    def preparetx(self, frm, to, value, fee=50000, fee_for_blocks=0, change_addr=None, segwit=False):
         """
         Prepare a transaction using from and to address_derivations, value and a fee, with change sent back to from address
         """
         outs = [{'address': to, 'value': value}]
-        return self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit)
+        return self.preparemultitx(frm, outs, fee=fee, fee_for_blocks=fee_for_blocks, change_addr=change_addr, segwit=segwit)
 
     def preparesignedmultitx(self, privkey, frm, outs, fee=50000, change_addr=None, fee_for_blocks=0):
         """

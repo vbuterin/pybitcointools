@@ -218,7 +218,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL, segwit=False):
         if j == i:
             newtx['ins'][j]['script'] = script
         else:
-            newtx['ins'][i]['script'] = ""
+            newtx['ins'][j]['script'] = ""
     if segwit or hashcode & 255 == SIGHASH_ALL + SIGHASH_FORKID:
         return uahf_digest(newtx, i)
     elif hashcode == SIGHASH_NONE:
@@ -230,8 +230,7 @@ def signature_form(tx, i, script, hashcode=SIGHASH_ALL, segwit=False):
             out['script'] = ""
     elif hashcode == SIGHASH_ANYONECANPAY:
         newtx["ins"] = [newtx["ins"][i]]
-    else:
-        pass
+
     return serialize(newtx, include_witness=False)
 
 # Making the actual signatures

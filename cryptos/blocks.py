@@ -27,7 +27,10 @@ def deserialize_header(inp):
 
 
 def mk_merkle_proof(merkle_root, hashes, index):
-    hash = hashes['index']
+    print(merkle_root)
+    print(hashes)
+    print(index)
+    hash = hashes[index]
     try:
         nodes = [safe_from_hex(h)[::-1] for h in hashes]
         if len(nodes) % 2 and len(nodes) > 2:

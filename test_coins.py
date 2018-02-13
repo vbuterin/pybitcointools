@@ -14,10 +14,12 @@ class BaseCoinCase(unittest.TestCase):
     addresses = []
     segwit_addresses = []
     new_segwit_addresses = []
+    txheight = None
     multisig_address = ""
     privkeys = []
     txid = None
-    txheight = None
+    merkle_txhash = None
+    merkle_txheight = None
     tx = None
     txinputs = None
     min_latest_height = 99999999999
@@ -301,7 +303,6 @@ class BaseCoinCase(unittest.TestCase):
         #Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
-        change_value = int(outputs_value - send_value)
 
         if sender == self.addresses[0]:
             receiver = self.addresses[1]
@@ -313,11 +314,10 @@ class BaseCoinCase(unittest.TestCase):
             receiver = self.addresses[0]
             change_address = self.addresses[1]
 
-        outs = [{'value': send_value, 'address': receiver},
-                {'value': change_value, 'address': change_address}]
+        outs = [{'value': send_value, 'address': receiver}]
 
         #Create the transaction using all available unspents as inputs
-        tx = c.mktx(unspents, outs)
+        tx = c.mktx_with_change(unspents, outs, change=change_address, fee_for_blocks=1)
 
         #For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
         try:
@@ -335,7 +335,9 @@ class BaseCoinCase(unittest.TestCase):
         tx = serialize(tx)
         #Push the transaction to the network
         result = c.pushtx(tx)
-        self.assertPushTxOK(result)
+        tx_hash = public_txhash(tx, self.coin.hashcode)
+        self.assertEqual(result, tx_hash)
+        #self.assertPushTxOK(result)
 
     def assertPushTxOK(self, result):
         #For chain.so. Override for other explorers.
@@ -401,8 +403,9 @@ class BaseCoinCase(unittest.TestCase):
 
     def assertMerkleProofOK(self):
         coin = self.coin(testnet=self.testnet)
-        proof = coin.merkle_prove(self.txid)
-        self.assertEqual(self.num_merkle_siblings, len(proof['siblings']))
+        proof = coin.merkle_prove({'tx_hash': self.merkle_txhash, 'height': self.merkle_txheight})
+        self.assertEqual(len(proof), 1)
+        #self.assertEqual(self.num_merkle_siblings, len(proof[0]['siblings']))
 
 
 class TestBitcoin(BaseCoinCase):
@@ -436,7 +439,8 @@ class TestBitcoin(BaseCoinCase):
          'value': 100000, 'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT'}]
     min_latest_height = 503351
     txid = "fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690"
-    txheight = 135235
+    merkle_txhash = "8b712b86b4882a61b1031b828a3e1cde5c62ee8896961a513c744588486cc903"
+    merkle_txheight = 509045
     txinputs = [{"output": "7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583:1", 'value': 1000000},
                 {"output": "da1ad82b777c51105d3a24cef253e0301dd08153115013a49e0edf69fd7cdadf:1", 'value': 100000}]
     tx = {'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690'}
@@ -538,6 +542,12 @@ class TestBitcoinTestnet(BaseCoinCase):
     txheight = 1238008
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
     tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
+
+    def test_tx(self):
+        coin = self.coin(testnet=self.testnet, client_kwargs = {'use_ssl': False})
+        tx = coin.preparetx('myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW', 'mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu', 550000, fee_for_blocks=1)
+        signed_tx = coin.sign(tx, 0, 'cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk')
+        result = coin.pushtx(serialize(signed_tx))
 
     def test_subscribe_block_headers(self):
         coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
