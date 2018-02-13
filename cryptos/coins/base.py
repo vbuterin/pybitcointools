@@ -444,7 +444,8 @@ class BaseCoin(object):
             txobj = deserialize(txobj)
         if isinstance(priv, dict):
             for i, inp in enumerate(txobj["ins"]):
-                k = priv[inp['address']]
+                addr = txobj['addresses']
+                k = priv[addr]
                 txobj = self.sign(txobj, i, k)
         else:
             for i in range(len(txobj["ins"])):
