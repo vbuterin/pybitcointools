@@ -113,10 +113,8 @@ def deserialize(tx):
     ins = read_var_int()
     for i in range(ins):
         obj["ins"].append({
-            "outpoint": {
-                "tx_hash": read_bytes(32)[::-1],
-                "tx_pos": read_as_int(4)
-            },
+            "tx_hash": read_bytes(32)[::-1],
+            "tx_pos": read_as_int(4),
             "script": read_var_string(),
             "sequence": read_as_int(4)
         })
@@ -173,6 +171,7 @@ def serialize(txobj, include_witness=True):
 
 # https://github.com/Bitcoin-UAHF/spec/blob/master/replay-protected-sighash.md#OP_CHECKSIG
 def uahf_digest(txobj, i):
+    txobj.pop('addresses', None)
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []

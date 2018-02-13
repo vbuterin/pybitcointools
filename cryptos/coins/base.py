@@ -555,7 +555,7 @@ class BaseCoin(object):
         private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        segwit =  self.is_segwit(privkey, frm)
+        segwit = self.is_segwit(privkey, frm)
         tx = self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit, fee_for_blocks=fee_for_blocks)
         tx2 = self.signall(tx, privkey)
         return tx2
