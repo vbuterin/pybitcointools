@@ -100,11 +100,17 @@ class BaseCoin(object):
     @property
     def rpc_client(self):
         """
-        Connect to remove server
+        Connect to remote server
         """
         if not self._rpc_client:
             self._rpc_client = self.client(**self.client_kwargs)
         return self._rpc_client
+
+    def change_client(self, **kwargs):
+        self.client_kwargs.update(kwargs)
+        subscriptions = self.rpc_client.subscriptions[:]
+        self.rpc_client.rpc_client.close_connection()
+        self._rpc_client = self.client(subscriptions=subscriptions, **self.client_kwargs)
 
     def estimate_fee_per_kb(self, numblocks=1, cache=None):
         """
@@ -149,7 +155,7 @@ class BaseCoin(object):
         Run callback when a new block is added to the blockchain
         Callback should be in the format:
 
-        def on_block_headers(header):
+        def on_block_headers(header, initial_response):
             pass
 
         """
@@ -162,7 +168,7 @@ class BaseCoin(object):
 
         Callback should be in the format:
 
-        def on_address_notify(address, status):
+        def on_address_notify(address, status, initial_response):
            pass
 
         """
@@ -214,7 +220,11 @@ class BaseCoin(object):
         Fetch transactions from the blockchain and deserialise each one to a dictionary
         """
         txs = self.get_raw_txs(*tx_hashes)
-        return [deserialize(tx) for tx in txs]
+        for i, tx in enumerate(txs):
+            tx_hash = tx['tx_hash']
+            txs[i] = deserialize(tx['hex'])
+            txs[i]['tx_hash'] = tx_hash
+        return txs
 
     def get_merkle(self, *txs):
         return self.rpc_client.get_merkle(*txs)
@@ -234,12 +244,6 @@ class BaseCoin(object):
             if proof['proven']:
                 proofs.append(proof)
         return proofs
-
-    def txinputs(self, tx_hash):
-        """
-        Fetch inputs of a transaction on the blockchain
-        """
-        return self.get_tx(tx_hash)[0]['ins']
 
     def pushtx(self, tx):
         """
@@ -402,7 +406,10 @@ class BaseCoin(object):
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
-        if txobj['ins'][i].get('segwit', False) or self.is_segwit(priv, txobj['ins'][i].get('address', 'xxxxxxx')):
+        address = txobj['addresses'][i]
+        new_segwit = self.is_new_segwit(address)
+        segwit = new_segwit or self.is_segwit(priv, address)
+        if segwit:
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not supported for %s" % self.display_name)
             if 'witness' not in txobj.keys():
@@ -411,9 +418,9 @@ class BaseCoin(object):
                     txobj["witness"].append({"number": 0, "scriptCode": ''})
             pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
-            signing_tx = signature_form(txobj, i, script, self.hashcode)
+            signing_tx = signature_form(txobj, i, script, self.hashcode, segwit=True)
             sig = ecdsa_tx_sign(signing_tx, priv, self.secondary_hashcode)
-            if txobj['ins'][i].get('new_segwit', False):
+            if new_segwit:
                 txobj["ins"][i]["script"] = ''
             else:
                 txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
@@ -454,32 +461,25 @@ class BaseCoin(object):
         in value between inputs and outputs will be given as a miner's fee (transactions with too high fees will
         normally be blocked by Electrumx)
 
-        For Bitcoin Cash and other hard forks using SIGHASH_FORKID,
-        ins must be a list of dicts with each containing the outpoint and value of the input.
-
-        Inputs on a segwit address must be a dict in the format: {'outpoint': "txhash:index", value:0, "segwit": True}
+        Ins and outs are both lists of dicts.
         """
 
-        txobj = {"locktime": locktime, "version": 1, "ins": [], "outs": []}
+        txobj = {"locktime": locktime, "version": 1}
+        addresses = []
+        segwit = False
         for inp in ins:
-            if self.segwit_supported and 'segwit' not in inp.keys() or 'new_segwit' not in inp.keys():
-                address = inp.get('address', None)
+            address = inp.pop('address', '')
+            if self.segwit_supported:
                 if address:
-                    if self.is_new_segwit(address):
-                       inp['new_segwit'] = True
+                    if self.is_new_segwit(address) or inp.pop('segwit', False):
+                       segwit = True
                     elif self.is_p2pkh(address):
-                        inp['new_segwit'] = False
-                        inp['segwit'] = False
-                    elif self.is_p2sh(address):
-                        inp['new_segwit'] = False   #Segwit needs to be explicitly set for p2wpkh-p2sh
-                if inp['new_segwit']:
-                    inp['segwit'] = True
+                        segwit = False
             inp.update({
                 'script': '',
                 'sequence': int(inp.get('sequence', sequence))
             })
-
-        segwit = any(inp.get('segwit', False) for inp in ins)
+            addresses.append(address)
 
         if segwit:
             if not self.segwit_supported:
@@ -487,14 +487,12 @@ class BaseCoin(object):
             txobj.update({"marker": 0, "flag": 1, "witness": []})
 
         for out in outs:
-            address = out.get('address', None)
-            script = out.get('script', None)
+            address = out.pop('address', None)
             if address:
                 out["script"] = self.addrtoscript(address)
-            elif "script" in out:
-                out["script"] = script
-            else:
+            elif "script" not in out.keys():
                 raise Exception("Could not find 'address' or 'script' in output.")
+        txobj.update({'ins': ins, 'outs': outs, 'addresses': addresses})
         return txobj
 
     def mktx_with_change(self, ins, outs, change=None, fee=50000, fee_for_blocks=0, locktime=0, sequence=0xFFFFFFFF):

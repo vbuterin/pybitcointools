@@ -74,7 +74,8 @@ class ElectrumXClient:
 
     def __init__(self, server_file="bitcoin.json", servers=(), host=None, port=50002, use_ssl=True, timeout=15,
                  max_servers=5, protocol_version=(constants.PROTOCOL_VERSION, constants.PROTOCOL_VERSION),
-                 client_name=constants.CLIENT_NAME, loop=None, config_path=None, use_listen_thread=True):
+                 client_name=constants.CLIENT_NAME, loop=None, config_path=None, use_listen_thread=True,
+                 subscriptions=()):
         self.use_ssl = use_ssl
         self.cache = {'fees': {}}
         self.client_name = client_name
@@ -99,8 +100,10 @@ class ElectrumXClient:
         self.host = host
         self.port = port
         self.rpc_client = None
+        self.subscriptions = subscriptions or []
         if not self.host:
             self.host, self.port = self.choose_random_server()
+        self.transport = None
         self.connect_to_server()
 
     def server_is_usable(self, server):
@@ -131,15 +134,17 @@ class ElectrumXClient:
     def connect_to_server(self):
         print(self.host, self.port)
         try:
-            transport, self.rpc_client = TCPConnection(RPCClient, self.host, self.port, self.use_ssl, self.loop,
+            self.transport, self.rpc_client = TCPConnection(RPCClient, self.host, self.port, self.use_ssl, self.loop,
                                                        self.config_path).create_connection()
-            if not transport or not self.rpc_client:
+            if not self.transport or not self.rpc_client:
                 self.change_server()
-            self.rpc_client.connection_made(transport)
+            self.rpc_client.connection_made(self.transport)
             try:
                 result = self.server_version()
                 self.server_electrumx_version = result[0]
                 self.server_protocol_version = result[1]
+                for subscription in self.subscriptions:
+                    self.rpc_multiple_subscriptions_send_and_wait(*subscription)
             except RPCResponseExecption:
                 self.change_server()
         except (OSError, ssl.SSLError):
@@ -157,7 +162,7 @@ class ElectrumXClient:
             self.host, self.port = self.choose_random_server()
         self.connect_to_server()
 
-    def get_coroutines(self, requests):
+    def make_requests_wait(self, requests):
         coroutines = []
         for request in requests:
             method, params = request
@@ -175,7 +180,7 @@ class ElectrumXClient:
         return coroutines
 
     def rpc_multiple_send_and_wait(self, requests):
-        coroutines = self.get_coroutines(requests)
+        coroutines = self.make_requests_wait(requests)
         values = self.loop.run_until_complete(asyncio.gather(*coroutines))
         self.failed_hosts = []
         return values
@@ -186,7 +191,11 @@ class ElectrumXClient:
 
     def block_header(self, *heights):
         requests = self._block_header(*heights)
-        return self.rpc_multiple_send_and_wait(requests)
+        results = self.rpc_multiple_send_and_wait(requests)
+        for r in results:
+            if r['error']:
+                raise Exception(r['error'])
+        return [r['data'] for r in results]
 
     def _get_merkle(self, *txs):
         method = 'blockchain.transaction.get_merkle'
@@ -197,7 +206,8 @@ class ElectrumXClient:
         return self.rpc_multiple_send_and_wait(requests)
 
     def get_all_merkle_data(self, *txs):
-        block_header_requests = self._block_header(*[tx['height'] for tx in txs])
+        heights = [tx['height'] for tx in txs]
+        block_header_requests = self._block_header(*heights)
         get_merkle_requests = self._get_merkle(*txs)
         results = self.rpc_multiple_send_and_wait(block_header_requests + get_merkle_requests)
         merkles = []
@@ -240,7 +250,7 @@ class ElectrumXClient:
         return 'blockchain.transaction.broadcast', (raw_tx,)
 
     def broadcast_transaction(self, raw_tx):
-        return self.run_command(self.broadcast_transaction(raw_tx))
+        return self.run_command(self._broadcast_transaction(raw_tx))
 
     def _server_donation_address(self):
         return 'server.donation_address', ()
@@ -349,7 +359,16 @@ class ElectrumXClient:
 
     def get_txs(self, *tx_hashes):
         requests = [self._get_tx(tx_hash) for tx_hash in tx_hashes]
-        return self.rpc_multiple_send_and_wait(requests)
+        results = self.rpc_multiple_send_and_wait(requests)
+        for r in results:
+            if r['error']:
+                raise Exception(r['error'])
+            tx_hash = r['params'][0]
+            r['data'] = {
+            'tx_hash': tx_hash,
+            'hex': r['data']
+            }
+        return [r['data'] for r in results]
 
     def start_listen_thread(self):
         if not self.listen_thread.is_alive():
@@ -394,6 +413,7 @@ class ElectrumXClient:
             self.address_changed_event.set()
             if callback:
                 callback(address, data, initial_response)
+        self.subscriptions.append((requests, handle_scripthash_notify))
         return self.rpc_multiple_subscriptions_send_and_wait(requests, handle_scripthash_notify)
 
     def _subscribe_to_block_headers(self):
@@ -408,4 +428,5 @@ class ElectrumXClient:
             self.new_block_event.set()
             if callback:
                 callback(data, initial_response)
+        self.subscriptions.append(([request], handle_block_headers_notify))
         return self.rpc_multiple_subscriptions_send_and_wait([request], handle_block_headers_notify)

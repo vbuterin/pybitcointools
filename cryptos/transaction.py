@@ -141,6 +141,9 @@ def deserialize(tx):
     return obj
 
 def serialize(txobj, include_witness=True):
+    txobj = txobj.copy()
+    if 'addresses' in txobj.keys():
+        del txobj['addresses']
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []
@@ -206,16 +209,17 @@ def uahf_digest(txobj, i):
 
     return list_to_bytes(o)
 
-def signature_form(tx, i, script, hashcode=SIGHASH_ALL):
+def signature_form(tx, i, script, hashcode=SIGHASH_ALL, segwit=False):
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
-    is_segwit = tx['ins'][i].get('segwit', False)
     newtx = copy.deepcopy(tx)
-    for inp in newtx["ins"]:
-        inp["script"] = ""
-    newtx["ins"][i]["script"] = script
-    if is_segwit or hashcode & 255 == SIGHASH_ALL + SIGHASH_FORKID:
+    for j, inp in enumerate(newtx["ins"]):
+        if j == i:
+            newtx['ins'][j]['script'] = script
+        else:
+            newtx['ins'][i]['script'] = ""
+    if segwit or hashcode & 255 == SIGHASH_ALL + SIGHASH_FORKID:
         return uahf_digest(newtx, i)
     elif hashcode == SIGHASH_NONE:
         newtx["outs"] = []

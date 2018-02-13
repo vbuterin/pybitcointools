@@ -429,7 +429,6 @@ class JSONSessionBase(util.LoggedClass):
         process_batch as appropriate.
         Messages that cannot be decoded are logged and dropped.
         '''
-        print(payload)
         try:
             payload = payload.decode()
         except UnicodeDecodeError as e:
@@ -642,7 +641,6 @@ class JSONSessionBase(util.LoggedClass):
         '''Underlying transport calls this when new data comes in.
         Look for newline separators terminating full requests.
         '''
-        print(data)
         if self.is_closing():
             return
         self.using_bandwidth(len(data))

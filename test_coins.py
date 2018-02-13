@@ -27,6 +27,8 @@ class BaseCoinCase(unittest.TestCase):
     blockcypher_coin_symbol = None
     testnet = True
     num_merkle_siblings = 0
+    balances = []
+    history = []
 
     @classmethod
     def setUpClass(cls):
@@ -37,15 +39,15 @@ class BaseCoinCase(unittest.TestCase):
         list2 = sorted(list2, key=itemgetter(key))
         self.assertEqual(list1, list2)
 
-    def assertBlockHeightOK(self):
+    def assertBalancesOK(self):
         coin = self.coin(testnet=self.testnet)
-        height = coin.block_height(self.txid)
-        self.assertEqual(height, self.txheight)
+        result = coin.get_balance(*self.unspent_address)
+        self.assertEqual(self.balances, result)
 
-    def assertLatestBlockHeightOK(self):
+    def assertHistoryOK(self):
         coin = self.coin(testnet=self.testnet)
-        height = coin.current_block_height()
-        self.assertGreaterEqual(height, self.min_latest_height)
+        result = coin.history(*self.unspent_address)
+        self.assertEqual(self.history, result)
 
     def assertUnspentOK(self):
         c = self.coin(testnet=self.testnet)
@@ -369,18 +371,10 @@ class BaseCoinCase(unittest.TestCase):
             for i in obj:
                 self.delete_key_by_name(i, key)
 
-    def assertFetchTXOK(self):
+    def assertGetTXOK(self):
         coin = self.coin(testnet=self.testnet)
-        tx = coin.fetchtx(self.txid)
-        self.delete_key_by_name(tx, "confirmations")
-        self.delete_key_by_name(self.tx, "confirmations")
-        txid = tx.get('txid', None) or tx.get('hash', None) or tx.get('txhash', None)
-        self.assertEqual(txid, self.tx['txid'])
-
-    def assertTXInputsOK(self):
-        coin = self.coin(testnet=self.testnet)
-        inputs = coin.txinputs(self.txid)
-        self.assertUnorderedListEqual(inputs, self.txinputs, key="output")
+        tx = coin.get_txs(self.txid)[0]
+        self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'locktime', 'tx_hash'])
 
     def assertMultiSigTransactionOK(self):
         c = self.coin(testnet=True)
@@ -398,11 +392,11 @@ class BaseCoinCase(unittest.TestCase):
         result = c.pushtx(tx)
         self.assertPushTxOK(result)
 
-    def assertBlockInfoOK(self):
+    def assertBlockHeadersOK(self):
         coin = self.coin(testnet=self.testnet)
-        blockinfo = coin.block_info(self.txheight)
+        blockinfo = coin.block_header(self.txheight)[0]
         self.assertListEqual(list(blockinfo.keys()),
-            ["version", "hash", "prevhash", "timestamp", "merkle_root", "bits", "nonce", "tx_hashes"]
+            ["block_height", "version", "prev_block_hash", "merkle_root", "timestamp", "bits", "nonce"]
         )
 
     def assertMerkleProofOK(self):
@@ -419,6 +413,17 @@ class TestBitcoin(BaseCoinCase):
     blockcypher_coin_symbol = "btc"
     testnet = False
 
+    balances = [
+        {'confirmed': 16341000000, 'unconfirmed': 0, 'address': '12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR', 'total': 16341000000},
+        {'confirmed': 8000100000, 'unconfirmed': 0, 'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT', 'total': 8000100000}]
+    history = [{'tx_hash': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34', 'height': 114743,
+                     'address': '12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR'},
+                    {'tx_hash': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f', 'height': 116768,
+                     'address': '12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR'},
+                    {'tx_hash': 'fd232fe21b6ad7f096f3012e935467a7f2177258cdcd07c748502a5b1f31ccd5', 'height': 187296,
+                     'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT'},
+                    {'tx_hash': 'a146923df9579f7c7b9a8f5ddf27e230e8d838117379bdf6b57113ce31bf52e0', 'height': 248365,
+                     'address': '1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT'}]
     unspent_address = ["12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR", "1A7hMTCfHbQJ1RAtBAVNcUtVsh8i8yFdmT"]
     unspent = [
         {'tx_hash': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34', 'tx_pos': 1, 'height': 114743,
@@ -437,24 +442,20 @@ class TestBitcoin(BaseCoinCase):
     tx = {'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690'}
     num_merkle_siblings = 6
 
-    def test_block_height(self):
-        self.assertBlockHeightOK()
-        self.assertLatestBlockHeightOK()
+    def test_balance(self):
+        self.assertBalancesOK()
 
-    def test_block_info(self):
-        self.assertBlockInfoOK()
+    def test_block_headers(self):
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
 
-    def test_fetchtx(self):
-        self.assertFetchTXOK()
+    def test_gettx(self):
+        self.assertGetTXOK()
 
-    def test_txinputs(self):
-        self.assertTXInputsOK()
-
-    def test_parse_args(self):
-        self.assertParseArgsOK()
+    def test_history(self):
+        self.assertHistoryOK()
 
     @skip("very high fees")
     def test_transaction(self):
@@ -494,7 +495,6 @@ class TestBitcoin(BaseCoinCase):
         self.assertGreater(time_taken_separate, time_taken_together)
 
 
-
 class TestBitcoinTestnet(BaseCoinCase):
     name = "Bitcoin Testnet"
     coin = coins.Bitcoin
@@ -526,10 +526,14 @@ class TestBitcoinTestnet(BaseCoinCase):
          'total': 173980000},
         {'confirmed': 6000000, 'unconfirmed': 0, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq',
          'total': 6000000}]
-    history = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008},
-                    {'tx_hash': 'e25d8f4036e44159b0364b45867e08ae47a57dda68ba800ba8abe1fb2dc54a40', 'height': 1275633},
-                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633},
-                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633}]
+    history = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008,
+                'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'},
+                {'tx_hash': 'e25d8f4036e44159b0364b45867e08ae47a57dda68ba800ba8abe1fb2dc54a40', 'height': 1275633,
+                 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
+                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633,
+                     'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
+                    {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'height': 1275633,
+                     'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq'}]
     txid = "1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c"
     txheight = 1238008
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
@@ -547,36 +551,22 @@ class TestBitcoinTestnet(BaseCoinCase):
         time.sleep(1000)
 
     def test_balance(self):
-        coin = self.coin(testnet=self.testnet)
-        result = coin.get_balance(*self.unspent_address)
-        self.assertEqual(self.balances, result)
+        self.assertBalancesOK()
 
     def test_unspent(self):
         self.assertUnspentOK()
 
     def test_history(self):
-        coin = self.coin(testnet=self.testnet)
-        result = coin.history(*self.unspent_address)
-        self.assertEqual(self.history, result)
+        self.assertHistoryOK()
 
-    def test_block_info(self):
-        self.assertBlockInfoOK()
+    def test_block_headers(self):
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
 
-    def test_block_height(self):
-        self.assertBlockHeightOK()
-        self.assertLatestBlockHeightOK()
-
-    def test_fetchtx(self):
-        self.assertFetchTXOK()
-
-    def test_txinputs(self):
-        self.assertTXInputsOK()
-
-    def test_parse_args(self):
-        self.assertParseArgsOK()
+    def test_gettx(self):
+        self.assertGetTXOK()
 
     def test_transaction(self):
         self.assertTransactionOK()
@@ -682,7 +672,7 @@ class TestLitecoin(BaseCoinCase):
             {'output': '0c2d49e00dd1372a7219fbc4378611b39f54790bbd597b4c29517f0d93c9faa2:0', 'value': 1107944447}]
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -698,7 +688,7 @@ class TestLitecoin(BaseCoinCase):
         self.assertTXInputsOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     @skip("Need to find stable transaction")
     def test_unspent(self):
@@ -732,7 +722,7 @@ class TestLitecoinTestnet(BaseCoinCase):
         time.sleep(8)
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -742,7 +732,7 @@ class TestLitecoinTestnet(BaseCoinCase):
         self.assertLatestBlockHeightOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     def test_txinputs(self):
         self.assertTXInputsOK()
@@ -776,7 +766,7 @@ class TestDash(BaseCoinCase):
             {'output': 'e7a607c5152863209f33cec4cc0baed973f7cfd75ae28130e623c099fde7072c:1', 'value': 220000000}]
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -792,7 +782,7 @@ class TestDash(BaseCoinCase):
         self.assertTXInputsOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     def test_unspent(self):
         self.assertUnspentOK()
@@ -818,7 +808,7 @@ class TestDashTestnet(BaseCoinCase):
     txheight = 45550
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -834,7 +824,7 @@ class TestDashTestnet(BaseCoinCase):
         self.assertTXInputsOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     def test_transaction(self):
         self.assertTransactionOK()
@@ -856,7 +846,7 @@ class TestDoge(BaseCoinCase):
             {'output': '345c28885d265edbf8565f553f9491c511b6549d3923a1d63fe158b8000bbee2:1', 'value': 3485074167413}]
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -872,7 +862,7 @@ class TestDoge(BaseCoinCase):
         self.assertTXInputsOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     @skip("Need stable transaction")
     def test_unspent(self):
@@ -912,7 +902,7 @@ class TestBitcoinCash(BaseCoinCase):
             {'output': 'e3ead2c8e6ad22b38f49abd5ae7a29105f0f64d19865fd8ccb0f8d5b2665f476:1', 'value': 249077026}]
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -948,7 +938,7 @@ class TestBitcoinCashTestnet(BaseCoinCase):
     txheight = 1196454
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
@@ -958,7 +948,7 @@ class TestBitcoinCashTestnet(BaseCoinCase):
         self.assertLatestBlockHeightOK()
 
     def test_fetchtx(self):
-        self.assertFetchTXOK()
+        self.assertGetTXOK()
 
     def test_txinputs(self):
         self.assertTXInputsOK()
@@ -991,7 +981,7 @@ class TestBitcoinGold(BaseCoinCase):
     num_merkle_siblings = 6
 
     def test_block_info(self):
-        self.assertBlockInfoOK()
+        self.assertBlockHeadersOK()
 
     def test_merkle_proof(self):
         self.assertMerkleProofOK()
