@@ -6,6 +6,7 @@ from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
 from ..exchanges.shapeshift import ShapeShiftIO
+from ..constants import SATOSHI_PER_BTC
 
 class ShapeshiftInvalidAddressException(Exception):
     pass
@@ -142,8 +143,10 @@ class BaseCoin(object):
         txobj is a pre-signed transaction object
         """
         num_bytes = self.tx_size(txobj)
-        per_kb = self.estimate_fee_per_kb(numblocks=numblocks, cache=cache)
-        return int(num_bytes * per_kb * 100000000)
+        btc_fee_per_kb = self.estimate_fee_per_kb(numblocks=numblocks, cache=cache)
+        btc_fee_per_byte = btc_fee_per_kb / 1024
+        satoshi_fee_per_byte = btc_fee_per_byte * SATOSHI_PER_BTC
+        return int(num_bytes * satoshi_fee_per_byte)
 
     def block_header(self, *heights):
         """
