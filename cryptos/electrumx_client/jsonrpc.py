@@ -463,10 +463,9 @@ class JSONSessionBase(util.LoggedClass):
         else:
             for item in self.subscription_handlers:
                 if item[1] == payload.get('method'):
-                    if not item[2] or item[2] == payload['params'][0]:
+                    if not item[2] or payload['params'][0] in item[2]:
                         handler = item[3]
-                        handler(bool(payload.get('id', False)), payload['result'], None)
-                        break
+                        handler(payload['params'])
 
     async def process_batch(self, batch, count):
         '''Processes count items from the batch according to the JSON 2.0

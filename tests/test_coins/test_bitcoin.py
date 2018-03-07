@@ -41,6 +41,10 @@ class TestBitcoin(BaseCoinTestCase):
     tx = {'txid': 'fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690'}
     num_merkle_siblings = 6
 
+    @skip('Takes too long')
+    def test_subscribe_block_headers(self):
+        self.assertSubscribeBlockHeadersOK()
+
     def test_balance(self):
         self.assertBalancesOK()
 

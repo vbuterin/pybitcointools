@@ -12,7 +12,7 @@
 #https://github.com/kyuupichan/electrumx/blob/master/docs/PROTOCOL.rst
 
 import asyncio
-import threading
+import time
 from collections import deque
 import json
 import random
@@ -51,7 +51,7 @@ class RPCClient(JSONSession):
 
     def send_rpc_subscription(self, method, params, notify_callback, initial_callback=None):
         initial_callback = initial_callback or self.handle_response
-        notify_handler = partial(notify_callback, method, params)
+        notify_handler = partial(notify_callback, params)
         initial_handler = partial(initial_callback, method, params)
         return self.send_subscription(initial_handler, notify_handler, method, params)
 
@@ -74,25 +74,20 @@ class ElectrumXClient:
 
     def __init__(self, server_file="bitcoin.json", servers=(), host=None, port=50002, use_ssl=True, timeout=15,
                  max_servers=5, protocol_version=(constants.PROTOCOL_VERSION, constants.PROTOCOL_VERSION),
-                 client_name=constants.CLIENT_NAME, loop=None, config_path=None, use_listen_thread=True,
-                 subscriptions=()):
+                 client_name=constants.CLIENT_NAME, loop=None, config_path=None, subscriptions=(),
+                 keepalive_interval=180):
         self.use_ssl = use_ssl
         self.cache = {'fees': {}}
         self.client_name = client_name
         self.protocol_version = protocol_version
         self.config_path = config_path or user_dir(self.client_name)
-        self.use_listen_thread = use_listen_thread
-        self.listen_thread = threading.Thread(target=self.run_listen_loop)
         self.new_block_items = deque()
         self.address_change_items = deque()
-        if self.use_listen_thread:
-            self.new_block_event = threading.Event()
-            self.address_changed_event = threading.Event()
-        else:
-            self.new_block_event = asyncio.Event()
-            self.address_change_event = asyncio.Event()
+        self.new_block_event = asyncio.Event()
+        self.address_change_event = asyncio.Event()
         self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
+        self.keepalive_interval = keepalive_interval
         self.failed_hosts = []
         self.max_servers = max_servers
         servers = servers or read_json(server_file, {})
@@ -112,14 +107,6 @@ class ElectrumXClient:
         elif not self.use_ssl and not 't' in server.keys():
             return False
         return server.get('usable', True)
-
-    def run_listen_loop(self):
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
-
-    def create_listen_thread(self):
-        if not self.listen_thread.is_alive():
-            self.listen_thread.start()
 
     def choose_random_server(self):
         host = random.choice(list(self.servers.keys()))
@@ -162,28 +149,42 @@ class ElectrumXClient:
             self.host, self.port = self.choose_random_server()
         self.connect_to_server()
 
-    def make_requests_wait(self, requests):
-        coroutines = []
+    def make_requests(self, requests):
+        ids = []
         for request in requests:
-            method, params = request
+            if len(request) == 2:
+                method, params = request
+                callback = None
+            else:
+                method, params, callback = request
             try:
-                id_ = self.rpc_client.send_rpc_request(method, params)
-                try:
-                    coro = self.rpc_client.wait_for_response(id_)
-                    coroutines.append(asyncio.wait_for(coro, self.timeout))
-                except asyncio.TimeoutError:
-                    self.change_server()
-                    return self.rpc_multiple_send_and_wait(requests)
+                id_ = self.rpc_client.send_rpc_request(method, params, callback=callback)
+                ids.append(id_)
             except OSError:
                 self.change_server()
-                return self.rpc_multiple_send_and_wait(requests)
+                return self.make_requests(requests)
+        return ids
+
+    def make_requests_wait_coroutines(self, requests):
+        coroutines = []
+        ids = self.make_requests(requests)
+        for id_ in ids:
+            coro = self.rpc_client.wait_for_response(id_)
+            coroutines.append(asyncio.wait_for(coro, self.timeout))
         return coroutines
 
     def rpc_multiple_send_and_wait(self, requests):
-        coroutines = self.make_requests_wait(requests)
-        values = self.loop.run_until_complete(asyncio.gather(*coroutines))
-        self.failed_hosts = []
-        return values
+        coroutines = self.make_requests_wait_coroutines(requests)
+        try:
+            values = self.loop.run_until_complete(asyncio.gather(*coroutines))
+            self.failed_hosts = []
+            return values
+        except asyncio.TimeoutError():
+            self.change_server()
+            return self.rpc_multiple_send_and_wait(requests)
+
+    def check_data_received(self):
+        self.loop.run_until_complete(asyncio.sleep(0))
 
     def _block_header(self, *heights):
         method = 'blockchain.block.get_header'
@@ -273,6 +274,16 @@ class ElectrumXClient:
 
     def server_version(self, protocol_version=None, client_name=None):
         return self.run_command(self._server_version(protocol_version=protocol_version, client_name=client_name))
+
+    def keepalive(self):
+        callback = lambda *args: True
+        request = list(self._server_banner())
+        request.append(callback)
+        self.make_requests([request])
+
+    def keepalive_task(self):
+        self.keepalive()
+        self.loop.call_later(self.keepalive_interval, self.keepalive_task)
 
     def _server_features(self):
         return 'server.features', ()
@@ -374,10 +385,6 @@ class ElectrumXClient:
             }
         return [r['data'] for r in results]
 
-    def start_listen_thread(self):
-        if not self.listen_thread.is_alive():
-            self.listen_thread.start()
-
     def get_subscription_coroutines(self, requests, callback):
         coroutines = []
         for request in requests:
@@ -399,24 +406,34 @@ class ElectrumXClient:
         coroutines = self.get_subscription_coroutines(requests, callback)
         values = self.loop.run_until_complete(asyncio.gather(*coroutines))
         self.failed_hosts = []
-        if self.use_listen_thread:
-            self.start_listen_thread()
         return values
 
     def _subscribe_to_scripthash(self, scripthash):
         return 'blockchain.scripthash.subscribe', (scripthash,)
 
+    def wait_new_block_event(self):
+        self.loop.call_later(self.keepalive_interval, self.keepalive_task)
+        self.loop.run_until_complete(self.new_block_event.wait())
+        items = list(self.new_block_items)
+        self.new_block_items.clear()
+        return items
+
+    def wait_address_changed_event(self):
+        self.loop.call_later(self.keepalive_interval, self.keepalive_task)
+        self.loop.run_until_complete(self.address_change_event.wait())
+        items = list(self.address_change_items)
+        self.address_change_items.clear()
+        return items
+
     def subscribe_to_scripthashes(self, addrs_scripthashes, callback=None):
         requests = [self._subscribe_to_scripthash(scripthash) for scripthash in addrs_scripthashes.keys()]
-        def handle_scripthash_notify(method, params, data, error, initial_response):
-            if error:
-                raise Exception(error)
+        def handle_scripthash_notify(params, data):
             scripthash = params[0]
             address = addrs_scripthashes[scripthash]
-            self.address_change_items.append({'address': address, 'data': data[1]})
-            self.address_changed_event.set()
+            self.address_change_items.append({'address': address, 'status': data[1]})
+            self.address_change_event.set()
             if callback:
-                callback(address, data, initial_response)
+                callback(address, data)
         self.subscriptions.append((requests, handle_scripthash_notify))
         return self.rpc_multiple_subscriptions_send_and_wait(requests, handle_scripthash_notify)
 
@@ -425,12 +442,10 @@ class ElectrumXClient:
 
     def subscribe_to_block_headers(self, callback=None):
         request = self._subscribe_to_block_headers()
-        def handle_block_headers_notify(initial_response, method, params, data, error):
-            if error:
-                raise Exception(error)
-            self.new_block_items.append(data)
+        def handle_block_headers_notify(params, data):
+            self.new_block_items.append(data[0])
             self.new_block_event.set()
             if callback:
-                callback(data, initial_response)
+                callback(data[0])
         self.subscriptions.append(([request], handle_block_headers_notify))
         return self.rpc_multiple_subscriptions_send_and_wait([request], handle_block_headers_notify)

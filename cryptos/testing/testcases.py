@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 from operator import itemgetter
 from cryptos import *
 from cryptos import coins
@@ -30,6 +31,7 @@ class BaseCoinTestCase(unittest.TestCase):
     num_merkle_siblings = 0
     balances = []
     history = []
+    event = asyncio.Event()
 
     @classmethod
     def setUpClass(cls):
@@ -286,9 +288,10 @@ class BaseCoinTestCase(unittest.TestCase):
         self.assertEqual(result, tx_hash)
         print("TX %s broadcasted successfully" % result)
 
-    def assertTransactionOK(self):
+    def assertTransactionOK(self, c=None):
 
-        c = self.coin(testnet=self.testnet)
+        if not c:
+            c = self.coin(testnet=self.testnet)
 
         #Find which of the three address_derivations currently has the most coins and choose that as the sender
         max_value = 0
@@ -474,6 +477,29 @@ class BaseCoinTestCase(unittest.TestCase):
         result = c.send(privkey, sender, receiver, send_value, fee=self.fee)
         self.assertIsInstance(result, str)
         print("TX %s broadcasted successfully" % result)
+
+    def assertSubscribeBlockHeadersOK(self):
+        block_keys = ['block_height', 'version', 'prev_block_hash', 'merkle_root', 'timestamp', 'bits', 'nonce']
+        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
+        result = coin.subscribe_to_block_headers()
+        data = result[0]['data']
+        block_height = data['block_height']
+        self.assertListEqual(list(data.keys()), block_keys)
+        items = coin.rpc_client.wait_new_block_event()
+        data = items[0]
+        self.assertListEqual(list(data.keys()), block_keys)
+        self.assertEqual(block_height + 1, data['block_height'])
+
+    def assertSubscribeAddressOK(self):
+        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
+        result = coin.subscribe_to_addresses(['mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu'])
+        initial_status = result[0]['data']
+        self.assertListEqual(list(result[0].keys()), ['data', 'error', 'method', 'params'])
+        self.assertTransactionOK(c=coin)
+        items = coin.rpc_client.wait_address_changed_event()
+        data = items[0]
+        self.assertListEqual(list(data.keys()), ['address', 'status'])
+        self.assertNotEqual(initial_status, data['status'])
 
     def check_asyncio_concurrent_times(self):
         coin = self.coin(testnet=self.testnet)

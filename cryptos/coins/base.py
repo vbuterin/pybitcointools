@@ -163,7 +163,7 @@ class BaseCoin(object):
             pass
 
         """
-        self.rpc_client.subscribe_to_block_headers(callback=callback)
+        return self.rpc_client.subscribe_to_block_headers(callback=callback)
 
     def subscribe_to_addresses(self, addrs, callback=None):
         """
@@ -177,7 +177,7 @@ class BaseCoin(object):
 
         """
         addrs_scripthashes = {self.addrtoscripthash(addr): addr for addr in addrs}
-        self.rpc_client.subscribe_to_scripthashes(addrs_scripthashes, callback=callback)
+        return self.rpc_client.subscribe_to_scripthashes(addrs_scripthashes, callback=callback)
 
     def get_balance(self, *addrs):
         """
