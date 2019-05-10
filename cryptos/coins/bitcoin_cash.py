@@ -3,7 +3,7 @@ from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 from ..explorers import blockdozer
 
 class BitcoinCash(BaseCoin):
-    coin_symbol = "bcc"
+    coin_symbol = "bch"
     display_name = "Bitcoin Cash"
     segwit_supported = False
     magicbyte = 0
@@ -14,7 +14,7 @@ class BitcoinCash(BaseCoin):
     hashcode = SIGHASH_ALL | SIGHASH_FORKID
     testnet_overrides = {
         'display_name': "Bitcoin Cash Testnet",
-        'coin_symbol': "tbcc",
+        'coin_symbol': "tbch",
         'magicbyte': 111,
         'script_magicbyte': 196,
         'wif_prefix': 0xef,
