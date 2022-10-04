@@ -2,6 +2,7 @@ from unittest import skip
 from cryptos import coins
 from cryptos.testing.testcases import BaseCoinTestCase
 
+
 class TestBitcoin(BaseCoinTestCase):
     name = "Bitcoin"
     coin = coins.Bitcoin
@@ -67,7 +68,3 @@ class TestBitcoin(BaseCoinTestCase):
 
     def test_unspent(self):
         self.assertUnspentOK()
-
-    @skip
-    def test_asyncio_concurrent_times(self):
-        self.check_asyncio_concurrent_times()

@@ -1,15 +1,12 @@
 from ..transaction import *
 from ..blocks import mk_merkle_proof
 from .. import segwit_addr
-from ..electrumx_client.rpc_async import ElectrumXClient
+from ..electrumx_client import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
-from ..exchanges.shapeshift import ShapeShiftIO
 from ..constants import SATOSHI_PER_BTC
 
-class ShapeshiftInvalidAddressException(Exception):
-    pass
 
 class BaseCoin(object):
     """
@@ -72,8 +69,7 @@ class BaseCoin(object):
     electrum_xprv_headers = xprv_headers
     electrum_xpub_headers = xpub_headers
 
-    def __init__(self, testnet=False, shapeshift_api_key=None, **kwargs):
-        self.shapeshift = ShapeShiftIO(api_key=shapeshift_api_key)
+    def __init__(self, testnet=False, **kwargs):
         if testnet:
             self.is_testnet = True
             for k, v in self.testnet_overrides.items():
@@ -277,6 +273,13 @@ class BaseCoin(object):
         """
         return privtoaddr(privkey, magicbyte=self.magicbyte)
 
+    def electrum_address(self, masterkey, n, for_change=0):
+        """
+        For old electrum seeds
+        """
+        pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
+        return self.pubtoaddr(pubkey)
+
     def encode_privkey(self, privkey, formt, script_type="p2pkh"):
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
@@ -414,9 +417,14 @@ class BaseCoin(object):
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
-        address = txobj['addresses'][i]
-        new_segwit = self.is_new_segwit(address)
-        segwit = new_segwit or self.is_segwit(priv, address)
+        try:
+            if address := txobj['addresses'][i]:
+                new_segwit = self.is_new_segwit(address)
+                segwit = new_segwit or self.is_segwit(priv, address)
+            else:
+                new_segwit = segwit = False
+        except KeyError:
+            new_segwit = segwit = False
         if segwit:
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not supported for %s" % self.display_name)
@@ -476,26 +484,43 @@ class BaseCoin(object):
         txobj = {"locktime": locktime, "version": 1}
         addresses = []
         segwit = False
-        for inp in ins:
-            address = inp.pop('address', '')
+        for i, inp in enumerate(ins):
+            if isinstance(inp, string_or_bytes_types):
+                real_inp = {}
+                real_inp["tx_hash"] = inp[:64]
+                real_inp["tx_pos"] = int(inp[65:])
+                real_inp['amount'] = 0
+                ins[i] = real_inp
+                inp = real_inp
+            if address := inp.pop('address', ''):
+                addresses.append(address)
             if self.segwit_supported:
-                if address:
-                    if self.is_new_segwit(address) or inp.pop('segwit', False):
-                       segwit = True
-                    elif self.is_p2pkh(address):
-                        segwit = False
+                if (address and self.is_new_segwit(address)) or inp.pop('segwit', False):
+                   segwit = True
+                elif address and self.is_p2pkh(address):
+                   segwit = False
             inp.update({
                 'script': '',
                 'sequence': int(inp.get('sequence', sequence))
             })
-            addresses.append(address)
 
         if segwit:
             if not self.segwit_supported:
                 raise Exception("Segregated witness is not allowed for %s" % self.display_name)
             txobj.update({"marker": 0, "flag": 1, "witness": []})
 
-        for out in outs:
+        for i, out in enumerate(outs):
+            if isinstance(out, string_or_bytes_types):
+                o = out
+                addr = o[:o.find(':')]
+                val = int(o[o.find(':') + 1:])
+                out = {}
+                if re.match('^[0-9a-fA-F]*$', addr):
+                    out["script"] = addr
+                else:
+                    out["address"] = addr
+                out["value"] = val
+                outs[i] = out
             address = out.pop('address', None)
             if address:
                 out["script"] = self.addrtoscript(address)
@@ -669,70 +694,3 @@ class BaseCoin(object):
     def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs):
         ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
         return HDWallet(ks, **kwargs)
-
-    def shapeshift_rate(self, coin):
-        return self.shapeshift.rate(self.coin_symbol, coin.coin_symbol)
-
-    def shapeshift_limit(self, coin):
-        return self.shapeshift.limit(self.coin_symbol, coin.coin_symbol)
-
-    def shapeshift_market(self, coin):
-        return self.shapeshift.market_info(self.coin_symbol, coin.coin_symbol)
-
-    def create_shift(self, coin, withdrawal_address, returnAddress, amount_to_receive=None):
-        data = self.shapeshift.validate_address(withdrawal_address, coin)
-        if not data['isValid']:
-            raise ShapeshiftInvalidAddressException(data['error'])
-        if amount_to_receive:
-            return self.shapeshift.send_amount(self.coin_symbol, coin, amount_to_receive, withdrawal_address,
-                                               returnAddress)
-        return self.shapeshift.shift(self.coin_symbol, coin, withdrawal_address, returnAddress)
-
-    def shift_frm_amount(self, coin, withdrawal_address, privkey, address, frm_amount, refund_address=None,
-                       fee=50000, fee_for_blocks=1):
-        """
-        Shapeshift to another coin, setting the amount according to the amount to send with this coin
-        coin is the symbol of the coin to receive
-        withdrawal address is the address of the other coin to receive
-        privkey and address are for this coin's account to send
-        frm_amount is the amount to send from this wallet
-        refund_address will be used as the change address for this coin and also to receive a refund if there is
-        an issue with the transaction on shapeshift
-        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
-        """
-        return_address = refund_address or address
-        data = self.create_shift(coin, withdrawal_address, return_address)
-        deposit_address = data['deposit']
-        self.send(privkey, address, deposit_address, frm_amount, fee=fee, change_addr=return_address,
-                  fee_for_blocks=fee_for_blocks)
-        return self.shapeshift.tx_status(deposit_address)
-
-    def shift_quote(self, coin, amount):
-        """
-        Return a quote from shapeshift of how much is needed to be sent to receive the specified amount
-        """
-        return self.shapeshift.send_amount_quote_only(self.coin_symbol, coin, amount)
-
-    def shift_to_amount(self, coin, withdrawal_address, privkey, address, receive_amount, refund_address=None,
-                       fee=50000, fee_for_blocks=1):
-        """
-        Shapeshift to another coin, setting the amount to the amount of the other coin to receive
-                withdrawal address is the address of the other coin to receive
-        coin is the symbol of the coin to receive
-        withdrawal address is the address of the other coin to receive
-        privkey and address are for this coin's account to send
-        receive_amount is the amount of the other coin to receive
-        refund_address will be used as the change address for this coin and also to receive a refund if there is
-        an issue with the transaction on shapeshift
-        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
-        """
-        return_address = refund_address or address
-        data = self.create_shift(coin, withdrawal_address, return_address, amount_to_receive=receive_amount)
-        deposit_address = data['deposit']
-        deposit_amount = data['depositAmount']
-        self.send(privkey, address, deposit_address, deposit_amount, fee=fee, change_addr=return_address,
-                  fee_for_blocks=fee_for_blocks)
-        return self.shapeshift.tx_status(deposit_address)
-
-    def cancel_shifts(self, address):
-        return self.shapeshift.cancel_pending(address)

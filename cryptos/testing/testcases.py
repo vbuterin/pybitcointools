@@ -500,32 +500,3 @@ class BaseCoinTestCase(unittest.TestCase):
         data = items[0]
         self.assertListEqual(list(data.keys()), ['address', 'status'])
         self.assertNotEqual(initial_status, data['status'])
-
-    def check_asyncio_concurrent_times(self):
-        coin = self.coin(testnet=self.testnet)
-        c = coin.rpc_client
-        addresses = ["1GmWF2ZpJveAyF6uayZ8s5VHCkHTzatoQA", "1LMUeCtgAmrz1VPevBWnbuju1H1XYqT3tF",
-                     "1GN4Y1cnKuv35jkJsCqBX3iUe47fu8giHo", "1GN4Y1cnKuv35jkJsCqBX3iUe47fu8giHo",
-                     "1CcitR6EV2K5npTtqzi5igjKLzcWQvbRPq", "1CCtAT5kmqcs6bDVgqV777L65vEdTqGiQ7",
-                     "15tjqUpXSfvhPRABdBFEuPidCFnQP32Rar", "1GJ3antfMZ5Kb3dSyAL6GH2gqWXLkkhruB"]
-
-        from datetime import datetime
-
-        now = datetime.now()
-        coin.unspent(*addresses)
-        time_taken_together = datetime.now() - now
-
-        now = datetime.now()
-        coin.unspent(addresses[0])
-        coin.unspent(addresses[1])
-        coin.unspent(addresses[2])
-        coin.unspent(addresses[3])
-        coin.unspent(addresses[4])
-        coin.unspent(addresses[5])
-        coin.unspent(addresses[6])
-        coin.unspent(addresses[7])
-        time_taken_separate = datetime.now() - now
-
-        print('seperate', time_taken_separate)
-        print('together', time_taken_together)
-        self.assertGreater(time_taken_separate, time_taken_together)

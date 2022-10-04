@@ -297,33 +297,3 @@ class HDWallet(Wallet):
     def synchronise(self):
         super(HDWallet, self).synchronise()
         self.used_addresses = self.get_used_addresses()
-
-    def shift_frm_amount(self, coin, withdrawal_address, frm_amount, fee=50000, fee_for_blocks=1, password=None):
-        """
-        Shapeshift to another coin, setting the amount according to the amount to send with this coin
-        coin is the symbol of the coin to receive
-        withdrawal address is the address of the other coin to receive
-        frm_amount is the amount to send from this wallet
-        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
-        """
-        return_address = self.select_receive_address()
-        data = self.coin.create_shift(coin, withdrawal_address, return_address)
-        deposit_address = data['deposit']
-        self.send(deposit_address, frm_amount, fee=fee, fee_for_blocks=fee_for_blocks, password=password)
-        return self.coin.shapeshift.tx_status(deposit_address)
-
-    def shift_to_amount(self, coin, withdrawal_address, receive_amount, fee=50000, fee_for_blocks=1):
-        """
-        Shapeshift to another coin, setting the amount to the amount of the other coin to receive
-        withdrawal address is the address of the other coin to receive
-        coin is the symbol of the coin to receive
-        withdrawal address is the address of the other coin to receive
-        receive_amount is the amount of the other coin to receive
-        fee, fee_for_blocks: set an exact fee or estimate the fee based on how quickly to confirm the transaction
-        """
-        return_address = self.select_receive_address()
-        data = self.coin.create_shift(coin, withdrawal_address, return_address, amount_to_receive=receive_amount)
-        deposit_address = data['deposit']
-        deposit_amount = data['depositAmount']
-        self.send(deposit_address, deposit_amount, fee=fee, fee_for_blocks=fee_for_blocks)
-        return self.coin.shapeshift.tx_status(deposit_address)

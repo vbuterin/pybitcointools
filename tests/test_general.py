@@ -491,6 +491,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
         ]
 
         for outs in outputs:
+            print(outputs)
             tx_struct = c.mktx(inputs, outs)
             self.assertEqual(tx_struct['outs'], outputs[3])
 

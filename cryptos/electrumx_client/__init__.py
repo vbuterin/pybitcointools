@@ -1,1 +1,1 @@
-from .rpc import *
+from .client import ElectrumXClient
