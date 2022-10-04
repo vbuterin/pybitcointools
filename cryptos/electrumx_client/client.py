@@ -423,3 +423,58 @@ class ElectrumXClient:
 
     def estimate_fee(self, numblocks):
         return self.send_request(*self._estimate_fee(numblocks))
+
+
+import threading
+import janus
+from typing import Tuple
+from concurrent.futures import Future
+
+
+class ElectrumXSyncClient:
+    async_class = ElectrumXClient
+    _client: ElectrumXClient = None
+    _thread: threading.Thread = None
+
+    def __init__(self, *args, **kwargs):
+        self.is_closing = threading.Event()
+        self._request_queue: janus.Queue[Tuple[Future, str, tuple[Any], dict[str, Any]]] = janus.Queue()
+
+    def __getattr__(self, item):
+        return getattr(self._client, item, None)
+
+    def start(self, *args, **kwargs):
+        if not self._thread or not self._thread.is_alive():
+            self._thread = threading.Thread(target=self.start_event_loop(),
+                                            args=args, kwargs=kwargs, daemon=True)
+            self._thread.start()
+
+    def start_event_loop(self, *args, **kwargs):
+        asyncio.run(self.run(*args, **kwargs))
+
+    async def run(self, *args, **kwargs):
+        self._client = ElectrumXClient(*args, **kwargs)
+        fut: Future
+        method: str
+        args: tuple
+        kwargs: dict
+        while not self.is_closing.is_set():
+            val = await self.request_queue.async_q.get()
+            fut, method, args, kwargs = val
+            try:
+                result = await getattr(self._client, method)(*args, **kwargs)
+                fut.result(result)
+            except Exception as e:
+                fut.set_exception(e)
+
+    def send_request(self, method, *args, timeout: int = 30, **kwargs):
+        self.start()
+        fut = Future()
+        kwargs['timeout'] = timeout
+        self.request_queue.sync_q.put((fut, method, args, kwargs))
+        return fut.result()
+
+    def close(self):
+        self.is_closing.set()
+
+
