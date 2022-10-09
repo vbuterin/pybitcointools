@@ -40,6 +40,7 @@ def android_headers_dir(appname):
         os.mkdir(d)
     return d
 
+
 def user_dir(appname):
     if 'ANDROID_DATA' in os.environ:
         return android_data_dir()
@@ -50,5 +51,5 @@ def user_dir(appname):
     elif "LOCALAPPDATA" in os.environ:
         return os.path.join(os.environ["LOCALAPPDATA"], appname.capitalize())
     else:
-        #raise Exception("No home directory found in environment variables.")
+        # raise Exception("No home directory found in environment variables.")
         return

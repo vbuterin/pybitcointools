@@ -1,13 +1,14 @@
 import unittest
 import asyncio
-from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer
-from cryptos import constants
+from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer, ElectrumXSyncClient
 from unittest.mock import patch
+import ssl
 from typing import List
 
 
 client_name = "pybitcointools_test"
 known_electrum_host = "167.172.42.31"
+
 known_electrum_config = {
         "pruning": "-",
         "s": "50002",
@@ -15,7 +16,9 @@ known_electrum_config = {
         "version": "1.4.2"
     }
 
-
+known_electrum_expected_version = ["ElectrumX 1.16.0", "1.4"]
+known_electrum_ssl_host = "electrum.hodlister.co"
+known_electrum_ssl_version = ["ElectrumX 1.10.0", "1.4"]
 failed_host = "127.0.0.1"
 
 
@@ -59,6 +62,9 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.client.host, known_electrum_host)
         self.assertEqual(self.client.port, int(known_electrum_config["t"]))
 
+    async def test_get_ssl_context(self):
+        self.assertIsNone(await self.client._get_ssl_context())
+
     @patch('random.choice', return_value=known_electrum_host)
     async def test_connect(self, mock):
         self.assertIsNone(self.client.session)
@@ -66,7 +72,7 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         task = asyncio.create_task(self.client._connect())
         await asyncio.wait_for(self.client.is_connected.wait(), timeout=5)
         self.assertIsInstance(self.client.session, NotificationSession)
-        self.assertListEqual(self.client.server_version, ["ElectrumX 1.16.0", "1.4"])
+        self.assertListEqual(self.client.server_version, known_electrum_expected_version)
         task.cancel()
 
     @patch('random.choice', return_value=known_electrum_host)
@@ -164,18 +170,88 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         pass
 
 
-class TestElectrumSSLClient(unittest.TestCase):
-    def test_get_ssl_context(self):
-        pass
+class TestElectrumSSLClient(unittest.IsolatedAsyncioTestCase):
 
-    def test_connect(self):
-        pass
+    def setUp(self) -> None:
+        self.client = ElectrumXClient(use_ssl=True, connection_timeout=10, client_name=client_name)
 
-    def test_connect_to_server(self):
-        pass
+    async def asyncTearDown(self) -> None:
+        await self.client.close()
 
-    def test_ping_async(self):
-        pass
+    def test_choose_new_server(self):
+        server = self.client._choose_new_server()
+        server_config = self.client._servers[server]
+        self.assertIn("s", server_config.keys())
 
-    def test_ping(self):
-        pass
+    async def test_get_ssl_context(self,):
+        context = await self.client._get_ssl_context()
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+
+    @patch('random.choice', return_value=known_electrum_ssl_host)
+    async def test_connect(self, mock):
+        self.assertIsNone(self.client.session)
+        self.client._set_new_server()
+        task = asyncio.create_task(self.client._connect())
+        await asyncio.wait_for(self.client.is_connected.wait(), timeout=5)
+        self.assertIsInstance(self.client.session, NotificationSession)
+        self.assertListEqual(self.client.server_version, known_electrum_ssl_version)
+        self.assertEqual(self.client.port, 50002)
+        task.cancel()
+    async def test_send_request_async(self):
+        result = await self.client.send_request('blockchain.block.header', 1)
+        self.assertEqual(result,
+                         "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
+
+
+class TestElectrumSSLAcceptSignedClient(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self) -> None:
+        self.client = ElectrumXClient(use_ssl=True, connection_timeout=10, client_name=client_name,
+                                      accept_self_signed_certs=True)
+
+    async def asyncTearDown(self) -> None:
+        await self.client.close()
+
+    def test_choose_new_server(self):
+        server = self.client._choose_new_server()
+        server_config = self.client._servers[server]
+        self.assertIn("s", server_config.keys())
+
+    async def test_get_ssl_context(self,):
+        context = await self.client._get_ssl_context()
+        self.assertFalse(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_NONE)
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_connect(self, mock):
+        self.assertIsNone(self.client.session)
+        self.client._set_new_server()
+        task = asyncio.create_task(self.client._connect())
+        await asyncio.wait_for(self.client.is_connected.wait(), timeout=10)
+        self.assertIsInstance(self.client.session, NotificationSession)
+        self.assertListEqual(self.client.server_version, known_electrum_expected_version)
+        self.assertEqual(self.client.port, 50002)
+        task.cancel()
+
+    async def test_send_request_async(self):
+        result = await self.client.send_request('blockchain.block.header', 1)
+        self.assertEqual(result,
+                         "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
+
+
+
+class TestElectrumXSyncClient(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self) -> None:
+        self.client = ElectrumXSyncClient(use_ssl=False, client_name=client_name)
+
+    def tearDown(self) -> None:
+        self.client.close()
+
+    def test_send_request(self):
+        result = self.client.send_request('blockchain.block.header', 1)
+        self.assertEqual(result,
+                         "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
+
+

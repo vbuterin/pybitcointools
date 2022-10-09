@@ -1,11 +1,20 @@
 import asyncio
 import os.path
 
+import threading
+import janus
+from typing import Tuple
+from pathlib import Path
+from concurrent.futures import Future
+
 import certifi
+import ssl
 import itertools
 import aiorpcx
 from .. import constants
-from aiorpcx import RPCSession, Notification, NetAddress, NewlineFramer
+from .. import utils
+from ipaddress import ip_address, IPv6Address
+from aiorpcx import RPCSession, Notification, NewlineFramer
 from aiorpcx.curio import TaskTimeout
 from aiorpcx.rawsocket import RSClient
 from collections import defaultdict
@@ -23,9 +32,6 @@ assert PREFERRED_NETWORK_PROTOCOL in _KNOWN_NETWORK_PROTOCOLS
 class NetworkException(Exception):
     pass
 
-class GracefulDisconnect(NetworkException):
-    pass
-
 class RequestCorrupted(Exception): pass
 
 class ErrorParsingSSLCert(Exception): pass
@@ -33,6 +39,10 @@ class ErrorGettingSSLCertFromServer(Exception): pass
 class ErrorSSLCertFingerprintMismatch(Exception): pass
 class InvalidOptionCombination(Exception): pass
 class ConnectError(NetworkException): pass
+
+
+class ProtocolNotSupportedError(BaseException):
+    pass
 
 
 class _RSClient(RSClient):
@@ -68,81 +78,20 @@ class RequestTimedOut(GracefulDisconnect):
         return _("Network request timed out.")
 
 
-class ServerAddr:
+def _get_cert_path_for_host(appname: str, host: str) -> Path:
+    filename = host
+    try:
+        ip = ip_address(host)
+    except ValueError:
+        pass
+    else:
+        if isinstance(ip, IPv6Address):
+            filename = f"ipv6_{ip.packed.hex()}"
 
-    def __init__(self, host: str, port: Union[int, str], *, protocol: str = None):
-        assert isinstance(host, str), repr(host)
-        if protocol is None:
-            protocol = 's'
-        if not host:
-            raise ValueError('host must not be empty')
-        if host[0] == '[' and host[-1] == ']':  # IPv6
-            host = host[1:-1]
-        try:
-            net_addr = NetAddress(host, port)  # this validates host and port
-        except Exception as e:
-            raise ValueError(f"cannot construct ServerAddr: invalid host or port (host={host}, port={port})") from e
-        if protocol not in _KNOWN_NETWORK_PROTOCOLS:
-            raise ValueError(f"invalid network protocol: {protocol}")
-        self.host = str(net_addr.host)  # canonical form (if e.g. IPv6 address)
-        self.port = int(net_addr.port)
-        self.protocol = protocol
-        self._net_addr_str = str(net_addr)
-
-    @classmethod
-    def from_str(cls, s: str) -> 'ServerAddr':
-        # host might be IPv6 address, hence do rsplit:
-        host, port, protocol = str(s).rsplit(':', 2)
-        return ServerAddr(host=host, port=port, protocol=protocol)
-
-    @classmethod
-    def from_str_with_inference(cls, s: str) -> Optional['ServerAddr']:
-        """Construct ServerAddr from str, guessing missing details.
-        Ongoing compatibility not guaranteed.
-        """
-        if not s:
-            return None
-        items = str(s).rsplit(':', 2)
-        if len(items) < 2:
-            return None  # although maybe we could guess the port too?
-        host = items[0]
-        port = items[1]
-        if len(items) >= 3:
-            protocol = items[2]
-        else:
-            protocol = PREFERRED_NETWORK_PROTOCOL
-        return ServerAddr(host=host, port=port, protocol=protocol)
-
-    def to_friendly_name(self) -> str:
-        # note: this method is closely linked to from_str_with_inference
-        if self.protocol == 's':  # hide trailing ":s"
-            return self.net_addr_str()
-        return str(self)
-
-    def __str__(self):
-        return '{}:{}'.format(self.net_addr_str(), self.protocol)
-
-    def to_json(self) -> str:
-        return str(self)
-
-    def __repr__(self):
-        return f'<ServerAddr host={self.host} port={self.port} protocol={self.protocol}>'
-
-    def net_addr_str(self) -> str:
-        return self._net_addr_str
-
-    def __eq__(self, other):
-        if not isinstance(other, ServerAddr):
-            return False
-        return (self.host == other.host
-                and self.port == other.port
-                and self.protocol == other.protocol)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __hash__(self):
-        return hash((self.host, self.port, self.protocol))
+    user_dir = Path(utils.user_dir(appname))
+    cert_path = user_dir / "certs"
+    cert_path.mkdir(parents=True, exist_ok=True)
+    return cert_path / filename
 
 
 class NetworkTimeout:
@@ -258,10 +207,13 @@ class ElectrumXClient:
     session: Optional[NotificationSession] = None
 
     def __init__(self, server_file: str = "bitcoin.json", connection_timeout: int = 5,
-                 use_ssl: bool = True, client_name: str = constants.CLIENT_NAME, ping_interval: int = 30):
+                 use_ssl: bool = True, client_name: str = constants.CLIENT_NAME, ping_interval: int = 30,
+                 accept_self_signed_certs: bool = False):
         self.is_connected = asyncio.Event()
         self._connection_task: Optional[asyncio.Task] = None
         self._use_ssl = use_ssl
+        self._accept_self_signed_certs = accept_self_signed_certs
+        self.cert_path: Optional[Path] = None
         self.connection_timeout = connection_timeout
         servers = read_json(f"servers/{server_file}", {})
         self._port_key = "s" if self._use_ssl else "t"
@@ -276,7 +228,7 @@ class ElectrumXClient:
         self._ping_interval = ping_interval
 
     def _get_eligible_servers(self) -> Dict[str, Any]:
-        return {k: v for k, v in self._servers.items() if k not in self._failed_servers}
+        return {k: v for k, v in self._servers.items() if k not in self._failed_servers and self._port_key in v.keys()}
 
     def _choose_new_server(self) -> str:
         eligible = self._get_eligible_servers()
@@ -285,10 +237,22 @@ class ElectrumXClient:
     def _set_new_server(self):
         self.host = self._choose_new_server()
         self.server = self._servers[self.host]
-        self.port = int(self.server[self._port_key])
+        try:
+            self.port = int(self.server[self._port_key])
+        except KeyError:
+            raise ProtocolNotSupportedError
 
-    def _get_ssl_context(self) -> None:
-        return None
+    async def _get_ssl_context(self) -> Optional[ssl.SSLContext]:
+        if not self._use_ssl:
+            # using plaintext TCP
+            return None
+
+        # see if we already have cert for this server; or get it for the first time
+        ca_sslc = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile=ca_path)
+        if self._accept_self_signed_certs:
+            ca_sslc.check_hostname = False
+            ca_sslc.verify_mode = ssl.CERT_NONE
+        return ca_sslc
 
     async def monitor_connection(self):
         i = 0
@@ -313,8 +277,7 @@ class ElectrumXClient:
                 except TimeoutError:
                     raise GracefulDisconnect('session was closed')
 
-    async def _connect(self) -> None:
-        sslc = self._get_ssl_context()
+    async def _open_session(self, sslc: Optional[ssl.SSLContext] = None) -> None:
         session_factory = lambda *args, **kwargs: NotificationSession(*args, **kwargs)
         async with _RSClient(session_factory=session_factory,
                              host=self.host, port=self.port,
@@ -322,17 +285,16 @@ class ElectrumXClient:
             self.session = session
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
-            # if SSL get cert
-            # Validate cert
-            # Store cert if not stored
-
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
 
             self.is_connected.set()
             await self.monitor_connection()
-            pass
         self.is_connected.clear()
         self.session = None
+
+    async def _connect(self) -> None:
+        sslc = await self._get_ssl_context()
+        await self._open_session(sslc=sslc)
 
     async def _on_connection_failure(self):
         self.session = None
@@ -346,17 +308,22 @@ class ElectrumXClient:
         self._set_new_server()
         try:
             await asyncio.wait_for(self._connect(), self.connection_timeout)
-        except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect) as e:
+        except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
+                ProtocolNotSupportedError, ssl.SSLError) as e:
             await self._on_connection_failure()
 
     async def _ensure_connected(self):
         async with self._lock:
             if not self._is_closing:
                 if not self.session:
-                    self._connection_task = asyncio.create_task(self.connect_to_any_server())
-                    done, pending = await asyncio.wait([
-                        asyncio.create_task(self.is_connected.wait()), self._connection_task],
-                        return_when=asyncio.FIRST_COMPLETED)
+                    """
+                    Wait until successful connection or connection task completes without any successful connections
+                    """
+                    self._connection_task = asyncio.create_task(self.connect_to_any_server(), name="connection_task")
+                    is_connected_task = asyncio.create_task(self.is_connected.wait(), name="is_connected_task")
+                    done, pending = await asyncio.wait([is_connected_task, self._connection_task],
+                                                       return_when=asyncio.FIRST_COMPLETED)
+
                     for task in done:
                         if exc := task.exception():
                             raise exc
@@ -425,10 +392,6 @@ class ElectrumXClient:
         return self.send_request(*self._estimate_fee(numblocks))
 
 
-import threading
-import janus
-from typing import Tuple
-from concurrent.futures import Future
 
 
 class ElectrumXSyncClient:
@@ -437,33 +400,38 @@ class ElectrumXSyncClient:
     _thread: threading.Thread = None
 
     def __init__(self, *args, **kwargs):
+        self._client_args = args
+        self._client_kwargs = kwargs
         self.is_closing = threading.Event()
-        self._request_queue: janus.Queue[Tuple[Future, str, tuple[Any], dict[str, Any]]] = janus.Queue()
+        self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple[Any], dict[str, Any]]]] = None
+        self._loop_is_started = threading.Event()
 
     def __getattr__(self, item):
         return getattr(self._client, item, None)
 
     def start(self, *args, **kwargs):
         if not self._thread or not self._thread.is_alive():
-            self._thread = threading.Thread(target=self.start_event_loop(),
-                                            args=args, kwargs=kwargs, daemon=True)
+            self._thread = threading.Thread(target=self.start_event_loop, daemon=True)
             self._thread.start()
+        self._loop_is_started.wait(timeout=10)
 
-    def start_event_loop(self, *args, **kwargs):
-        asyncio.run(self.run(*args, **kwargs))
+    def start_event_loop(self):
+        asyncio.run(self.run())
 
-    async def run(self, *args, **kwargs):
-        self._client = ElectrumXClient(*args, **kwargs)
+    async def run(self):
+        self._request_queue = janus.Queue()
+        self._client = ElectrumXClient(*self._client_args, **self._client_kwargs)
         fut: Future
         method: str
         args: tuple
         kwargs: dict
+        self._loop_is_started.set()
         while not self.is_closing.is_set():
-            val = await self.request_queue.async_q.get()
+            val = await self._request_queue.async_q.get()
             fut, method, args, kwargs = val
             try:
-                result = await getattr(self._client, method)(*args, **kwargs)
-                fut.result(result)
+                result = await self._client.send_request(method, *args, **kwargs)
+                fut.set_result(result)
             except Exception as e:
                 fut.set_exception(e)
 
@@ -471,10 +439,11 @@ class ElectrumXSyncClient:
         self.start()
         fut = Future()
         kwargs['timeout'] = timeout
-        self.request_queue.sync_q.put((fut, method, args, kwargs))
+        self._request_queue.sync_q.put((fut, method, args, kwargs))
         return fut.result()
 
     def close(self):
+        print('Setting is_closing')
         self.is_closing.set()
 
 
