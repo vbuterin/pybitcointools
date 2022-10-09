@@ -4,6 +4,7 @@ from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession
 from unittest.mock import patch
 import ssl
 from typing import List
+from electrum_subscribe_mock_server import run_server
 
 
 client_name = "pybitcointools_test"
@@ -26,6 +27,8 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self) -> None:
         self.client = ElectrumXClient(use_ssl=False, connection_timeout=10, client_name=client_name)
+        self.testnet_client = ElectrumXClient(use_ssl=False, connection_timeout=10, client_name=client_name,
+                                              server_file="bitcoin_testnet.json")
 
     async def asyncTearDown(self) -> None:
         await self.client.close()
@@ -128,13 +131,16 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(session, self.client.session)
 
     @patch('random.choice', return_value=known_electrum_host)
-    async def test_send_request_async(self, mock):
+    async def test_send_request(self, mock):
         result = await self.client.send_request('blockchain.block.header', 1)
         self.assertEqual(result,
                          "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
 
-    async def test_ping_async(self):
-        pass
+    async def test_subscribe(self):
+        scripthash = "d6d88921b140325198c759d8509563add48c32c65433811a181f7385a6585add" # For mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu
+        result = await self.client.send_request('blockchain.scripthash.subscribe', scripthash)
+        self.assertGreaterEqual(result['height'], 757876)
+        self.assertIsInstance(result['hex'], str)
 
     async def test_estimate_fee_async(self):
         pass

@@ -8,7 +8,7 @@ from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
 
 
-class BaseCoin(object):
+class BaseCoin:
     """
     Base implementation of crypto coin class
     All child coins must follow same pattern.
