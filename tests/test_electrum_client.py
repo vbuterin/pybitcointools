@@ -1,10 +1,12 @@
 import unittest
 import asyncio
+from concurrent.futures import Future
 from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer, ElectrumXSyncClient
 from unittest.mock import patch
 import ssl
 from typing import List
-from electrum_subscribe_mock_server import run_server
+from queue import Queue
+from electrum_subscribe_mock_server import run_server, run_server_in_thread
 
 
 client_name = "pybitcointools_test"
@@ -136,11 +138,12 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result,
                          "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
 
-    async def test_subscribe(self):
-        scripthash = "d6d88921b140325198c759d8509563add48c32c65433811a181f7385a6585add" # For mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu
-        result = await self.client.send_request('blockchain.scripthash.subscribe', scripthash)
-        self.assertGreaterEqual(result['height'], 757876)
-        self.assertIsInstance(result['hex'], str)
+    async def test_subscribe_ok(self):
+        queue = asyncio.Queue()
+        await self.testnet_client.subscribe('blockchain.headers.subscribe', queue.put)
+        for i in range(0, 2):
+            result = await queue.get()
+            print("test received result", result)
 
     async def test_estimate_fee_async(self):
         pass
@@ -246,6 +249,65 @@ class TestElectrumSSLAcceptSignedClient(unittest.IsolatedAsyncioTestCase):
                          "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
 
 
+class TestElectrumClientNotifications(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self) -> None:
+        self.client = ElectrumXClient(use_ssl=False, connection_timeout=10, client_name=client_name, server_file="testing.json")
+
+    async def asyncSetUp(self) -> None:
+        self.server_is_started = asyncio.Future()
+        self.server2_is_started = asyncio.Future()
+        self.server_task = asyncio.create_task(run_server(self.server_is_started))
+        self.server_task_2 = asyncio.create_task(run_server(self.server2_is_started, host="127.0.0.2"))
+        await asyncio.wait([self.server_is_started, self.server2_is_started])
+
+    async def asyncTearDown(self) -> None:
+        await self.client.close()
+        print('Cancelling servers')
+        self.server_task.cancel()
+        self.server_task_2.cancel()
+        print('Servers cancelled')
+
+    def test_client(self):
+        self.assertEqual(self.client._servers, {
+    "127.0.0.1": {
+        "pruning": "-",
+        "t": "44444",
+        "s": "44445",
+        "version": "1.4.2"
+    },
+    "127.0.0.2": {
+        "pruning": "-",
+        "t": "44444",
+        "s": "44445",
+        "version": "1.4.2"
+    }
+})
+
+    async def test_subscribe_async_callback(self):
+        queue = asyncio.Queue()
+        expected_hex = "0000ff3f7586812b8a8677342ceef85916c2667b63468a8d19d0604c2e000000000000005292d8eba79db851be100996f48147df69386b43bf7fcb5e3361cf46f9ea8ed8a3214463ffff001d51c56337"
+        expected_hex2 = "00004a2920c2d8311e12d3e35b8da48ad29b1254e0a0d2be1623d717f69000000000000001aaf14e207eea7f36cdc1cf92a8d43a5db2ac1ce22925e104ccedca3b5d2d26892544630194331933c10227"
+        await self.client.subscribe('blockchain.headers.subscribe', queue.put)
+        result1 = await asyncio.wait_for(queue.get(), 60)
+        self.assertEqual(result1['height'], 2350325)
+        self.assertEqual(result1['hex'], expected_hex)
+        result2 = await asyncio.wait_for(queue.get(), 60)
+        self.assertEqual(result2['height'], 2350326)
+        self.assertEqual(result2['hex'], expected_hex2)
+
+    async def test_subscribe_sync_callback(self):
+        queue = janus.Queue()
+        expected_hex = "0000ff3f7586812b8a8677342ceef85916c2667b63468a8d19d0604c2e000000000000005292d8eba79db851be100996f48147df69386b43bf7fcb5e3361cf46f9ea8ed8a3214463ffff001d51c56337"
+        expected_hex2 = "00004a2920c2d8311e12d3e35b8da48ad29b1254e0a0d2be1623d717f69000000000000001aaf14e207eea7f36cdc1cf92a8d43a5db2ac1ce22925e104ccedca3b5d2d26892544630194331933c10227"
+        await self.client.subscribe('blockchain.headers.subscribe', queue.sync_q.put)
+        result1 = await asyncio.wait_for(queue.async_q.get(), 60)
+        self.assertEqual(result1['height'], 2350325)
+        self.assertEqual(result1['hex'], expected_hex)
+        result2 = await asyncio.wait_for(queue.async_q.get(), 60)
+        self.assertEqual(result2['height'], 2350326)
+        self.assertEqual(result2['hex'], expected_hex2)
+
 
 class TestElectrumXSyncClient(unittest.IsolatedAsyncioTestCase):
 
@@ -260,4 +322,27 @@ class TestElectrumXSyncClient(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result,
                          "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
 
+
+class TestElectrumXSyncClientSubscriptions(unittest.IsolatedAsyncioTestCase):
+
+    def setUp(self) -> None:
+        self.client = ElectrumXSyncClient(use_ssl=False, client_name=client_name, server_file="testing.json")
+        self.stop_server_fut = Future()
+        run_server_in_thread(self.stop_server_fut)
+
+    def tearDown(self) -> None:
+        self.client.close()
+        self.stop_server_fut.set_result(None)
+
+    def test_subscribe_sync_callback(self):
+        queue = Queue()
+        expected_hex = "0000ff3f7586812b8a8677342ceef85916c2667b63468a8d19d0604c2e000000000000005292d8eba79db851be100996f48147df69386b43bf7fcb5e3361cf46f9ea8ed8a3214463ffff001d51c56337"
+        expected_hex2 = "00004a2920c2d8311e12d3e35b8da48ad29b1254e0a0d2be1623d717f69000000000000001aaf14e207eea7f36cdc1cf92a8d43a5db2ac1ce22925e104ccedca3b5d2d26892544630194331933c10227"
+        self.client.subscribe('blockchain.headers.subscribe', queue.put)
+        result1 = queue.get(timeout=20)
+        self.assertEqual(result1['height'], 2350325)
+        self.assertEqual(result1['hex'], expected_hex)
+        result2 = queue.get(timeout=20)
+        self.assertEqual(result2['height'], 2350326)
+        self.assertEqual(result2['hex'], expected_hex2)
 

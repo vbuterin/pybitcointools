@@ -48,7 +48,7 @@ class ProtocolNotSupportedError(BaseException):
 class _RSClient(RSClient):
     async def create_connection(self):
         try:
-            return await super().create_connection()
+            return await asyncio.wait_for(super().create_connection(), timeout=10)
         except OSError as e:
             # note: using "from e" here will set __cause__ of ConnectError
             raise ConnectError(e) from e
@@ -75,7 +75,7 @@ class GracefulDisconnect(NetworkException):
 
 class RequestTimedOut(GracefulDisconnect):
     def __str__(self):
-        return _("Network request timed out.")
+        return "Network request timed out."
 
 
 def _get_cert_path_for_host(appname: str, host: str) -> Path:
@@ -118,13 +118,18 @@ class NotificationSession(RPCSession):
         self.cost_hard_limit = 0  # disable aiorpcx resource limits
 
     async def handle_request(self, request):
+        print('Client handling request', request)
         try:
             if isinstance(request, Notification):
+                print('Client handling notification', request.args)
                 params, result = request.args[:-1], request.args[-1]
+                print(params, result)
                 key = self.get_hashable_key_for_rpc_call(request.method, params)
+                print('hashable key:', key)
                 if key in self.subscriptions:
                     self.cache[key] = result
                     for queue in self.subscriptions[key]:
+                        print('Adding', request.args, 'to queue', queue)
                         await queue.put(request.args)
                 else:
                     raise Exception(f'unexpected notification')
@@ -156,6 +161,7 @@ class NotificationSession(RPCSession):
         # note: until the cache is written for the first time,
         # each 'subscribe' call might make a request on the network.
         key = self.get_hashable_key_for_rpc_call(method, params)
+        print('subscription hashable key', key)
         self.subscriptions[key].append(queue)
         if key in self.cache:
             result = self.cache[key]
@@ -221,7 +227,7 @@ class ElectrumXClient:
         self._lock = asyncio.Lock()
         self._is_closing = False
         self._failed_servers: List[str] = []
-        self._subscribe_tasks: List[asyncio.Task] = []  # Should be replaced with TaskGroup in Python 3.11
+        self._subscribe_tasks: List[Union[asyncio.Task, asyncio.Future]] = []  # Should be replaced with TaskGroup in Python 3.11
         self.version = constants.PROTOCOL_VERSION
         self.server_version: Optional[List[str]] = None
         self.client_name = client_name
@@ -272,19 +278,25 @@ class ElectrumXClient:
                 raise GracefulDisconnect('session was closed')
             elif i == self._ping_interval:
                 try:
+                    print('Pinging')
                     await self._send_request("server.ping", timeout=self.connection_timeout)
+                    print('Ping ok')
                     i = 0
                 except TimeoutError:
+                    print('Ping not ok')
                     raise GracefulDisconnect('session was closed')
 
     async def _open_session(self, sslc: Optional[ssl.SSLContext] = None) -> None:
         session_factory = lambda *args, **kwargs: NotificationSession(*args, **kwargs)
+        print('Connecting to', self.host, self.port)
         async with _RSClient(session_factory=session_factory,
                              host=self.host, port=self.port,
                              ssl=sslc) as session:
             self.session = session
+
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
+            print('Connected to', self.host, self.port, "Checking version")
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
 
             self.is_connected.set()
@@ -297,6 +309,7 @@ class ElectrumXClient:
         await self._open_session(sslc=sslc)
 
     async def _on_connection_failure(self):
+        print('Connection to', self.host, 'failed')
         self.session = None
         self._failed_servers.append(self.host)
         if not self._is_closing:
@@ -307,9 +320,11 @@ class ElectrumXClient:
     async def connect_to_any_server(self) -> None:
         self._set_new_server()
         try:
-            await asyncio.wait_for(self._connect(), self.connection_timeout)
+            await self._connect()
         except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
                 ProtocolNotSupportedError, ssl.SSLError) as e:
+            print(e.__class__)
+            print(e)
             await self._on_connection_failure()
 
     async def _ensure_connected(self):
@@ -339,6 +354,7 @@ class ElectrumXClient:
             self._subscribe_tasks = []
 
     async def close(self):
+        print('Closing client')
         self._is_closing = True
         await self.cancel_subscriptions()
         if self.session:
@@ -350,6 +366,7 @@ class ElectrumXClient:
                 self._connection_task.cancel()
             except asyncio.CancelledError:
                 pass
+        print('Client closed')
 
     async def _send_request(self, method: str, *args, timeout: int = 30, **kwargs):
         return await self.session.send_request(method, args, timeout=timeout, **kwargs)
@@ -362,26 +379,29 @@ class ElectrumXClient:
         if task in self._subscribe_tasks:
             self._subscribe_tasks.remove(task)
 
-    async def _subscribe(self, method: str, callback: Callable, *args, **kwargs) -> None:
+    async def _subscribe(self, method: str, callback: Callable, *args) -> None:
         queue = asyncio.Queue()
         is_coro = asyncio.iscoroutinefunction(callback)
-        await self.session.subscribe(method, *args, queue=queue, **kwargs)
+        await self.session.subscribe(method, list(args), queue)
         try:
             while True:
                 for item in await queue.get():
                     if is_coro:
-                        task = callback(item)
+                        print('Running callback as coro with', item)
+                        coro = callback(item)
+                        task = asyncio.create_task(coro)
                     else:
-                        task = asyncio.get_event_loop().run_in_executor(None, callback, item)
+                        print('Running callback')
+                        task = asyncio.get_running_loop().run_in_executor(None, callback, item)
+                    print('Creating callback task')
                     self._subscribe_tasks.append(task)
                     task.add_done_callback(self._on_task_complete)
         finally:
             self.session.unsubscribe(queue)
 
-    async def subscribe(self, method: str, callback: Callable, *args, **kwargs) -> None:
-        async with self._lock.acquire():
-            await self._ensure_connected()
-        task = asyncio.create_task(self._subscribe(method, callback, *args, **kwargs))
+    async def subscribe(self, method: str, callback: Callable, *args) -> None:
+        await self._ensure_connected()
+        task = asyncio.create_task(self._subscribe(method, callback, *args))
         self._subscribe_tasks.append(task)
         task.add_done_callback(self._on_task_complete)
 
@@ -390,8 +410,6 @@ class ElectrumXClient:
 
     def estimate_fee(self, numblocks):
         return self.send_request(*self._estimate_fee(numblocks))
-
-
 
 
 class ElectrumXSyncClient:
@@ -407,7 +425,7 @@ class ElectrumXSyncClient:
         self._loop_is_started = threading.Event()
 
     def __getattr__(self, item):
-        return getattr(self._client, item, None)
+        return getattr(self._client, item)
 
     def start(self, *args, **kwargs):
         if not self._thread or not self._thread.is_alive():
@@ -429,21 +447,31 @@ class ElectrumXSyncClient:
         while not self.is_closing.is_set():
             val = await self._request_queue.async_q.get()
             fut, method, args, kwargs = val
+            callback = kwargs.get('callback')
             try:
-                result = await self._client.send_request(method, *args, **kwargs)
+                if "subscribe" in method and callback:
+                    result = await self._client.subscribe(method, callback, *args)
+                else:
+                    result = await self._client.send_request(method, *args, **kwargs)
                 fut.set_result(result)
             except Exception as e:
                 fut.set_exception(e)
 
-    def send_request(self, method, *args, timeout: int = 30, **kwargs):
+    def send_request(self, method: str, *args, timeout: int = 30, **kwargs):
         self.start()
         fut = Future()
         kwargs['timeout'] = timeout
         self._request_queue.sync_q.put((fut, method, args, kwargs))
         return fut.result()
 
+    def subscribe(self, method: str, callback: Callable, *args):
+        self.start()
+        fut = Future()
+        kwargs = {'callback': callback}
+        self._request_queue.sync_q.put((fut, method, args, kwargs))
+        return fut.result()
+
     def close(self):
-        print('Setting is_closing')
         self.is_closing.set()
 
 
