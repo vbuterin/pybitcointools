@@ -1,73 +1,44 @@
 {
-    "e-1.claudiobox.com": {
+    "46.101.3.154": {
         "pruning": "-",
-        "s": "50004",
-        "t": "50003",
-        "version": "1.1"
+        "s": "50002",
+        "t": "50001",
+        "version": "1.4.2"
     },
-    "e-2.claudiobox.com": {
+    "backup.electrum-ltc.org": {
         "pruning": "-",
-        "s": "50004",
-        "t": "50003",
-        "version": "1.1"
-    },
-    "elec.luggs.co": {
-        "pruning": "-",
-        "s": "444",
-        "version": "1.1"
+        "s": "443",
+        "t": "50001",
+        "version": "1.4.2"
     },
     "electrum-ltc.bysh.me": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
-        "version": "1.1"
-    },
-    "electrum-ltc.ddns.net": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
-    },
-    "electrum-ltc.petrkr.net": {
-        "pruning": "-",
-        "s": "60002",
-        "t": "60001",
-        "version": "1.1"
-    },
-    "electrum-ltc0.snel.it": {
-        "pruning": "-",
-        "s": "50004",
-        "t": "50003",
-        "version": "1.1"
-    },
-    "electrum-ltc.villocq.com": {
-        "pruning": "-",
-        "s": "60002",
-        "t": "60001",
-        "version": "1.1"
-    },
-    "electrum-ltc.wilv.in": {
-        "pruning": "-",
-        "s": "50002",
-        "t": "50001",
-        "version": "1.1"
+        "version": "1.4.2"
     },
     "electrum.ltc.xurious.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
-        "version": "1.1"
+        "version": "1.4.2"
     },
-    "electrumx.nmdps.net": {
+    "electrum.privateservers.network": {
         "pruning": "-",
-        "s": "9434",
-        "t": "9433",
-        "version": "1.1"
+        "s": "50005",
+        "t": "50004",
+        "version": "1.4.2"
     },
-    "ltc01.knas.systems": {
+    "electrum1.cipig.net": {
         "pruning": "-",
-        "s": "50004",
-        "t": "50003",
-        "version": "1.1"
+        "s": "20063",
+        "t": "10063",
+        "version": "1.4.2"
+    },
+    "ltc.rentonisk.com": {
+        "pruning": "-",
+        "s": "50002",
+        "t": "50001",
+        "version": "1.4.2"
     }
 }
