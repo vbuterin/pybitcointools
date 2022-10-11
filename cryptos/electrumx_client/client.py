@@ -12,15 +12,13 @@ import ssl
 import itertools
 import aiorpcx
 from .. import constants
-from .. import utils
-from ipaddress import ip_address, IPv6Address
 from aiorpcx import RPCSession, Notification, NewlineFramer
 from aiorpcx.curio import TaskTimeout
 from aiorpcx.rawsocket import RSClient
 from collections import defaultdict
 import json
 import random
-from typing import List, Dict, Any, Union, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable
 
 ca_path = certifi.where()
 
@@ -29,16 +27,33 @@ _KNOWN_NETWORK_PROTOCOLS = {'t', 's'}
 PREFERRED_NETWORK_PROTOCOL = 's'
 assert PREFERRED_NETWORK_PROTOCOL in _KNOWN_NETWORK_PROTOCOLS
 
+
 class NetworkException(Exception):
     pass
 
-class RequestCorrupted(Exception): pass
 
-class ErrorParsingSSLCert(Exception): pass
-class ErrorGettingSSLCertFromServer(Exception): pass
-class ErrorSSLCertFingerprintMismatch(Exception): pass
-class InvalidOptionCombination(Exception): pass
-class ConnectError(NetworkException): pass
+class RequestCorrupted(Exception):
+    pass
+
+
+class ErrorParsingSSLCert(Exception):
+    pass
+
+
+class ErrorGettingSSLCertFromServer(Exception):
+    pass
+
+
+class ErrorSSLCertFingerprintMismatch(Exception):
+    pass
+
+
+class InvalidOptionCombination(Exception):
+    pass
+
+
+class ConnectError(NetworkException):
+    pass
 
 
 class ProtocolNotSupportedError(BaseException):
@@ -48,7 +63,7 @@ class ProtocolNotSupportedError(BaseException):
 class _RSClient(RSClient):
     async def create_connection(self):
         try:
-            return await asyncio.wait_for(super().create_connection(), timeout=10)
+            return await asyncio.wait_for(super().create_connection(), timeout=60)
         except OSError as e:
             # note: using "from e" here will set __cause__ of ConnectError
             raise ConnectError(e) from e
@@ -64,7 +79,6 @@ def read_json(filename, default):
     return r
 
 
-
 class NetworkException(Exception):
     pass
 
@@ -76,22 +90,6 @@ class GracefulDisconnect(NetworkException):
 class RequestTimedOut(GracefulDisconnect):
     def __str__(self):
         return "Network request timed out."
-
-
-def _get_cert_path_for_host(appname: str, host: str) -> Path:
-    filename = host
-    try:
-        ip = ip_address(host)
-    except ValueError:
-        pass
-    else:
-        if isinstance(ip, IPv6Address):
-            filename = f"ipv6_{ip.packed.hex()}"
-
-    user_dir = Path(utils.user_dir(appname))
-    cert_path = user_dir / "certs"
-    cert_path.mkdir(parents=True, exist_ok=True)
-    return cert_path / filename
 
 
 class NetworkTimeout:
@@ -118,25 +116,22 @@ class NotificationSession(RPCSession):
         self.cost_hard_limit = 0  # disable aiorpcx resource limits
 
     async def handle_request(self, request):
-        print('Client handling request', request)
         try:
             if isinstance(request, Notification):
-                print('Client handling notification', request.args)
                 params, result = request.args[:-1], request.args[-1]
                 print(params, result)
                 key = self.get_hashable_key_for_rpc_call(request.method, params)
-                print('hashable key:', key)
                 if key in self.subscriptions:
                     self.cache[key] = result
                     for queue in self.subscriptions[key]:
-                        print('Adding', request.args, 'to queue', queue)
                         await queue.put(request.args)
                 else:
                     raise Exception(f'unexpected notification')
             else:
                 raise Exception(f'unexpected request. not a notification')
-        finally:
+        except Exception as e:
             await self.close()
+            raise
 
     async def send_request(self, *args, timeout=None, **kwargs):
         # note: semaphores/timeouts/backpressure etc are handled by
@@ -161,7 +156,6 @@ class NotificationSession(RPCSession):
         # note: until the cache is written for the first time,
         # each 'subscribe' call might make a request on the network.
         key = self.get_hashable_key_for_rpc_call(method, params)
-        print('subscription hashable key', key)
         self.subscriptions[key].append(queue)
         if key in self.cache:
             result = self.cache[key]
@@ -215,7 +209,9 @@ class ElectrumXClient:
     def __init__(self, server_file: str = "bitcoin.json", connection_timeout: int = 5,
                  use_ssl: bool = True, client_name: str = constants.CLIENT_NAME, ping_interval: int = 30,
                  accept_self_signed_certs: bool = False):
-        self.is_connected = asyncio.Event()
+        self._active_subscriptions: Dict[str, List[asyncio.Task]] = {}
+        self._tasks = []
+        self.restart_condition = asyncio.Condition()
         self._connection_task: Optional[asyncio.Task] = None
         self._use_ssl = use_ssl
         self._accept_self_signed_certs = accept_self_signed_certs
@@ -227,7 +223,6 @@ class ElectrumXClient:
         self._lock = asyncio.Lock()
         self._is_closing = False
         self._failed_servers: List[str] = []
-        self._subscribe_tasks: List[Union[asyncio.Task, asyncio.Future]] = []  # Should be replaced with TaskGroup in Python 3.11
         self.version = constants.PROTOCOL_VERSION
         self.server_version: Optional[List[str]] = None
         self.client_name = client_name
@@ -275,6 +270,7 @@ class ElectrumXClient:
             #         Hence, in practice the connection issue will only be detected the next time we try
             #         to send a message (plus timeout), which can take minutes...
             if not self.session or self.session.is_closing():
+                print("no session", self.session, self.session.is_closing())
                 raise GracefulDisconnect('session was closed')
             elif i == self._ping_interval:
                 try:
@@ -299,14 +295,18 @@ class ElectrumXClient:
             print('Connected to', self.host, self.port, "Checking version")
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
 
-            self.is_connected.set()
+            async with self.restart_condition:
+                self.restart_condition.notify_all()
             await self.monitor_connection()
-        self.is_connected.clear()
+        print('Setting session to None')
         self.session = None
 
     async def _connect(self) -> None:
         sslc = await self._get_ssl_context()
         await self._open_session(sslc=sslc)
+
+    async def redo_connection(self):
+        await self.session.close()
 
     async def _on_connection_failure(self):
         print('Connection to', self.host, 'failed')
@@ -327,6 +327,10 @@ class ElectrumXClient:
             print(e)
             await self._on_connection_failure()
 
+    async def wait_new_start(self):
+        async with self.restart_condition:
+            await self.restart_condition.wait()
+
     async def _ensure_connected(self):
         async with self._lock:
             if not self._is_closing:
@@ -335,23 +339,27 @@ class ElectrumXClient:
                     Wait until successful connection or connection task completes without any successful connections
                     """
                     self._connection_task = asyncio.create_task(self.connect_to_any_server(), name="connection_task")
-                    is_connected_task = asyncio.create_task(self.is_connected.wait(), name="is_connected_task")
+                    is_connected_task = asyncio.create_task(self.wait_new_start(), name="is_connected_task")
                     done, pending = await asyncio.wait([is_connected_task, self._connection_task],
                                                        return_when=asyncio.FIRST_COMPLETED)
 
                     for task in done:
-                        if exc := task.exception():
-                            raise exc
+                        if not task.cancelled():
+                            if exc := task.exception():
+                                for p in pending:
+                                    p.cancel()
+                                raise exc
             else:
                 raise ConnectionError("JSONRPC Connection is already closing, cannot send message")
 
     async def cancel_subscriptions(self) -> None:
         async with self._lock:
-            for task in self._subscribe_tasks:
+            subscription_tasks = list(itertools.chain(*self._active_subscriptions.values()))
+            for task in subscription_tasks:
                 task.cancel()
-            if self._subscribe_tasks:
-                await asyncio.wait(self._subscribe_tasks)
-            self._subscribe_tasks = []
+            all_tasks = subscription_tasks + self._tasks
+            if all_tasks:
+                await asyncio.wait(all_tasks)
 
     async def close(self):
         print('Closing client')
@@ -376,34 +384,94 @@ class ElectrumXClient:
         return await self._send_request(method, *args, timeout=timeout, **kwargs)
 
     def _on_task_complete(self, task: asyncio.Task):
-        if task in self._subscribe_tasks:
-            self._subscribe_tasks.remove(task)
+        if task in self._tasks:
+            self._tasks.remove(task)
+        if not task.cancelled():
+            if exc := task.exception():
+                raise exc
+
+    def _on_subscription_task_complete(self, task: asyncio.Task):
+        remove_method = None
+        try:
+            for method, tasks in self._active_subscriptions.items():
+                if task in tasks:
+                    tasks.remove(task)
+                    if not tasks:
+                        remove_method = method
+                    break
+            if not task.cancelled():
+                if exc := task.exception():
+                    raise exc
+        finally:
+            if remove_method:
+                del self._active_subscriptions[remove_method]
 
     async def _subscribe(self, method: str, callback: Callable, *args) -> None:
         queue = asyncio.Queue()
         is_coro = asyncio.iscoroutinefunction(callback)
-        await self.session.subscribe(method, list(args), queue)
+        session = None
+        subscribed = False
+        just_restarted = False
+        last_item = None
+        wait_next_start_task = None
         try:
             while True:
-                for item in await queue.get():
-                    if is_coro:
-                        print('Running callback as coro with', item)
-                        coro = callback(item)
-                        task = asyncio.create_task(coro)
-                    else:
-                        print('Running callback')
-                        task = asyncio.get_running_loop().run_in_executor(None, callback, item)
-                    print('Creating callback task')
-                    self._subscribe_tasks.append(task)
-                    task.add_done_callback(self._on_task_complete)
+                if not subscribed:
+                    session = self.session
+                    await session.subscribe(method, list(args), queue)
+                    subscribed = True
+                    just_restarted = True
+                    wait_next_start_task = asyncio.create_task(self.wait_new_start())
+                queue_task = asyncio.create_task(queue.get())
+                done, pending = await asyncio.wait([queue_task, wait_next_start_task],
+                                                   return_when=asyncio.FIRST_COMPLETED)
+                if wait_next_start_task in done:
+                    subscribed = False
+                if queue_task in done:
+                    item = queue_task.result()
+                    """
+                    After restarting a subscription we want to avoid processing the item we receive immediately,
+                    which was most likely already received on the last connection
+                    """
+                    if not just_restarted or item != last_item:
+                        last_item = item
+                        if is_coro:
+                            print('Running callback as coro with', item)
+                            coro = callback(*item)
+                            task = asyncio.create_task(coro)
+                        else:
+                            print('Running callback')
+                            task = asyncio.get_running_loop().run_in_executor(None, callback, *item)
+                        print('Creating callback task')
+                        self._tasks.append(task)
+                        task.add_done_callback(self._on_task_complete)
+                    just_restarted = False
+                else:
+                    queue_task.cancel()
         finally:
-            self.session.unsubscribe(queue)
+            if session:
+                session.unsubscribe(queue)
 
-    async def subscribe(self, method: str, callback: Callable, *args) -> None:
-        await self._ensure_connected()
+    async def unsubscribe(self, method: str):
+        tasks = self._active_subscriptions[method]
+        if tasks:
+            for task in tasks:
+                task.cancel()
+        await asyncio.wait(tasks)
+
+    def _create_subscribe_task(self, method: str, callback: Callable, *args) -> None:
+        print('Creating subscribe task', method)
         task = asyncio.create_task(self._subscribe(method, callback, *args))
-        self._subscribe_tasks.append(task)
-        task.add_done_callback(self._on_task_complete)
+        if not self._active_subscriptions.get(method):
+            self._active_subscriptions[method] = []
+        self._active_subscriptions[method].append(task)
+        task.add_done_callback(self._on_subscription_task_complete)
+
+    async def subscribe(self, callback: Callable, method: str, *args) -> None:
+        print("Subscribe")
+        await self._ensure_connected()
+        print('Running subscribe for', method)
+        self._create_subscribe_task(method, callback, *args)
 
     def _estimate_fee(self, numblocks):
         return 'blockchain.estimatefee', (numblocks,)
@@ -421,7 +489,7 @@ class ElectrumXSyncClient:
         self._client_args = args
         self._client_kwargs = kwargs
         self.is_closing = threading.Event()
-        self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple[Any], dict[str, Any]]]] = None
+        self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple, dict[str, Any]]]] = None
         self._loop_is_started = threading.Event()
 
     def __getattr__(self, item):
@@ -449,8 +517,11 @@ class ElectrumXSyncClient:
             fut, method, args, kwargs = val
             callback = kwargs.get('callback')
             try:
-                if "subscribe" in method and callback:
-                    result = await self._client.subscribe(method, callback, *args)
+                if "subscribe" in method:
+                    if callback:
+                        result = await self._client.subscribe(callback, method, *args)
+                    else:
+                        result = await self._client.unsubscribe(method)
                 else:
                     result = await self._client.send_request(method, *args, **kwargs)
                 fut.set_result(result)
@@ -464,11 +535,17 @@ class ElectrumXSyncClient:
         self._request_queue.sync_q.put((fut, method, args, kwargs))
         return fut.result()
 
-    def subscribe(self, method: str, callback: Callable, *args):
+    def subscribe(self, callback: Callable, method: str,  *args):
         self.start()
         fut = Future()
         kwargs = {'callback': callback}
         self._request_queue.sync_q.put((fut, method, args, kwargs))
+        return fut.result()
+
+    def unsubscribe(self, method: str):
+        self.start()
+        fut = Future()
+        self._request_queue.sync_q.put((fut, method, (), {}))
         return fut.result()
 
     def close(self):

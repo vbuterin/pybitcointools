@@ -493,7 +493,7 @@ class BaseCoinTestCase(unittest.TestCase):
     def assertSubscribeAddressOK(self):
         coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
         result = coin.subscribe_to_addresses(['mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu'])
-        initial_status = result[0]['data']
+        initial_status = result[0]['data']['status']
         self.assertListEqual(list(result[0].keys()), ['data', 'error', 'method', 'params'])
         self.assertTransactionOK(c=coin)
         items = coin.rpc_client.wait_address_changed_event()
