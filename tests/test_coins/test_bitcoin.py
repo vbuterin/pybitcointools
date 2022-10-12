@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestBitcoin(BaseCoinTestCase):
     name = "Bitcoin"
-    coin = coins.Bitcoin
+    coin = coins_async.Bitcoin
     addresses = ["1Ba7UmguphMX1g8ibyWQL62qzNu7mrXLVz", "16mBWqf9zefiZcKrKSf6uo3He9ipzPyuTb", "15pXUHkdBXFeUUetZJnJqNoD7dyCzaJFUn"]
     fee = 54400
     blockcypher_coin_symbol = "btc"

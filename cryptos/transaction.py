@@ -1,9 +1,13 @@
 #!/usr/bin/python
-import binascii
 import copy
 from .main import *
+import binascii
 from . import segwit_addr
 from _functools import reduce
+
+from typing import AnyStr
+from .types import Tx
+
 
 ### Hex to bin converter and vice versa for objects
 
@@ -59,8 +63,10 @@ def encode_4_bytes(val):
 def encode_8_bytes(val):
     return encode(val, 256, 8)[::-1]
 
-def list_to_bytes(vals):
-    return ''.join(vals) if is_python2 else reduce(lambda x, y: x + y, vals, bytes())
+
+def list_to_bytes(vals: List[str]) -> bytes:
+    return reduce(lambda x, y: x + y, vals, bytes())
+
 
 def dbl_sha256_list(vals):
     return bin_dbl_sha256(list_to_bytes(vals))
@@ -71,7 +77,8 @@ def dbl_sha256_list(vals):
 def is_segwit(tx):
     return tx[4] == 0
 
-def deserialize(tx):
+
+def deserialize(tx: AnyStr) -> Tx:
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         # tx = bytes(bytearray.fromhex(tx))
         return json_changebase(deserialize(binascii.unhexlify(tx)),
@@ -81,31 +88,30 @@ def deserialize(tx):
     # so that it is call-by-reference
     pos = [0]
 
-    def read_as_int(bytez):
+    def read_as_int(bytez: int):
         pos[0] += bytez
         return decode(tx[pos[0] - bytez:pos[0]][::-1], 256)
 
-    def read_var_int():
+    def read_var_int() -> int:
         pos[0] += 1
         val = from_byte_to_int(tx[pos[0] - 1])
         if val < 253:
             return val
         return read_as_int(pow(2, val - 252))
 
-    def read_bytes(bytez):
+    def read_bytes(bytez: int) -> str:
         pos[0] += bytez
         return tx[pos[0] - bytez:pos[0]]
 
-    def read_var_string():
+    def read_var_string() -> str:
         size = read_var_int()
         return read_bytes(size)
 
-    def read_segwit_string():
+    def read_segwit_string() -> str:
         size = read_var_int()
         return num_to_var_int(size)+read_bytes(size)
 
-    obj = {"ins": [], "outs": []}
-    obj["version"] = read_as_int(4)
+    obj: Tx = {"ins": [], "outs": [], "version": read_as_int(4)}
     has_witness = is_segwit(tx)
     if has_witness:
         obj['marker'] = read_as_int(1)
@@ -119,7 +125,7 @@ def deserialize(tx):
             "sequence": read_as_int(4)
         })
     outs = read_var_int()
-    for i in range(outs):
+    for _ in range(outs):
         obj["outs"].append({
             "value": read_as_int(8),
             "script": read_var_string()
@@ -128,15 +134,14 @@ def deserialize(tx):
         obj['witness'] = []
         for i in range(ins):
             number = read_var_int()
-            scriptCode = []
-            for i in range(number):
-                scriptCode.append(read_segwit_string())
+            script_code = [read_segwit_string() for _ in range(number)]
             obj['witness'].append({
                 'number': number,
-                'scriptCode': list_to_bytes(scriptCode)
+                'scriptCode': list_to_bytes(script_code)
             })
     obj["locktime"] = read_as_int(4)
     return obj
+
 
 def serialize(txobj, include_witness=True):
     txobj = txobj.copy()
@@ -428,7 +433,7 @@ if is_python2:
                                     lambda x: binascii.unhexlify(x))))
         return ''.join(map(serialize_script_unit, script))
 else:
-    def serialize_script(script):
+    def serialize_script(script) -> bytes:
         if json_is_base(script, 16):
             return safe_hexlify(serialize_script(json_changebase(script,
                                     lambda x: binascii.unhexlify(x))))

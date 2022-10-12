@@ -2,7 +2,7 @@ import unittest
 import asyncio
 from operator import itemgetter
 from cryptos import *
-from cryptos import coins
+from cryptos import coins_async
 from cryptos import explorers
 
 class BaseCoinTestCase(unittest.TestCase):
@@ -24,7 +24,7 @@ class BaseCoinTestCase(unittest.TestCase):
     txinputs = None
     min_latest_height = 99999999999
     fee = 0
-    coin = coins.Bitcoin
+    coin = coins_async.Bitcoin
     blockcypher_api_key = None
     blockcypher_coin_symbol = None
     testnet = True
@@ -71,7 +71,7 @@ class BaseCoinTestCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         segwit_max_value = 0
         segwit_sender = self.segwit_addresses[0]
         segwit_from_addr_i = 0
@@ -164,7 +164,7 @@ class BaseCoinTestCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.segwit_addresses[0]
         from_addr_i = 0
@@ -227,7 +227,7 @@ class BaseCoinTestCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.new_segwit_addresses[0]
         from_addr_i = 0
@@ -293,7 +293,7 @@ class BaseCoinTestCase(unittest.TestCase):
         if not c:
             c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -408,7 +408,7 @@ class BaseCoinTestCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
@@ -448,7 +448,7 @@ class BaseCoinTestCase(unittest.TestCase):
 
         c = self.coin(testnet=self.testnet)
 
-        #Find which of the three address_derivations currently has the most coins and choose that as the sender
+        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0

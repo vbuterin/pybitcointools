@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestLitecoinTestnet(BaseCoinTestCase):
     name = "Litecoin Testnet"
-    coin = coins.Litecoin
+    coin = coins_async.Litecoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses = ["2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU", "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",

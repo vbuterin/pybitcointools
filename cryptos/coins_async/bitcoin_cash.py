@@ -1,6 +1,7 @@
 from .base import BaseCoin
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 
+
 class BitcoinCash(BaseCoin):
     coin_symbol = "BCH"
     display_name = "Bitcoin Cash"

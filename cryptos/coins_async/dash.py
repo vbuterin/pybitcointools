@@ -1,6 +1,7 @@
 from .base import BaseCoin
 from ..explorers import dash_siampm
 
+
 class Dash(BaseCoin):
     coin_symbol = "DASH"
     display_name = "Dash"

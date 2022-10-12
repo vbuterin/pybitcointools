@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestLitecoin(BaseCoinTestCase):
     name = "Litecoin"
-    coin = coins.Litecoin
+    coin = coins_async.Litecoin
     fee = 54400
     testnet = False
 

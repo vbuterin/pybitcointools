@@ -1,11 +1,7 @@
 import asyncio
 import os.path
 
-import threading
-import janus
-from typing import Tuple
 from pathlib import Path
-from concurrent.futures import Future
 
 import certifi
 import ssl
@@ -19,6 +15,10 @@ from collections import defaultdict
 import json
 import random
 from typing import List, Dict, Any, Optional, Callable
+from .types import (ElectrumXBlockResponse, ElectrumXBlockHeadersResponse, BlockHeaderNotificationCallback,
+    ElectrumXBalanceResponse, ElectrumXHistoryResponse, ElectrumXMempoolResponse, ElectrumXUnspentResponse,
+    AddressNotificationCallback, ElectrumXGetTxResponse, ElectrumXMerkleResponse, ElectrumXTSCMerkleResponse,
+                    TxidOrTx, TargetType)
 
 ca_path = certifi.where()
 
@@ -205,6 +205,7 @@ class ElectrumXClient:
     port: int = None
     server: Dict[str, Any]
     session: Optional[NotificationSession] = None
+    requires_scripthash: bool = True
 
     def __init__(self, server_file: str = "bitcoin.json", connection_timeout: int = 5,
                  use_ssl: bool = True, client_name: str = constants.CLIENT_NAME, ping_interval: int = 30,
@@ -451,6 +452,8 @@ class ElectrumXClient:
         finally:
             if session:
                 session.unsubscribe(queue)
+                if "scripthash" in method and not self._is_closing:
+                    await self.send_request("blockchain.scripthash.unsubscribe", *args)
 
     async def unsubscribe(self, method: str):
         tasks = self._active_subscriptions[method]
@@ -473,82 +476,54 @@ class ElectrumXClient:
         print('Running subscribe for', method)
         self._create_subscribe_task(method, callback, *args)
 
-    def _estimate_fee(self, numblocks):
-        return 'blockchain.estimatefee', (numblocks,)
+    async def block_header(self, height: int, cp_height: int = 0) -> ElectrumXBlockResponse:
+        return await self.send_request("blockchain.block.header", (height, cp_height))
 
-    def estimate_fee(self, numblocks):
-        return self.send_request(*self._estimate_fee(numblocks))
+    async def block_headers(self, start_height: int, count: int, cp_height: int = 0) -> ElectrumXBlockHeadersResponse:
+        return await self.send_request("blockchain.block.header", (start_height, count, cp_height))
 
+    async def estimate_fee(self, numblocks: int = 6) -> float:
+        return await self.send_request("blockchain.estimatefee", (numblocks,))
 
-class ElectrumXSyncClient:
-    async_class = ElectrumXClient
-    _client: ElectrumXClient = None
-    _thread: threading.Thread = None
+    async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
+        await self.subscribe(callback, "blockchain.headers.subscribe")
 
-    def __init__(self, *args, **kwargs):
-        self._client_args = args
-        self._client_kwargs = kwargs
-        self.is_closing = threading.Event()
-        self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple, dict[str, Any]]]] = None
-        self._loop_is_started = threading.Event()
+    async def unsubscribe_from_block_headers(self) -> None:
+        await self.unsubscribe("blockchain.headers.subscribe")
 
-    def __getattr__(self, item):
-        return getattr(self._client, item)
+    async def relay_fee(self,) -> float:
+        return await self.send_request("blockchain.relayfee")
 
-    def start(self, *args, **kwargs):
-        if not self._thread or not self._thread.is_alive():
-            self._thread = threading.Thread(target=self.start_event_loop, daemon=True)
-            self._thread.start()
-        self._loop_is_started.wait(timeout=10)
+    async def get_balance(self, scripthash: str) -> ElectrumXBalanceResponse:
+        return await self.send_request("blockchain.scripthash.get_balance", scripthash)
 
-    def start_event_loop(self):
-        asyncio.run(self.run())
+    async def get_history(self, scripthash: str) -> ElectrumXHistoryResponse:
+        return await self.send_request("blockchain.scripthash.get_balance", scripthash)
 
-    async def run(self):
-        self._request_queue = janus.Queue()
-        self._client = ElectrumXClient(*self._client_args, **self._client_kwargs)
-        fut: Future
-        method: str
-        args: tuple
-        kwargs: dict
-        self._loop_is_started.set()
-        while not self.is_closing.is_set():
-            val = await self._request_queue.async_q.get()
-            fut, method, args, kwargs = val
-            callback = kwargs.get('callback')
-            try:
-                if "subscribe" in method:
-                    if callback:
-                        result = await self._client.subscribe(callback, method, *args)
-                    else:
-                        result = await self._client.unsubscribe(method)
-                else:
-                    result = await self._client.send_request(method, *args, **kwargs)
-                fut.set_result(result)
-            except Exception as e:
-                fut.set_exception(e)
+    async def get_mempool(self, scripthash: str) -> ElectrumXMempoolResponse:
+        return await self.send_request("blockchain.scripthash.get_mempool", scripthash)
 
-    def send_request(self, method: str, *args, timeout: int = 30, **kwargs):
-        self.start()
-        fut = Future()
-        kwargs['timeout'] = timeout
-        self._request_queue.sync_q.put((fut, method, args, kwargs))
-        return fut.result()
+    async def unspent(self, scripthash: str) -> ElectrumXUnspentResponse:
+        return await self.send_request("blockchain.scripthash.listunspent", scripthash)
 
-    def subscribe(self, callback: Callable, method: str,  *args):
-        self.start()
-        fut = Future()
-        kwargs = {'callback': callback}
-        self._request_queue.sync_q.put((fut, method, args, kwargs))
-        return fut.result()
+    async def subscribe_to_address(self, callback: AddressNotificationCallback, scripthash: str) -> None:
+        await self.subscribe(callback, "blockchain.scripthash.subscribe", scripthash)
 
-    def unsubscribe(self, method: str):
-        self.start()
-        fut = Future()
-        self._request_queue.sync_q.put((fut, method, (), {}))
-        return fut.result()
+    async def unsubscribe_from_addresses(self) -> None:
+        await self.unsubscribe("blockchain.scripthash.unsubscribe")
 
-    def close(self):
-        self.is_closing.set()
+    async def broadcast_tx(self, raw_tx: str) -> str:
+        return await self.send_request("blockchain.transaction.broadcast", raw_tx)
 
+    async def get_tx(self, tx_hash: str, verbose: bool = False) -> ElectrumXGetTxResponse:
+        return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
 
+    async def get_merkle(self, tx_hash: str, height: int) -> ElectrumXMerkleResponse:
+        return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
+
+    async def get_tsc_merkle(self, tx_hash: str, height: int, txid_or_tx: TxidOrTx = 'txid',
+                             target_type: TargetType = "merkle_root") -> ElectrumXTSCMerkleResponse:
+        return await self.send_request("blockchain.transaction.get_tsc_merkle", tx_hash, height, txid_or_tx,target_type)
+
+    async def get_donation_address(self) -> str:
+        return await self.send_request("server.donation_address")

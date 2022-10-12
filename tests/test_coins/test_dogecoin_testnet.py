@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestDogeTestnet(BaseCoinTestCase):
     name = "Doge Testnet"
-    coin = coins.Doge
+    coin = coins_async.Doge
     addresses = ['nn1xreE17QZVwuxxVY3N497SygcBPsm15j', 'nbQPs6XNsA2NzndkhpLDASy4Khg8ZfhUfj', 'naGXBTzJbwp4QRNzZJAjx651T6duZy2kgV']
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",

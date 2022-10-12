@@ -31,12 +31,14 @@ def get_code_string(base):
     else:
         raise ValueError("Invalid base!")
 
+
 def changebase(string, frm, to, minlen=0):
     if frm == to:
         return lpad(string, get_code_string(frm)[0], minlen)
     return encode(decode(string, frm), to, minlen)
 
-def bin_to_b58check(inp, magicbyte=0):
+
+def bin_to_b58check(inp, magicbyte: int = 0) -> str:
     if magicbyte == 0:
         inp = from_int_to_byte(0) + inp
     while magicbyte > 0:
@@ -51,6 +53,7 @@ def bin_to_b58check(inp, magicbyte=0):
 
     checksum = bin_dbl_sha256(inp)[:4]
     return '1' * leadingzbytes + changebase(inp+checksum, 256, 58)
+
 
 def bytes_to_hex_string(b):
     if isinstance(b, str):
@@ -97,6 +100,7 @@ def encode(val, base, minlen=0):
 
     return result
 
+
 def decode(string, base):
     if base == 256 and isinstance(string, str):
         string = bytes(bytearray.fromhex(string))
@@ -117,6 +121,7 @@ def decode(string, base):
         result += extract(string[0], code_string)
         string = string[1:]
     return result
+
 
 def random_string(x):
     return str(os.urandom(x))

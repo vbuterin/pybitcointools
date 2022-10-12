@@ -3,7 +3,9 @@ from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 from ..main import b58check_to_bin
 from ..py3specials import bin_to_b58check
 
+
 FORKID_BTG = 79
+
 
 class BitcoinGold(BaseCoin):
     coin_symbol = "BTC"

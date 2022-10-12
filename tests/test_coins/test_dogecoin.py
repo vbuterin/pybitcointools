@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestDoge(BaseCoinTestCase):
     name = "Dogecoin"
-    coin = coins.Doge
+    coin = coins_async.Doge
     fee = 54400
     testnet = False
 

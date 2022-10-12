@@ -6,6 +6,6 @@ from .mnemonic import *
 from .py3specials import *
 from .stealth import *
 from .transaction import *
-from .coins import *
+from .coins_async import *
 from .keystore import *
 from .wallet import *

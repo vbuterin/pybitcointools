@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestBitcoinGold(BaseCoinTestCase):
     name = "Bitcoin Gold"
-    coin = coins.BitcoinGold
+    coin = coins_async.BitcoinGold
     blockcypher_coin_symbol = None
     fee = 54400
     testnet = False

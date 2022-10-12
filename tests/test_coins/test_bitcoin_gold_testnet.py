@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestBitcoinGoldRegtest(BaseCoinTestCase):
     name = "Bitcoin Cash Testnet"
-    coin = coins.BitcoinGold
+    coin = coins_async.BitcoinGold
     testnet = True
 
     def test_transaction(self):

@@ -9,6 +9,8 @@ import random
 import hmac
 from .ripemd import *
 
+from typing import List
+
 # Elliptic curve parameters (secp256k1)
 
 P = 2**256 - 2**32 - 977
@@ -230,7 +232,7 @@ def encode_privkey(priv, formt, vbyte=128):
         return bin_to_b58check(encode(priv, 256, 32) + b'\x01', int(vbyte))
     else: raise Exception("Invalid format!")
 
-def decode_privkey(priv,formt=None):
+def decode_privkey(priv,formt: str = None) -> str:
     if not formt: formt = get_privkey_format(priv)
     if formt == 'decimal': return priv
     elif formt == 'bin': return decode(priv, 256)
@@ -294,6 +296,7 @@ def privkey_to_pubkey(privkey):
         return encode_pubkey(fast_multiply(G, privkey), f)
     else:
         return encode_pubkey(fast_multiply(G, privkey), f.replace('wif', 'hex'))
+
 
 privtopub = privkey_to_pubkey
 
@@ -597,12 +600,14 @@ def subtract(p1,p2):
 hash160Low = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 hash160High = b'\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff'
 
-def magicbyte_to_prefix(magicbyte):
+
+def magicbyte_to_prefix(magicbyte) -> List[str]:
     first = bin_to_b58check(hash160Low, magicbyte=magicbyte)[0]
     last = bin_to_b58check(hash160High, magicbyte=magicbyte)[0]
     if first == last:
-        return (first,)
-    return (first, last)
+        return [first]
+    return [first, last]
+
 
 def script_to_scripthash(script):
     return safe_hexlify(bin_sha256(safe_from_hex(script))[::-1])

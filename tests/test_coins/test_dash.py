@@ -1,11 +1,11 @@
 from unittest import skip
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.testing.testcases import BaseCoinTestCase
 
 
 class TestDash(BaseCoinTestCase):
     name = "Dash"
-    coin = coins.Dash
+    coin = coins_async.Dash
     fee = 54400
     testnet = False
 

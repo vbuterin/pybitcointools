@@ -4,3 +4,4 @@ pycryptodomex
 aiorpcx
 certifi
 janus
+typing_extensions

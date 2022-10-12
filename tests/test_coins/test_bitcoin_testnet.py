@@ -1,12 +1,12 @@
 from unittest import skip
 import time
-from cryptos import coins
+from cryptos import coins_async
 from cryptos.transaction import serialize
 from cryptos.testing.testcases import BaseCoinTestCase
 
 class TestBitcoinTestnet(BaseCoinTestCase):
     name = "Bitcoin Testnet"
-    coin = coins.Bitcoin
+    coin = coins_async.Bitcoin
     addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses = ["2N3CxTkwr7uSh6AaZKLjWeR8WxC43bQ2QRZ", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU", "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
     new_segwit_addresses = ["tb1qcwzf2q6zedhcma23wk6gtp5r3vp3xradjc23st", "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r", "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
