@@ -13,16 +13,16 @@ def serialize_header(inp):
     return o.encode('hex')
 
 
-def deserialize_header(inp):
-    inp = inp.decode('hex')
+def deserialize_header(inp: bytes):
+    inp = inp.decode()
     return {
         "version": decode(inp[:4][::-1], 256),
-        "prevhash": inp[4:36][::-1].encode('hex'),
-        "merkle_root": inp[36:68][::-1].encode('hex'),
+        "prevhash": inp[4:36][::-1].encode(),
+        "merkle_root": inp[36:68][::-1].encode(),
         "timestamp": decode(inp[68:72][::-1], 256),
         "bits": decode(inp[72:76][::-1], 256),
         "nonce": decode(inp[76:80][::-1], 256),
-        "hash": bin_sha256(bin_sha256(inp))[::-1].encode('hex')
+        "hash": bin_sha256(bin_sha256(inp))[::-1]
     }
 
 

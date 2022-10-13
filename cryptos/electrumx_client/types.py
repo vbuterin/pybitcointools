@@ -1,4 +1,4 @@
-from typing import TypedDict, Union, Callable, List, Dict, Any, Literal
+from typing import TypedDict, Union, Callable, List, Dict, Any, Literal, Awaitable
 from typing_extensions import NotRequired
 
 
@@ -27,7 +27,7 @@ class ElectrumXBlockHeaderNotification(TypedDict):
     hex: str
 
 
-BlockHeaderNotificationCallback: Callable[[ElectrumXBlockHeaderNotification], None]
+BlockHeaderNotificationCallback = Union[Callable[[ElectrumXBlockHeaderNotification], None], Callable[[ElectrumXBlockHeaderNotification], Awaitable[None]]]
 
 
 class ElectrumXBalanceResponse(TypedDict):
@@ -57,10 +57,10 @@ class ElectrumXScripthashNotification(TypedDict):
     status: str
 
 
-AddressNotificationCallback: Callable[[ElectrumXScripthashNotification], None]
+AddressNotificationCallback = Callable[[ElectrumXScripthashNotification], None]
 
 
-ElectrumXGetTxResponse: Union[str, Dict[str, JsonType]]
+ElectrumXGetTxResponse = Union[str, Dict[str, JsonType]]
 
 
 class ElectrumXMerkleResponse(TypedDict):

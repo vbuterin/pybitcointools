@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 from concurrent.futures import Future
-from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer, ElectrumXSyncClient
+from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer
 from functools import partial
 from unittest.mock import patch
 import janus
@@ -27,12 +27,19 @@ known_electrum_ssl_version = ["ElectrumX 1.10.0", "1.4"]
 failed_host = "127.0.0.1"
 
 
+satoshi_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+satoshi_scripthash = "8b01df4e368ea28f8dc0423bcf7a4923e3a12d307c875e47a0cfbf90b5c39161"
+static_address = "12gK1NsNhzrRxs2kGKSjXhA1bhd8vyyWMR"
+static_scripthash = "4b359cbdb8f1b9623f55ff8add652ef82a3766fde3efc4bcf0de8cd927af3e19"
+
+
 async def on_scripthash_notification(queue: asyncio.Queue, scripthash: str, status: str):
     await queue.put((scripthash, status))
 
 
 def on_scripthash_notification_sync_from_async(queue: janus.Queue, scripthash: str, status: str):
     queue.sync_q.put((scripthash, status))
+
 
 def on_scripthash_notification_sync(queue: Queue, scripthash: str, status: str):
     queue.put((scripthash, status))
@@ -166,20 +173,18 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_subscribe_with_params_ok(self):
         queue = asyncio.Queue()
-        # Address: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa (Satoshi)
-        scripthash = "8b01df4e368ea28f8dc0423bcf7a4923e3a12d307c875e47a0cfbf90b5c39161"
-        await self.client.subscribe(partial(on_scripthash_notification, queue), 'blockchain.scripthash.subscribe', scripthash)
+        await self.client.subscribe(partial(on_scripthash_notification, queue), 'blockchain.scripthash.subscribe',
+                                    satoshi_scripthash)
         result = await queue.get()
         print("test received result", result)
-        self.assertEqual(result[0], scripthash)
+        self.assertEqual(result[0], satoshi_scripthash)
         print(result[1])
-        self.assertIn(result[1], ["d3963224a9bd533cfbada37a8f05d90ca7fea1aeba699090eac467f01a0355a1",
-                                  "f5a9c884b1d2054a8c52ce4d1b453ba1bdbc9ebf7aaaab4b7b458545b64faecf"])
+        self.assertIsInstance(result[1], str)
         self.assertEqual(
-            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{scripthash}']"]), 1)
+            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 1)
         await self.client.unsubscribe('blockchain.scripthash.subscribe')
         self.assertEqual(
-            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{scripthash}']"]), 0)
+            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 0)
 
     async def test_subscribe_ok_after_reconnection(self):
         queue = asyncio.Queue()
@@ -199,14 +204,144 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
             pass
         self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
 
-    async def test_estimate_fee_async(self):
-        pass
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_block_header(self, mock):
+        result = await self.client.block_header(1)
+        self.assertEqual(result,
+                         "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
 
-    async def test_cancel_all_subscriptions_async(self):
-        pass
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_block_headers(self, mock):
+        result = await self.client.block_headers(1, 2)
+        self.assertEqual(result,
+                         {'count': 2,
+                           'hex': '010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299010000004860eb18bf1b1620e37e9490fc8a427514416fd75159ab86688e9a8300000000d5fdcc541e25de1c7a5addedf24858b8bb665c9f36ef744ee42c316022c90f9bb0bc6649ffff001d08d2bd61',
+                          'max': 2016})
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_estimate_fee(self, mock):
+        result = await self.client.estimate_fee(numblocks=6)
+        self.assertIsInstance(result, float)
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_relay_fee(self, mock):
+        result = await self.client.relay_fee()
+        self.assertIsInstance(result, float)
+
+    async def test_subscribe_to_block_headers(self):
+        queue = asyncio.Queue()
+        await self.client.subscribe_to_block_headers(queue.put)
+        result = await queue.get()
+        self.assertIsInstance(result['height'], int)
+        self.assertIsInstance(result['hex'], str)
+        self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
+        await self.client.unsubscribe_from_block_headers()
+        self.assertEqual(self.client.session.subscriptions['blockchain.headers.subscribe[]'], [])
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_balance(self, mock):
+        result = await self.client.get_balance(static_scripthash)
+        self.assertEqual(result, {'confirmed': 16341002035,
+                                  'unconfirmed': 0})
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_history(self, mock):
+        result = await self.client.get_history(static_scripthash)
+        self.assertListEqual(result, [
+                    {'tx_hash': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34', 'height': 114743},
+                    {'tx_hash': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f', 'height': 116768},
+                    {'tx_hash': 'e66ebcd04e86196b59e8ff54c071fb82d055c40cbd7314309088e6c2b5658a0a', 'height': 547011},
+                    {'tx_hash': '655620ced5f7f6ff0edcb930ab787f1e61a0872ce8d318a94ff884a9c7e81808', 'height': 621585},
+                    {'tx_hash': '04eac4e98bc74b344d85bd1f008d227d8a7715224f5d1af0929810c08fd7fed2', 'height': 651450},
+        ])
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_mempool(self, mock):
+        result = await self.client.get_mempool(static_scripthash)
+        self.assertListEqual(result, [
+        ])
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_unspent(self, mock):
+        result = await self.client.unspent(static_scripthash)
+        self.assertListEqual(result, [
+            {'tx_hash': 'b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34', 'tx_pos': 1,
+             'height': 114743,
+             'value': 5000000},
+            {'tx_hash': 'f5e0c14b7d1f95d245d990ac6bb9ccf28d7f80f721f8133cd6ed34f9c8d13f0f', 'tx_pos': 1,
+             'height': 116768,
+             'value': 16336000000},
+            {'tx_hash': 'e66ebcd04e86196b59e8ff54c071fb82d055c40cbd7314309088e6c2b5658a0a', 'tx_pos': 1974,
+             'height': 547011,
+             'value': 888},
+            {'tx_hash': '655620ced5f7f6ff0edcb930ab787f1e61a0872ce8d318a94ff884a9c7e81808', 'tx_pos': 1,
+             'height': 621585,
+             'value': 600},
+            {'tx_hash': '04eac4e98bc74b344d85bd1f008d227d8a7715224f5d1af0929810c08fd7fed2', 'tx_pos': 531,
+             'height': 651450,
+             'value': 547},
+        ])
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_get_tx(self, mock):
+        result = await self.client.get_tx("b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34")
+        self.assertEqual(result,
+                         '01000000011fa1c7b18af809134b54b64edf9d2cef7f8e120d47fed47bbe7f7eff7066b705000000008b483045022076aa64100b48302d6483de38fe0ee195ee7fc83e41e93d834c46ff5fbcdbc6c70221008088a532db50761cb8f649da046d4a4211624c4236734ed23f6f9aca91f9ae9d0141040467d2a4586b630251419b2e28910b759ebe87aaecbe6ec37cf771c2cc56a7ef4161549c8a97139c17faa4c68224008ae93ae2a370ecd542749ad39916aca465ffffffff0200ac308c000000001976a914069c1709e05ec3edd0f4fcd318277365fd93635b88ac404b4c00000000001976a9141267611df621e7fe11cb47f41479eb43d65e274f88ac00000000'
+                         )
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_get_tx_verbose(self, mock):
+        result = await self.client.get_tx("b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34", verbose=True)
+        self.assertIsInstance(result, dict)
+        self.assertListEqual(sorted(result.keys()), ['blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime',
+                                                   'size',  'time', 'txid', 'version', 'vin', 'vout', 'vsize', 'weight'])
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_get_merkle(self, mock):
+        result = await self.client.get_merkle("b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34", 114744)
+        self.assertEqual(result,
+                         {'block_height': 114743,
+                          'merkle': ['50a0934af7ee31d0c309f5d3043d9f8c1ac8c723339e4fcb6612b5a5bcd18851',
+                                     '466ee1ad942e3feb9be16d8b84c9cea025aa886a3934c1b546ea0092233546c5',
+                                     'fb949dece649149419e01b11324802ea6146bf873a2ddee44fe936a3dcf6cbb9',
+                                     '9bb2520b1117897e3540d421c5a8001f34b11a9abddc8cc0173419349ff53a9d'],
+                          'pos': 4})
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_get_donation_address(self, mock):
+        result = await self.client.get_donation_address()
+        self.assertEqual(result, "")
+
+    @patch('random.choice', return_value=known_electrum_host)
+    async def test_subscribe_to_address(self, mock):
+        queue = asyncio.Queue()
+        await self.client.subscribe_to_address(partial(on_scripthash_notification, queue), satoshi_scripthash)
+        result = await queue.get()
+        print("test received result", result)
+        self.assertEqual(result[0], satoshi_scripthash)
+        print(result[1])
+        self.assertIsInstance(result[1], str)
+        self.assertEqual(
+            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 1)
+        await self.client.unsubscribe_from_address(satoshi_address)
+        self.assertEqual(
+            len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 0)
+
+    async def test_cancel_all_subscriptions(self):
+        queue = asyncio.Queue()
+        await self.client.subscribe_to_block_headers(queue.put)
+        await queue.get()
+        self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
+        await self.client.cancel_subscriptions()
+        self.assertEqual(self.client.session.subscriptions['blockchain.headers.subscribe[]'], [])
 
     async def test_close(self):
-        pass
+        queue = asyncio.Queue()
+        await self.client.subscribe_to_block_headers(queue.put)
+        await queue.get()
+        self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
+        await self.client.close()
+        self.assertIsNone(self.client.session)
 
 
 class TestElectrumSSLClient(unittest.IsolatedAsyncioTestCase):
@@ -406,65 +541,3 @@ class TestElectrumClientNotifications(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result3['hex'], expected_hex3)
         self.assertRaises(asyncio.QueueEmpty, queue.get_nowait)
         self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
-
-
-class TestElectrumXSyncClient(unittest.IsolatedAsyncioTestCase):
-
-    def setUp(self) -> None:
-        self.client = ElectrumXSyncClient(use_ssl=False, client_name=client_name)
-
-    def tearDown(self) -> None:
-        self.client.close()
-
-    def test_send_request(self):
-        result = self.client.send_request('blockchain.block.header', 1)
-        self.assertEqual(result,
-                         "010000006fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000982051fd1e4ba744bbbe680e1fee14677ba1a3c3540bf7b1cdb606e857233e0e61bc6649ffff001d01e36299")
-
-
-class TestElectrumXSyncClientSubscriptions(unittest.IsolatedAsyncioTestCase):
-
-    def setUp(self) -> None:
-        self.client = ElectrumXSyncClient(use_ssl=False, client_name=client_name, server_file="testing.json")
-        self.stop_server_fut = Future()
-        run_server_in_thread(self.stop_server_fut)
-
-    def tearDown(self) -> None:
-        self.client.close()
-        self.stop_server_fut.set_result(None)
-        reset_cycles()
-
-    def test_subscribe_sync_callback(self):
-        queue = Queue()
-        expected_hex = "0000ff3f7586812b8a8677342ceef85916c2667b63468a8d19d0604c2e000000000000005292d8eba79db851be100996f48147df69386b43bf7fcb5e3361cf46f9ea8ed8a3214463ffff001d51c56337"
-        expected_hex2 = "00004a2920c2d8311e12d3e35b8da48ad29b1254e0a0d2be1623d717f69000000000000001aaf14e207eea7f36cdc1cf92a8d43a5db2ac1ce22925e104ccedca3b5d2d26892544630194331933c10227"
-        self.client.subscribe(queue.put, 'blockchain.headers.subscribe')
-        result1 = queue.get(timeout=20)
-        self.assertEqual(result1['height'], 2350325)
-        self.assertEqual(result1['hex'], expected_hex)
-        result2 = queue.get(timeout=20)
-        self.assertEqual(result2['height'], 2350326)
-        self.assertEqual(result2['hex'], expected_hex2)
-        self.assertEqual(len(self.client._client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
-        self.client.unsubscribe('blockchain.headers.subscribe')
-        self.assertEqual(self.client._client.session.subscriptions['blockchain.headers.subscribe[]'], [])
-
-    def test_subscribe_sync_callback_with_params(self):
-        queue = Queue()
-        scripthash = "d6d88921b140325198c759d8509563add48c32c65433811a181f7385a6585add"
-        expected_status = "e1969d52d5c94cdc9f3839ef720eec70282ce4c76d3634d2bdf138e24b223dc8"
-        expected_status2 = "e1969d52d5c94cdc9f3839ef720eec70282ce4c76d3634d2bdf138e24b223d44"
-        self.client.subscribe(partial(on_scripthash_notification_sync, queue),
-                              'blockchain.scripthash.subscribe', scripthash)
-        result1 = queue.get(timeout=60)
-        self.assertEqual(result1[0], scripthash)
-        self.assertEqual(result1[1], expected_status)
-        result2 = queue.get(timeout=60)
-        self.assertEqual(result2[0], scripthash)
-        self.assertEqual(result2[1], expected_status2)
-        self.assertEqual(
-            len(self.client._client.session.subscriptions[f"blockchain.scripthash.subscribe['{scripthash}']"]), 1)
-        self.client.unsubscribe('blockchain.scripthash.subscribe')
-        self.assertEqual(
-            len(self.client._client.session.subscriptions[f"blockchain.scripthash.subscribe['{scripthash}']"]), 0)
-

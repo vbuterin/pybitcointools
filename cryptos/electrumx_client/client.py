@@ -2,6 +2,7 @@ import asyncio
 import os.path
 
 from pathlib import Path
+from packaging.version import parse as parse_version
 
 import certifi
 import ssl
@@ -14,7 +15,7 @@ from aiorpcx.rawsocket import RSClient
 from collections import defaultdict
 import json
 import random
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Tuple
 from .types import (ElectrumXBlockResponse, ElectrumXBlockHeadersResponse, BlockHeaderNotificationCallback,
     ElectrumXBalanceResponse, ElectrumXHistoryResponse, ElectrumXMempoolResponse, ElectrumXUnspentResponse,
     AddressNotificationCallback, ElectrumXGetTxResponse, ElectrumXMerkleResponse, ElectrumXTSCMerkleResponse,
@@ -228,6 +229,14 @@ class ElectrumXClient:
         self.server_version: Optional[List[str]] = None
         self.client_name = client_name
         self._ping_interval = ping_interval
+
+    def compare_versions(self, min_version: str) -> bool:
+        if self.server_version:
+            version = self.server_version[1]
+            server = parse_version(version)
+            minimum = parse_version(min_version)
+            return server >= minimum
+        return False
 
     def _get_eligible_servers(self) -> Dict[str, Any]:
         return {k: v for k, v in self._servers.items() if k not in self._failed_servers and self._port_key in v.keys()}
@@ -452,11 +461,11 @@ class ElectrumXClient:
         finally:
             if session:
                 session.unsubscribe(queue)
-                if "scripthash" in method and not self._is_closing:
+                if "scripthash" in method and not self._is_closing and self.compare_versions("1.4.2"):
                     await self.send_request("blockchain.scripthash.unsubscribe", *args)
 
-    async def unsubscribe(self, method: str):
-        tasks = self._active_subscriptions[method]
+    async def unsubscribe(self, method: str, arg: str = ""):
+        tasks = self._active_subscriptions[f'{method}[{arg}']
         if tasks:
             for task in tasks:
                 task.cancel()
@@ -465,8 +474,10 @@ class ElectrumXClient:
     def _create_subscribe_task(self, method: str, callback: Callable, *args) -> None:
         print('Creating subscribe task', method)
         task = asyncio.create_task(self._subscribe(method, callback, *args))
-        if not self._active_subscriptions.get(method):
-            self._active_subscriptions[method] = []
+        arg0 = args[0] if args else ""
+        name = f'method[{arg0}]'
+        if not self._active_subscriptions.get(name):
+            self._active_subscriptions[name] = []
         self._active_subscriptions[method].append(task)
         task.add_done_callback(self._on_subscription_task_complete)
 
@@ -477,13 +488,16 @@ class ElectrumXClient:
         self._create_subscribe_task(method, callback, *args)
 
     async def block_header(self, height: int, cp_height: int = 0) -> ElectrumXBlockResponse:
-        return await self.send_request("blockchain.block.header", (height, cp_height))
+        return await self.send_request("blockchain.block.header", height, cp_height)
 
     async def block_headers(self, start_height: int, count: int, cp_height: int = 0) -> ElectrumXBlockHeadersResponse:
-        return await self.send_request("blockchain.block.header", (start_height, count, cp_height))
+        return await self.send_request("blockchain.block.headers", start_height, count, cp_height)
 
     async def estimate_fee(self, numblocks: int = 6) -> float:
-        return await self.send_request("blockchain.estimatefee", (numblocks,))
+        return await self.send_request("blockchain.estimatefee", numblocks)
+
+    async def relay_fee(self) -> float:
+        return await self.send_request("blockchain.relayfee")
 
     async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
         await self.subscribe(callback, "blockchain.headers.subscribe")
@@ -491,14 +505,11 @@ class ElectrumXClient:
     async def unsubscribe_from_block_headers(self) -> None:
         await self.unsubscribe("blockchain.headers.subscribe")
 
-    async def relay_fee(self,) -> float:
-        return await self.send_request("blockchain.relayfee")
-
     async def get_balance(self, scripthash: str) -> ElectrumXBalanceResponse:
         return await self.send_request("blockchain.scripthash.get_balance", scripthash)
 
     async def get_history(self, scripthash: str) -> ElectrumXHistoryResponse:
-        return await self.send_request("blockchain.scripthash.get_balance", scripthash)
+        return await self.send_request("blockchain.scripthash.get_history", scripthash)
 
     async def get_mempool(self, scripthash: str) -> ElectrumXMempoolResponse:
         return await self.send_request("blockchain.scripthash.get_mempool", scripthash)
@@ -509,8 +520,8 @@ class ElectrumXClient:
     async def subscribe_to_address(self, callback: AddressNotificationCallback, scripthash: str) -> None:
         await self.subscribe(callback, "blockchain.scripthash.subscribe", scripthash)
 
-    async def unsubscribe_from_addresses(self) -> None:
-        await self.unsubscribe("blockchain.scripthash.unsubscribe")
+    async def unsubscribe_from_address(self, scripthash: str) -> None:
+        await self.unsubscribe("blockchain.scripthash.subscribe", scripthash)
 
     async def broadcast_tx(self, raw_tx: str) -> str:
         return await self.send_request("blockchain.transaction.broadcast", raw_tx)
@@ -520,10 +531,6 @@ class ElectrumXClient:
 
     async def get_merkle(self, tx_hash: str, height: int) -> ElectrumXMerkleResponse:
         return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
-
-    async def get_tsc_merkle(self, tx_hash: str, height: int, txid_or_tx: TxidOrTx = 'txid',
-                             target_type: TargetType = "merkle_root") -> ElectrumXTSCMerkleResponse:
-        return await self.send_request("blockchain.transaction.get_tsc_merkle", tx_hash, height, txid_or_tx,target_type)
 
     async def get_donation_address(self) -> str:
         return await self.send_request("server.donation_address")

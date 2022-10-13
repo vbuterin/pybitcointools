@@ -1,13 +1,13 @@
 import asyncio
 from ..transaction import *
-from ..blocks import mk_merkle_proof
+from ..blocks import mk_merkle_proof, deserialize_header
 from .. import segwit_addr
 from ..electrumx_client import ElectrumXClient
 from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
-from typing import Dict, Any, Tuple, Optional, Union, Iterable
+from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type
 from ..types import Tx, Witness, TxInput, TxOut
 from ..electrumx_client.types import ElectrumXBlockCPResponse, BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXTSCMerkleResponse
 
@@ -103,6 +103,9 @@ class BaseCoin:
             self._client = self.explorer(**self.explorer_kwargs)
         return self._client
 
+    async def close(self) -> None:
+        await self._client.close()
+
     async def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
         """
         Get estimated fee kb to get transaction confirmed within numblocks number of blocks
@@ -136,37 +139,37 @@ class BaseCoin:
         satoshi_fee_per_byte = btc_fee_per_byte * SATOSHI_PER_BTC
         return int(num_bytes * satoshi_fee_per_byte)
 
-    async def block_header(self, height: int) -> ElectrumXBlockCPResponse:
+    async def block_header(self, height: int) -> Dict[str, Any]:
         """
         Return block header data for the given heights
         """
-        return await self.client.block_header(height)
+        header = await self.client.block_header(height)
+        return deserialize_header(header.encode())
 
     async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
         """
         Run callback when a new block is added to the blockchain
         Callback should be in the format:
 
-        def on_block_headers(header, initial_response):
+        def on_block_headers(header, deserialized):
             pass
 
         """
         return await self.client.subscribe_to_block_headers(callback)
 
-    async def subscribe_to_address(self, addr: str, callback: AddressNotificationCallback):
+    async def unsubscribe_from_block_headers(self) -> None:
         """
-        Subscribe to an address for changesr changes.
-        Run a callback when an action related to the address occurs, such as a new transaction
+        Unsubscribe from running callbacks when a new block is added
+        """
+        return await self.client.unsubscribe_from_block_headers()
 
-        Callback should be in the format:
-
-        def on_address_notify(address, status):
-           pass
-
+    async def unsubscribe_from_address(self, addr: str):
+        """
+        Unsubscribe from running callbacks when an address changes
         """
         if self.client.requires_scripthash:
             addr = self.addrtoscripthash(addr)
-        return await self.client.subscribe_to_address(addr, callback)
+        return await self.client.unsubscribe_from_address(addr)
 
     async def get_balance(self, addr: str) -> ElectrumXBalanceResponse:
         """
@@ -606,7 +609,7 @@ class BaseCoin:
         return self.preparesignedmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr,
                                          fee_for_blocks=fee_for_blocks)
 
-    def sendmultitx(self, privkey, addr: str, outs: List[TxOut], change_addr: str = None, fee: int = 50000,
+    async def sendmultitx(self, privkey, addr: str, outs: List[TxOut], change_addr: str = None, fee: int = 50000,
                     fee_for_blocks: int =0):
         """
         Send transaction with multiple outputs, with change sent back to from addrss
@@ -619,7 +622,7 @@ class BaseCoin:
         tx = self.preparesignedmultitx(privkey, addr, outs, fee=fee, change_addr=change_addr, fee_for_blocks=fee_for_blocks)
         return await self.pushtx(tx)
 
-    def send(self, privkey, frm: str, to: str, value: int, fee: int =50000, change_addr: str =None,
+    async def send(self, privkey, frm: str, to: str, value: int, fee: int =50000, change_addr: str =None,
              fee_for_blocks: int =0):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
@@ -685,18 +688,18 @@ class BaseCoin:
         ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
-    def watch_p2wpkh_wallet(self, xpub, **kwargs)-> HDWallet:
+    def watch_p2wpkh_wallet(self, xpub, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2wpkh')
         return HDWallet(ks, **kwargs)
 
-    def electrum_wallet(self, seed, passphrase=None, **kwargs)-> HDWallet:
+    def electrum_wallet(self, seed, passphrase=None, **kwargs) -> HDWallet:
         ks = from_electrum_seed(seed, passphrase, False, coin=self)
         return HDWallet(ks, **kwargs)
 
-    def watch_electrum_wallet(self, xpub, **kwargs)-> HDWallet:
+    def watch_electrum_wallet(self, xpub, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2pkh', electrum=True)
         return HDWallet(ks, **kwargs)
 
-    def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs)-> HDWallet:
+    def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
         return HDWallet(ks, **kwargs)
