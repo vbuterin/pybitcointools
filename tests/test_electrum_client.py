@@ -1,6 +1,5 @@
 import unittest
 import asyncio
-from concurrent.futures import Future
 from cryptos.electrumx_client.client import ElectrumXClient, NotificationSession, CannotConnectToAnyElectrumXServer
 from functools import partial
 from unittest.mock import patch
@@ -8,7 +7,7 @@ import janus
 import ssl
 from typing import List
 from queue import Queue
-from electrum_subscribe_mock_server import run_server, run_server_in_thread, reset_cycles
+from electrum_subscribe_mock_server import run_server, reset_cycles
 
 
 client_name = "pybitcointools_test"
@@ -182,7 +181,7 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(result[1], str)
         self.assertEqual(
             len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 1)
-        await self.client.unsubscribe('blockchain.scripthash.subscribe')
+        await self.client.unsubscribe('blockchain.scripthash.subscribe', satoshi_scripthash)
         self.assertEqual(
             len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 0)
 
@@ -298,7 +297,7 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
 
     @patch('random.choice', return_value=known_electrum_host)
     async def test_get_merkle(self, mock):
-        result = await self.client.get_merkle("b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34", 114744)
+        result = await self.client.get_merkle("b489a0e8a99daad4d1a85992d9e373a87463a95109a5c56f4e4827f4e5a1af34", 114743)
         self.assertEqual(result,
                          {'block_height': 114743,
                           'merkle': ['50a0934af7ee31d0c309f5d3043d9f8c1ac8c723339e4fcb6612b5a5bcd18851',
@@ -323,7 +322,7 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(result[1], str)
         self.assertEqual(
             len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 1)
-        await self.client.unsubscribe_from_address(satoshi_address)
+        await self.client.unsubscribe_from_address(satoshi_scripthash)
         self.assertEqual(
             len(self.client.session.subscriptions[f"blockchain.scripthash.subscribe['{satoshi_scripthash}']"]), 0)
 

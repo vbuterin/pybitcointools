@@ -464,8 +464,14 @@ class ElectrumXClient:
                 if "scripthash" in method and not self._is_closing and self.compare_versions("1.4.2"):
                     await self.send_request("blockchain.scripthash.unsubscribe", *args)
 
-    async def unsubscribe(self, method: str, arg: str = ""):
-        tasks = self._active_subscriptions[f'{method}[{arg}']
+    @staticmethod
+    def _get_sub_name(method, *args):
+        arg0 = " ".join(args)
+        return f'{method}[{arg0}]'
+
+    async def unsubscribe(self, method: str, *args):
+        name = self._get_sub_name(method, *args)
+        tasks = self._active_subscriptions[name]
         if tasks:
             for task in tasks:
                 task.cancel()
@@ -474,11 +480,10 @@ class ElectrumXClient:
     def _create_subscribe_task(self, method: str, callback: Callable, *args) -> None:
         print('Creating subscribe task', method)
         task = asyncio.create_task(self._subscribe(method, callback, *args))
-        arg0 = args[0] if args else ""
-        name = f'method[{arg0}]'
+        name = self._get_sub_name(method, *args)
         if not self._active_subscriptions.get(name):
             self._active_subscriptions[name] = []
-        self._active_subscriptions[method].append(task)
+        self._active_subscriptions[name].append(task)
         task.add_done_callback(self._on_subscription_task_complete)
 
     async def subscribe(self, callback: Callable, method: str, *args) -> None:
