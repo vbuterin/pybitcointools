@@ -22,29 +22,11 @@
 # SOFTWARE.
 
 import os
+from typing import AsyncGenerator, List, Any, Optional
 
 
-def android_ext_dir():
-    import jnius
-    env = jnius.autoclass('android.os.Environment')
-    return env.getExternalStorageDirectory().getPath()
-
-def android_data_dir():
-    import jnius
-    PythonActivity = jnius.autoclass('org.kivy.android.PythonActivity')
-    return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
-
-def android_headers_dir(appname):
-    d = android_ext_dir() + '/org.%s.%s' % (appname, appname)
-    if not os.path.exists(d):
-        os.mkdir(d)
-    return d
-
-
-def user_dir(appname):
-    if 'ANDROID_DATA' in os.environ:
-        return android_data_dir()
-    elif os.name == 'posix':
+def user_dir(appname: str) -> Optional[str]:
+    if os.name == 'posix':
         return os.path.join(os.environ["HOME"], ".%s" % appname.lower())
     elif "APPDATA" in os.environ:
         return os.path.join(os.environ["APPDATA"], appname.capitalize())
@@ -53,3 +35,7 @@ def user_dir(appname):
     else:
         # raise Exception("No home directory found in environment variables.")
         return
+
+
+async def alist(generator: AsyncGenerator[Any, None]) -> List[Any]:
+    return [i async for i in generator]

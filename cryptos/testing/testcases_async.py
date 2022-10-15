@@ -3,15 +3,18 @@ import asyncio
 from operator import itemgetter
 from cryptos import *
 from cryptos import coins_async
+from cryptos.electrumx_client.types import ElectrumXScripthashNotification
+from cryptos.utils import alist
 from cryptos.types import Tx
+from typing import AsyncGenerator, Any
 
 
 class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     name = ""
     unspent_address = ""
-    unspent_address_multiple = []
-    unspent = []
-    unspent_multiple = []
+    unspent_addresses = []
+    unspent = {}
+    unspents = []
     addresses = []
     segwit_addresses = []
     new_segwit_addresses = []
@@ -30,37 +33,59 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     blockcypher_coin_symbol = None
     testnet = True
     num_merkle_siblings = 0
+    balance = {}
     balances = []
-    history = []
+    history = {}
+    histories = []
     event = asyncio.Event()
 
     @classmethod
     def setUpClass(cls):
         print('Starting %s tests' % cls.name)
 
+    def setUp(self) -> None:
+        self._coin = self.coin(testnet=self.testnet)
+
+    async def asyncTearDown(self) -> None:
+        await self._coin.close()
+
     def assertUnorderedListEqual(self, list1, list2, key):
         list1 = sorted(list1, key=itemgetter(key))
         list2 = sorted(list2, key=itemgetter(key))
         self.assertEqual(list1, list2)
 
+    async def assertBalanceOK(self):
+        result = await self._coin.get_balance(self.unspent_addresses[0])
+        self.assertEqual(self.balance, result)
+
+    async def assertGeneratorEqual(self, expected: List[Any], agen: AsyncGenerator[Any, None], order_by: str = None):
+        result = await alist(agen)
+        if order_by:
+            expected = sorted(expected, key=lambda d: d[order_by])
+            result = sorted(result, key=lambda d: d[order_by])
+        self.assertEqual(expected, result)
+
     async def assertBalancesOK(self):
-        coin = self.coin(testnet=self.testnet)
-        result = await coin.get_balance(self.unspent_addresses[0])
-        self.assertEqual(self.balances, result)
+        agen = self._coin.get_balances(*self.unspent_addresses)
+        await self.assertGeneratorEqual(self.balances, agen)
 
     async def assertHistoryOK(self):
-        coin = self.coin(testnet=self.testnet)
-        result = await coin.history(*self.unspent_address)
+        result = await self._coin.history(self.unspent_addresses[0])
         self.assertEqual(self.history, result)
 
+    async def assertHistoriesOK(self):
+        agen = self._coin.get_histories(*self.unspent_addresses)
+        await self.assertGeneratorEqual(self.histories, agen, 'tx_hash')
+
     async def assertUnspentOK(self):
-        c = self.coin(testnet=self.testnet)
-        unspent_outputs = await c.unspent(*self.unspent_address)
-        self.assertUnorderedListEqual(unspent_outputs, self.unspent, 'tx_hash')
+        result = await self._coin.unspent(self.unspent_addresses[0])
+        self.assertEqual(self.unspent, result)
+
+    async def assertUnspentsOK(self):
+        unspent_outputs = self._coin.get_unspents(*self.unspent_addresses)
+        await self.assertGeneratorEqual(self.unspents, unspent_outputs, 'tx_hash')
 
     async def assertMixedSegwitTransactionOK(self):
-
-        c = self.coin(testnet=self.testnet)
 
         # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         segwit_max_value = 0
@@ -86,7 +111,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         regular_unspents = []
 
         for i, addr in enumerate(self.addresses):
-            addr_unspents = c.unspent(addr)
+            addr_unspents = self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > regular_max_value:
                 regular_max_value = value
@@ -382,22 +407,25 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         result = c.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
+    def assertBlockHeaderOK(self):
+        blockinfo = await self._coin.block_header(self.txheight)
+        self.assertListEqual(list(blockinfo.keys()),
+                             ["block_height", "version", "prev_block_hash", "merkle_root", "timestamp", "bits", "nonce"]
+                             )
+
     def assertBlockHeadersOK(self):
-        coin = self.coin(testnet=self.testnet)
-        blockinfo = coin.block_header(self.txheight)[0]
+        blockinfos = await alist(self._coin.block_headers(self.txheight))
+        blockinfo = blockinfos[0]
         self.assertListEqual(list(blockinfo.keys()),
             ["block_height", "version", "prev_block_hash", "merkle_root", "timestamp", "bits", "nonce"]
         )
 
     def assertMerkleProofOK(self):
-        coin = self.coin(testnet=self.testnet)
-        proof = coin.merkle_prove({'tx_hash': self.merkle_txhash, 'height': self.merkle_txheight})
+        proof = self._coin.merkle_prove({'tx_hash': self.merkle_txhash, 'height': self.merkle_txheight})
         self.assertEqual(len(proof), 1)
         #self.assertEqual(self.num_merkle_siblings, len(proof[0]['siblings']))
 
     def assertSendMultiTXOK(self):
-
-        c = self.coin(testnet=self.testnet)
 
         #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
@@ -430,31 +458,30 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver1 = self.addresses[0]
             receiver2 = self.addresses[1]
 
-        result = c.sendmultitx(privkey, sender, [{'address': receiver1, 'value': send_value1},
+        result = self._coin.sendmultitx(privkey, sender, [{'address': receiver1, 'value': send_value1},
                                                  {'address': receiver2, 'value': send_value2}], fee=self.fee)
         self.assertIsInstance(result, str)
         print("TX %s broadcasted successfully" % result)
 
-    def assertSendOK(self):
+    async def assertSendOK(self):
 
-        c = self.coin(testnet=self.testnet)
-
-        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
 
         for i, addr in enumerate(self.addresses):
-            addr_unspents = c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
                 sender = addr
                 from_addr_i = i
+                break
 
         privkey = self.privkeys[from_addr_i]
 
-        #Arbitrarily set send value, change value, receiver and change address
+        # Arbitrarily set send value, change value, receiver and change address
         outputs_value = max_value - self.fee
         send_value = int(outputs_value * 0.1)
 
@@ -465,29 +492,33 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         else:
             receiver = self.addresses[0]
 
-        result = c.send(privkey, sender, receiver, send_value, fee=self.fee)
+        result = await self._coin.send(privkey, sender, receiver, send_value, fee=self.fee)
         self.assertIsInstance(result, str)
         print("TX %s broadcasted successfully" % result)
 
-    def assertSubscribeBlockHeadersOK(self):
+    async def assertSubscribeBlockHeadersOK(self):
+        queue = asyncio.Queue()
         block_keys = ['block_height', 'version', 'prev_block_hash', 'merkle_root', 'timestamp', 'bits', 'nonce']
-        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
-        result = coin.subscribe_to_block_headers()
+        await self._coin.subscribe_to_block_headers(queue.put)
+        result = await queue.get()
         data = result[0]['data']
-        block_height = data['block_height']
         self.assertListEqual(list(data.keys()), block_keys)
-        items = coin.rpc_client.wait_new_block_event()
-        data = items[0]
-        self.assertListEqual(list(data.keys()), block_keys)
-        self.assertEqual(block_height + 1, data['block_height'])
+        await self._coin.unsubscribe_from_block_headers()
 
     def assertSubscribeAddressOK(self):
-        coin = self.coin(testnet=self.testnet, client_kwargs={'use_ssl': False})
-        result = coin.subscribe_to_addresses(['mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu'])
+        queue = asyncio.Queue()
+        address = self.addresses[0]
+
+        async def add_to_queue(notification: ElectrumXScripthashNotification) -> None:
+            await queue.put(notification)
+
+        await self._coin.subscribe_to_address(add_to_queue, address)
+        result = await queue.get()
         initial_status = result[0]['data']['status']
         self.assertListEqual(list(result[0].keys()), ['data', 'error', 'method', 'params'])
-        self.assertTransactionOK(c=coin)
-        items = coin.rpc_client.wait_address_changed_event()
+        await self.assertTransactionOK()
+        items = await queue.get()
         data = items[0]
         self.assertListEqual(list(data.keys()), ['address', 'status'])
         self.assertNotEqual(initial_status, data['status'])
+        await self._coin.unsubscribe_from_address(address)

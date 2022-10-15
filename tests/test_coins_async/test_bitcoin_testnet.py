@@ -23,18 +23,22 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
                        "tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq"]
     unspent = [
         {'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'tx_pos': 0, 'height': 1238008,
+         'value': 180000000}
+    ]
+    unspents = [
+        {'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'tx_pos': 0, 'height': 1238008,
          'value': 180000000, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'},
         {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'tx_pos': 1, 'height': 1275633,
          'value': 173980000, 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
         {'tx_hash': '70bd4ce0e4cf2977ab53e767865da21483977cdb94b1a36eb68d30829c9c392f', 'tx_pos': 0, 'height': 1275633,
          'value': 6000000, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq'}]
+    balance = {'confirmed': 180000000, 'unconfirmed': 0}
     balances = [
-        {'confirmed': 180000000, 'unconfirmed': 0, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA', 'total': 180000000},
-        {'confirmed': 173980000, 'unconfirmed': 0, 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy',
-         'total': 173980000},
-        {'confirmed': 6000000, 'unconfirmed': 0, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq',
-         'total': 6000000}]
-    history = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008,
+        {'confirmed': 180000000, 'unconfirmed': 0, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'},
+        {'confirmed': 173980000, 'unconfirmed': 0, 'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
+        {'confirmed': 6000000, 'unconfirmed': 0, 'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq'}]
+    history = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008}]
+    histories = [{'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'height': 1238008,
                 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'},
                 {'tx_hash': 'e25d8f4036e44159b0364b45867e08ae47a57dda68ba800ba8abe1fb2dc54a40', 'height': 1275633,
                  'address': '2MwHtiGJJqcFgNnbCu1REVy5ooDEeAAFXMy'},
@@ -48,13 +52,22 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
 
     async def test_balance(self):
+        await self.assertBalanceOK()
+
+    async def test_balances(self):
         await self.assertBalancesOK()
 
-    def test_unspent(self):
-        self.assertUnspentOK()
+    async def test_unspent(self):
+        await self.assertUnspentOK()
 
-    def test_history(self):
-        self.assertHistoryOK()
+    async def test_unspents(self):
+        await self.assertUnspentsOK()
+
+    async def test_history(self):
+        await self.assertHistoryOK()
+
+    async def test_histories(self):
+        await self.assertHistoriesOK()
 
     def test_block_headers(self):
         self.assertBlockHeadersOK()

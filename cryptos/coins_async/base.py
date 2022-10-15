@@ -7,9 +7,9 @@ from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
-from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type
+from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
 from ..types import Tx, Witness, TxInput, TxOut
-from ..electrumx_client.types import ElectrumXBlockCPResponse, BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXTSCMerkleResponse
+from ..electrumx_client.types import ElectrumXBlockCPResponse, BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse
 
 
 class BaseCoin:
@@ -139,19 +139,32 @@ class BaseCoin:
         satoshi_fee_per_byte = btc_fee_per_byte * SATOSHI_PER_BTC
         return int(num_bytes * satoshi_fee_per_byte)
 
+    @staticmethod
+    async def tasks_with_inputs(coro: Callable, *args: Any, **kwargs) -> Generator[Tuple[str, Any], None, None]:
+        for i, result in enumerate(await asyncio.gather(*[coro(arg, **kwargs) for arg in args])):
+            arg = args[i]
+            yield arg, result
+
     async def block_header(self, height: int) -> Dict[str, Any]:
         """
-        Return block header data for the given heights
+        Return block header data for the given height
         """
         header = await self.client.block_header(height)
         return deserialize_header(header.encode())
+
+    async def block_headers(self, *args: int) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Return block header data for the given heights
+        """
+        for header in await asyncio.gather(*[self.block_header(h) for h in args]):
+            yield deserialize_header(header.encode())
 
     async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
         """
         Run callback when a new block is added to the blockchain
         Callback should be in the format:
 
-        def on_block_headers(header, deserialized):
+        def on_block_headers(header):
             pass
 
         """
@@ -162,6 +175,19 @@ class BaseCoin:
         Unsubscribe from running callbacks when a new block is added
         """
         return await self.client.unsubscribe_from_block_headers()
+
+    async def subscribe_to_address(self, callback: AddressNotificationCallback, addr: str) -> None:
+        """
+        Run callback when an address changes (e.g. a new transaction)
+        Callback should be in the format:
+
+        def on_address_event(scripthash, status):
+            pass
+        """
+
+        if self.client.requires_scripthash:
+            addr = self.addrtoscripthash(addr)
+        return await self.client.subscribe_to_address(callback, addr)
 
     async def unsubscribe_from_address(self, addr: str):
         """
@@ -179,11 +205,13 @@ class BaseCoin:
             addr = self.addrtoscripthash(addr)
         return await self.client.get_balance(addr)
 
+    async def get_balances(self, *args: str) -> AsyncGenerator[ElectrumXMultiBalanceResponse, None]:
+        async for addr, result in self.tasks_with_inputs(self.get_balance, *args):
+            result['address'] = addr
+            yield result
+
     async def get_merkle(self, tx: ElectrumXTx) -> ElectrumXMerkleResponse:
         return await self.client.get_merkle(tx['tx_hash'], tx['height'])
-
-    async def get_tsc_merkle(self, tx: ElectrumXTx) -> ElectrumXTSCMerkleResponse:
-        return await self.client.get_tsc_merkle(tx['tx_hash'], tx['height'])
 
     async def merkle_prove(self, tx: ElectrumXTx) -> Optional[Dict[str, Any]]:
         """
@@ -193,8 +221,7 @@ class BaseCoin:
 
         """Not all these tasks are needed"""
 
-        merkle, block_header, tsc_merkle = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']),
-                                                                self.get_tsc_merkle(tx))
+        merkle, block_header, tsc_merkle = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']))
         proof = mk_merkle_proof(block_header['merkle_root'], merkle['merkle'], merkle['pos'])
         return proof
 
@@ -221,6 +248,12 @@ class BaseCoin:
             return list(self._filter_by_proof(*unspents))
         return unspents
 
+    async def get_unspents(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
+        async for addr, result in self.tasks_with_inputs(self.unspent, *args, merkle_proof=merkle_proof):
+            for tx in result:
+                tx['address'] = addr
+                yield tx
+
     async def history(self, addr: str, merkle_proof: bool = False) -> List[ElectrumXTx]:
         """
         Get transaction history for address
@@ -231,6 +264,12 @@ class BaseCoin:
         if merkle_proof:
             return list(self._filter_by_proof(*txs))
         return txs
+
+    async def get_histories(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
+        async for addr, result in self.tasks_with_inputs(self.history, *args, merkle_proof=merkle_proof):
+            for tx in result:
+                tx['address'] = addr
+                yield tx
 
     async def get_raw_tx(self, tx_hash: str) -> str:
         """

@@ -35,6 +35,12 @@ class ElectrumXBalanceResponse(TypedDict):
     unconfirmed: int
 
 
+class ElectrumXMultiBalanceResponse(TypedDict):
+    confirmed: int
+    unconfirmed: int
+    address: str
+
+
 class ElectrumXTx(TypedDict):
     height: int
     tx_hash: str
@@ -52,12 +58,24 @@ ElectrumXMempoolResponse = List[ElectrumXTx]
 ElectrumXUnspentResponse = List[ElectrumXTx]
 
 
+class ElectrumXTxAddress(TypedDict):
+    height: int
+    tx_hash: str
+    fee: NotRequired[int]
+    tx_pos: NotRequired[int]
+    value: NotRequired[int]
+    address: str
+
+
+ElectrumXMultiTxResponse = List[ElectrumXTxAddress]
+
+
 class ElectrumXScripthashNotification(TypedDict):
     scripthash: str
     status: str
 
 
-AddressNotificationCallback = Callable[[ElectrumXScripthashNotification], None]
+AddressNotificationCallback = Union[Callable[[ElectrumXScripthashNotification], None], Callable[ElectrumXScripthashNotification], Awaitable[None]]
 
 
 ElectrumXGetTxResponse = Union[str, Dict[str, JsonType]]
