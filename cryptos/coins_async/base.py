@@ -1,7 +1,7 @@
 import asyncio
 from ..transaction import *
 from binascii import unhexlify
-from ..blocks import mk_merkle_proof, deserialize_header
+from ..blocks import verify_merkle_proof, deserialize_header
 from .. import segwit_addr
 from ..electrumx_client import ElectrumXClient
 from ..keystore import *
@@ -9,8 +9,10 @@ from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
-from ..types import Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof
-from ..electrumx_client.types import BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse
+from ..types import Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance
+from ..electrumx_client.types import (BlockHeaderNotificationCallback, AddressNotificationCallback,
+                                      ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTxOut,
+                                      ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse)
 
 
 class BaseCoin:
@@ -43,6 +45,8 @@ class BaseCoin:
         'p2w_p2sh': 46 + (213 / 4),
         'p2wpkh': (214 / 4),
     }
+    p2wpkh_prefix = 'a914'
+    p2wpkh_suffix = '87'
     wif_prefix: int = 0x80
     wif_script_types: Dict[str, int] = {
         'p2pkh': 0,
@@ -105,7 +109,8 @@ class BaseCoin:
         return self._client
 
     async def close(self) -> None:
-        await self._client.close()
+        if self._client:
+            await self._client.close()
 
     async def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
         """
@@ -119,11 +124,11 @@ class BaseCoin:
         """
         tx = serialize(txobj)
         size = len(tx) / 2
-        addresses = txobj.get('addresses', [])
-        for i, input in enumerate(txobj['ins']):
-            if addresses and self.is_new_segwit(addresses[i]):
+        for inp in txobj['ins']:
+            address = inp.get('address')
+            if address and self.is_new_segwit(address):
                 size += self.signature_sizes['p2wpkh']
-            elif input.get('segwit', False):
+            elif address and self.is_legacy_segwit(address):
                 size += self.signature_sizes['p2w_p2sh']
             else:
                 size += self.signature_sizes['p2pkh']
@@ -214,49 +219,60 @@ class BaseCoin:
             result['address'] = addr
             yield result
 
-    async def get_merkle(self, tx: ElectrumXTx) -> ElectrumXMerkleResponse:
+    async def get_merkle(self, tx: ElectrumXTxOut) -> ElectrumXMerkleResponse:
         return await self.client.get_merkle(tx['tx_hash'], tx['height'])
 
-    async def merkle_prove(self, tx: ElectrumXTx) -> MerkleProof:
+    async def merkle_prove(self, tx: ElectrumXTxOut) -> MerkleProof:
         """
         Prove that information returned from server about a transaction in the blockchain is valid. Only run on a
         tx with at least 1 confirmation.
         """
 
         merkle, block_header = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']))
-        proof = mk_merkle_proof(block_header['merkle_root'], merkle['merkle'], merkle['pos'])
+        proof = verify_merkle_proof(tx['tx_hash'], block_header['merkle_root'], merkle['merkle'], merkle['pos'])
         return proof
 
     async def merkle_prove_by_txid(self, tx_hash: str) -> MerkleProof:
         tx = await self.get_tx(tx_hash)
         return await self.merkle_prove(tx)
 
-    def _filter_by_proof(self, *txs: ElectrumXTx) -> Iterable[ElectrumXTx]:
+    async def _filter_by_proof(self, *txs: ElectrumXTxOut) -> Iterable[ElectrumXTxOut]:
         """
         Return only transactions with verified merkle proof
         """
-        results = asyncio.gather(*[self.merkle_prove(tx) for tx in txs])
-        proven = [r['tx_hash'] for r in results if r['proof']]
+        results = await asyncio.gather(*[self.merkle_prove(tx) for tx in txs])
+        proven = [r['tx_hash'] for r in results if r['proven']]
         return filter(lambda tx: tx['tx_hash'] in proven, txs)
 
     async def unspent(self, addr: str, merkle_proof: bool = False) -> ElectrumXUnspentResponse:
         """
         Get unspent transactions for address
         """
+        value = addr
         if self.client.requires_scripthash:
-            addr = self.addrtoscripthash(addr)
-        unspents = await self.client.unspent(addr)
+            value = self.addrtoscripthash(value)
+        unspents = await self.client.unspent(value)
+        for u in unspents:
+            u['address'] = addr
         if merkle_proof:
-            return list(self._filter_by_proof(*unspents))
+            return list(await self._filter_by_proof(*unspents))
         return unspents
 
-    async def get_unspents(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
+    async def balance_merkle_proven(self, addr: str) -> int:
+        return sum(u['value'] for u in await self.unspent(addr, merkle_proof=True))
+
+    async def get_unspents(self, *args: str, merkle_proof: bool = False
+                           ) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
         async for addr, result in self.tasks_with_inputs(self.unspent, *args, merkle_proof=merkle_proof):
             for tx in result:
                 tx['address'] = addr
                 yield tx
 
-    async def history(self, addr: str, merkle_proof: bool = False) -> List[ElectrumXTx]:
+    async def balances_merkle_proven(self, *args: str) -> AsyncGenerator[AddressBalance, None]:
+        async for addr, result in self.tasks_with_inputs(self.unspent, *args, merkle_proof=True):
+            yield {'address': addr, 'balance': sum(tx['value'] for tx in result)}
+
+    async def history(self, addr: str, merkle_proof: bool = False) -> List[ElectrumXTxOut]:
         """
         Get transaction history for address
         """
@@ -264,7 +280,7 @@ class BaseCoin:
             addr = self.addrtoscripthash(addr)
         txs = await self.client.get_history(addr)
         if merkle_proof:
-            return list(self._filter_by_proof(*txs))
+            return list(await self._filter_by_proof(*txs))
         return txs
 
     async def get_histories(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
@@ -295,7 +311,7 @@ class BaseCoin:
         """
         Push/ Broadcast a transaction to the blockchain
         """
-        if isinstance(tx, Tx):
+        if not isinstance(tx, str):
             tx = serialize(tx)
         return await self.client.broadcast_tx(tx)
 
@@ -345,16 +361,15 @@ class BaseCoin:
         """
         return self.is_p2sh(addr) or self.is_p2sh(addr) or self.is_new_segwit(addr)
 
-    def is_segwit(self, priv, addr: str) -> bool:
+    def is_legacy_segwit(self, addr: str) -> bool:
+        script = self.addrtoscript(addr)
+        return script.startswith(self.p2wpkh_prefix) and script.endswith(self.p2wpkh_suffix)
+
+    def is_segwit(self, addr: str) -> bool:
         """
         Check if addr was generated from priv using segwit script
         """
-        if not self.segwit_supported:
-            return False
-        if self.is_new_segwit(addr):
-            return True
-        segwit_addr = self.privtop2w(priv)
-        return segwit_addr == addr
+        return self.segwit_supported and (self.is_new_segwit(addr) or self.is_legacy_segwit(addr))
 
     def output_script_to_address(self, script: str) -> str:
         """
@@ -402,16 +417,16 @@ class BaseCoin:
         script = self.addrtoscript(addr)
         return script_to_scripthash(script)
 
-    def pubtop2w(self, pub) -> str:
+    def pubtop2w(self, pub: str) -> str:
         """
         Convert a public key to a pay to witness public key hash address (P2WPKH, required for segwit)
         """
         if not self.segwit_supported:
             raise Exception("Segwit not supported for this coin")
         compressed_pub = compress(pub)
-        return self.scripttoaddr(mk_p2wpkh_script(compressed_pub))
+        return self.scripttoaddr(mk_p2wpkh_script(compressed_pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
 
-    def privtop2w(self, priv) -> str:
+    def privtop2w(self, priv: str) -> str:
         """
         Convert a private key to a pay to witness public key hash address
         """
@@ -450,7 +465,7 @@ class BaseCoin:
         address = self.p2sh_scriptaddr(script)
         return script, address
 
-    def sign(self, txobj: Union[Tx, AnyStr], i: int, priv) -> Tx:
+    def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: bytes) -> Tx:
         """
         Sign a transaction input with index using a private key
         """
@@ -461,17 +476,16 @@ class BaseCoin:
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
+        inp = txobj['ins'][i]
         try:
-            if address := txobj['addresses'][i]:
-                new_segwit = self.is_new_segwit(address)
-                segwit = new_segwit or self.is_segwit(priv, address)
+            if address := inp['address']:
+                segwit = new_segwit = self.is_new_segwit(address)
+                segwit = segwit or self.is_legacy_segwit(address)
             else:
                 new_segwit = segwit = False
-        except KeyError:
+        except (IndexError, KeyError):
             new_segwit = segwit = False
         if segwit:
-            if not self.segwit_supported:
-                raise Exception("Segregated witness is not supported for %s" % self.display_name)
             if 'witness' not in txobj.keys():
                 txobj.update({"marker": 0, "flag": 1, "witness": []})
                 for _ in range(0, i):
@@ -485,7 +499,7 @@ class BaseCoin:
                 txobj["ins"][i]["script"] = ''
             else:
                 txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
-                witness: Witness = {"number": 2, "scriptCode": serialize_script([sig, pub])}
+            witness: Witness = {"number": 2, "scriptCode": serialize_script([sig, pub])}
             txobj["witness"].append(witness)
         else:
             address = self.pubtoaddr(pub)
@@ -498,7 +512,7 @@ class BaseCoin:
                 txobj["witness"].append(witness)
         return txobj
 
-    def signall(self, txobj: Union[str, Tx], priv) -> Tx:
+    def signall(self, txobj: Union[str, Tx], priv: Union[Dict[str, bytes], bytes]) -> Tx:
         """
         Sign all inputs to a transaction using a private key.
         Priv is either a private key or a dictionary of address keys and private key values
@@ -507,13 +521,13 @@ class BaseCoin:
             txobj = deserialize(txobj)
         if isinstance(priv, dict):
             for i, inp in enumerate(txobj["ins"]):
-                addr = txobj['addresses']
+                addr = inp['address']
                 k = priv[addr]
                 txobj = self.sign(txobj, i, k)
         else:
             for i in range(len(txobj["ins"])):
                 txobj = self.sign(txobj, i, priv)
-        return serialize(txobj)
+        return txobj
 
     def multisign(self, tx: Union[str, Tx], i: int, script: str, pk) -> Tx:
         return multisign(tx, i, script, pk, self.hashcode)
@@ -530,29 +544,18 @@ class BaseCoin:
         """
 
         txobj = {"locktime": locktime, "version": 1}
-        addresses = []
-        segwit = False
         for i, inp in enumerate(ins):
             if isinstance(inp, string_or_bytes_types):
                 real_inp: TxInput = {"tx_hash": inp[:64], "tx_pos": int(inp[65:]), 'amount': 0}
                 ins[i] = real_inp
                 inp = real_inp
-            if address := inp.pop('address', ''):
-                addresses.append(address)
-            if self.segwit_supported:
-                if (address and self.is_new_segwit(address)) or inp.pop('segwit', False):
-                    segwit = True
-                elif address and self.is_p2pkh(address):
-                    segwit = False
+            if address := inp.get('address', ''):
+                if self.segwit_supported and self.is_segwit(address):
+                    txobj.update({"marker": 0, "flag": 1, "witness": []})
             inp.update({
                 'script': '',
                 'sequence': int(inp.get('sequence', sequence))
             })
-
-        if segwit:
-            if not self.segwit_supported:
-                raise Exception("Segregated witness is not allowed for %s" % self.display_name)
-            txobj.update({"marker": 0, "flag": 1, "witness": []})
 
         for i, out in enumerate(outs):
             if isinstance(out, string_or_bytes_types):
@@ -566,17 +569,16 @@ class BaseCoin:
                     out["address"] = addr
                 out["value"] = val
                 outs[i] = out
-            address = out.pop('address', None)
-            if address:
+            if address := out.pop('address', None):
                 out["script"] = self.addrtoscript(address)
             elif "script" not in out.keys():
                 raise Exception("Could not find 'address' or 'script' in output.")
-        txobj.update({'ins': ins, 'outs': outs, 'addresses': addresses})
+        txobj.update({'ins': ins, 'outs': outs})
         return txobj
 
-    def mktx_with_change(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]],
-                         change: str  =None, fee: int = 50000, fee_for_blocks: int = 0, locktime: int = 0,
-                         sequence: int =0xFFFFFFFF) -> Tx:
+    async def mktx_with_change(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]],
+                               change: str = None, fee: int = None, estimate_fee_blocks: int = 6, locktime: int = 0,
+                               sequence: int = 0xFFFFFFFF) -> Tx:
         """[in0, in1...],[out0, out1...]
 
         Make an unsigned transaction from inputs, outputs change address and fee. A change output will be added with
@@ -585,24 +587,21 @@ class BaseCoin:
         change = change or ins[0]['address']
         isum = sum(inp['value'] for inp in ins)
         osum = sum(out['value'] for out in outs)
-        if isum < osum + fee:
-            raise Exception("Not enough money")
-        elif isum > osum + fee + 5430:
-            outs += [{"address": change, "value": isum - osum - fee}]
-        orig_outs = [out.copy() for out in outs]
-        orig_ins = [inp.copy() for inp in ins]
+        change_out = {"address": change, "value": isum - osum}
+        outs += [change_out]
         txobj = self.mktx(ins, outs, locktime=locktime, sequence=sequence)
 
-        if fee_for_blocks:
-            fee = self.estimate_fee(txobj, numblocks=fee_for_blocks)
-            for out in orig_outs:
-                if out['address'] == change:
-                    out['value'] = isum - osum - fee
+        if fee is None:
+            fee = await self.estimate_fee(txobj, numblocks=estimate_fee_blocks)
+        if isum < osum + fee + 5430:
+            raise Exception("Not enough money")
 
-        return self.mktx(orig_ins, orig_outs, locktime=locktime, sequence=sequence)
+        change_out['value'] = isum - osum - fee
 
-    def preparemultitx(self, frm: str, outs: List[TxOut], fee: int = 50000, change_addr: str = None,
-                       fee_for_blocks: int = 0, segwit: bool = False) -> Tx:
+        return txobj
+
+    async def preparemultitx(self, frm: str, outs: List[TxOut], change_addr: str = None,
+                             fee: int = None, estimate_fee_blocks: int = 6, segwit: bool = False) -> Tx:
         """
         Prepare transaction with multiple outputs, with change sent to from address
         """
@@ -613,75 +612,79 @@ class BaseCoin:
             for unspent in unspents2:
                 unspent['segwit'] = segwit
         change_addr = change_addr or frm
-        return self.mktx_with_change(unspents2, outs, fee=fee, change=change_addr, fee_for_blocks=fee_for_blocks)
+        return await self.mktx_with_change(unspents2, outs, fee=fee, change=change_addr,
+                                           estimate_fee_blocks=estimate_fee_blocks)
 
-    def preparetx(self, frm: str, to: str, value: int, fee=50000, fee_for_blocks: int = 0,
-                  change_addr: str = None, segwit: bool = False) -> Tx:
+    async def preparetx(self, frm: str, to: str, value: int, fee: int = None, estimate_fee_blocks: int = 6,
+                        change_addr: str = None, segwit: bool = False) -> Tx:
         """
         Prepare a transaction using from and to address_derivations, value and a fee, with change sent back to from address
         """
         outs: List[TxOut] = [{'address': to, 'value': value}]
-        return self.preparemultitx(frm, outs, fee=fee, fee_for_blocks=fee_for_blocks,
-                                   change_addr=change_addr, segwit=segwit)
+        return await  self.preparemultitx(frm, outs, fee=fee, estimate_fee_blocks=estimate_fee_blocks,
+                                          change_addr=change_addr, segwit=segwit)
 
-    def preparesignedmultitx(self, privkey, frm: str, outs: List[TxOut], fee: int = 50000, change_addr: str = None,
-                             fee_for_blocks: int = 0) -> Tx:
+    async def preparesignedmultitx(self, privkey, frm: str, outs: List[TxOut], change_addr: str = None,
+                                   fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
         """
         Prepare transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
         segwit paramater specifies that the inputs belong to a segwit address
         addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins_async
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
         segwit = self.is_segwit(privkey, frm)
-        tx = self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit, fee_for_blocks=fee_for_blocks)
+        tx = await self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr, segwit=segwit,
+                                       estimate_fee_blocks=estimate_fee_blocks)
         tx2 = self.signall(tx, privkey)
         return tx2
 
-    def preparesignedtx(self, privkey, frm: str, to: str, value: int, fee: int = 50000, change_addr: str = None,
-                        fee_for_blocks: int =0) -> Tx:
+    async def preparesignedtx(self, privkey, frm: str, to: str, value: int, change_addr: str = None,
+                              fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
         """
-        Prepare a tx with a specific amount from address belonging to private key to another address, returning change to the
-        from address or change address, if set.
+        Prepare a tx with a specific amount from address belonging to private key to another address, returning change
+        to the from address or change address, if set.
         Requires private key, target address, value and optionally the change address and fee
         segwit paramater specifies that the inputs belong to a segwit address
         addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins_async
-        which support segwit, overriding the segwit kw
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for
+        coins which support segwit, overriding the segwit kw
         """
         outs = [{'address': to, 'value': value}]
-        return self.preparesignedmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr,
-                                         fee_for_blocks=fee_for_blocks)
+        return await self.preparesignedmultitx(privkey, frm, outs, change_addr=change_addr,
+                                               fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
-    async def sendmultitx(self, privkey, addr: str, outs: List[TxOut], change_addr: str = None, fee: int = 50000,
-                    fee_for_blocks: int =0):
+    async def sendmultitx(self, privkey, addr: str, outs: List[TxOut], change_addr: str = None,
+                         fee : int = None, estimate_fee_blocks: int = 6):
         """
         Send transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
         segwit paramater specifies that the inputs belong to a segwit address
         addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins_async
-        which support segwit, overriding the segwit kw
+        private key.It will also be used, along with the privkey to automatically detect a segwit transaction for
+        coins which support segwit, overriding the segwit kw
         """
-        tx = self.preparesignedmultitx(privkey, addr, outs, fee=fee, change_addr=change_addr, fee_for_blocks=fee_for_blocks)
+        tx = await self.preparesignedmultitx(privkey, addr, outs, change_addr=change_addr,
+                                             fee=fee, estimate_fee_blocks=estimate_fee_blocks)
         return await self.pushtx(tx)
 
-    async def send(self, privkey, frm: str, to: str, value: int, fee: int =50000, change_addr: str =None,
-             fee_for_blocks: int =0):
+    async def send(self, privkey, frm: str, to: str, value: int, change_addr: str = None,
+                   fee : int = None, estimate_fee_blocks: int = 6):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
         from address or change address, if set.
         Requires private key, target address, value and optionally the change address and fee
         segwit paramater specifies that the inputs belong to a segwit address
         addr, if provided, will explicity set the from address, overriding the auto-detection of the address from the
-        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for coins_async
-        which support segwit, overriding the segwit kw
+        private key.It will also be used, along with the privkey, to automatically detect a segwit transaction for
+        coins which support segwit, overriding the segwit kw
         """
         outs = [{'address': to, 'value': value}]
-        return await self.sendmultitx(privkey, frm, outs, fee=fee, change_addr=change_addr, fee_for_blocks=fee_for_blocks)
+        return await self.sendmultitx(privkey, frm, outs, change_addr=change_addr,
+                                      fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
-    def inspect(self, tx: Union[str, Tx]):
+    async def inspect(self, tx: Union[str, Tx]):
         if not isinstance(tx, dict):
             tx = deserialize(tx)
         isum = 0
@@ -689,7 +692,7 @@ class BaseCoin:
         for _in in tx['ins']:
             h = _in['tx_hash']
             i = _in['tx_pos']
-            prevout = self.get_txs(h)[0]['outs'][i]
+            prevout = await anext(self.get_txs(h))['outs'][i]
             isum += prevout['value']
             a = self.scripttoaddr(prevout['script'])
             ins[a] = ins.get(a, 0) + prevout['value']
@@ -705,7 +708,7 @@ class BaseCoin:
             'ins': ins
         }
 
-    def wallet(self, seed: str, passphrase: str =None, **kwargs) -> HDWallet:
+    def wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         if not bip39_is_checksum_valid(seed) == (True, True):
             raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
         ks = standard_from_bip39_seed(seed, passphrase, coin=self)
@@ -715,7 +718,7 @@ class BaseCoin:
         ks = from_xpub(xpub, self, 'p2pkh')
         return HDWallet(ks, **kwargs)
 
-    def p2wpkh_p2sh_wallet(self, seed: str, passphrase: str =None, **kwargs) -> HDWallet:
+    def p2wpkh_p2sh_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         if not self.segwit_supported:
             raise Exception("P2WPKH-P2SH segwit not enabled for this coin")
         if not bip39_is_checksum_valid(seed) == (True, True):
@@ -727,7 +730,7 @@ class BaseCoin:
         ks = from_xpub(xpub, self, 'p2wpkh-p2sh')
         return HDWallet(ks, **kwargs)
 
-    def p2wpkh_wallet(self, seed: str, passphrase: str =None, **kwargs) -> HDWallet:
+    def p2wpkh_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         if not bip39_is_checksum_valid(seed) == (True, True):
             raise Exception("BIP39 Checksum failed. This is not a valid BIP39 seed")
         ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)

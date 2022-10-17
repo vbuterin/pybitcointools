@@ -271,7 +271,7 @@ def divide(pubkey, privkey):
     return multiply(pubkey, factor)
 
 
-def compress(pubkey):
+def compress(pubkey: str) -> str:
     f = get_pubkey_format(pubkey)
     if 'compressed' in f: return pubkey
     elif f == 'bin': return encode_pubkey(decode_pubkey(pubkey, f), 'bin_compressed')
@@ -279,7 +279,7 @@ def compress(pubkey):
         return encode_pubkey(decode_pubkey(pubkey, f), 'hex_compressed')
 
 
-def decompress(pubkey):
+def decompress(pubkey: str) -> str:
     f = get_pubkey_format(pubkey)
     if 'compressed' not in f: return pubkey
     elif f == 'bin_compressed': return encode_pubkey(decode_pubkey(pubkey, f), 'bin')
@@ -454,12 +454,15 @@ def pubkey_to_hash(pubkey):
         return bin_hash160(binascii.unhexlify(pubkey))
     return bin_hash160(pubkey)
 
+
 def pubkey_to_hash_hex(pubkey):
     return safe_hexlify(pubkey_to_hash(pubkey))
+
 
 def pubkey_to_address(pubkey, magicbyte=0):
     pubkey_hash = pubkey_to_hash(pubkey)
     return bin_to_b58check(pubkey_hash, magicbyte)
+
 
 pubtoaddr = pubkey_to_address
 

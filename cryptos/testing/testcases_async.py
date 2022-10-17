@@ -6,7 +6,7 @@ from cryptos import coins_async
 from cryptos.electrumx_client.types import ElectrumXScripthashNotification
 from cryptos.utils import alist
 from cryptos.types import Tx
-from typing import AsyncGenerator, Any
+from typing import AsyncGenerator, Any, Union
 
 
 class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
@@ -73,12 +73,21 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         agen = self._coin.get_balances(*self.unspent_addresses)
         await self.assertGeneratorEqual(self.balances, agen)
 
+    async def assertBalanceMerkleProvenOK(self):
+        result = await self._coin.balance_merkle_proven(self.unspent_addresses[0])
+        self.assertEqual(self.balance['confirmed'], result)
+
+    async def assertBalancesMerkleProvenOK(self):
+        balances = [{'address': tx['address'], 'balance': tx['confirmed']} for tx in self.balances]
+        agen = self._coin.balances_merkle_proven(*self.unspent_addresses)
+        await self.assertGeneratorEqual(balances, agen)
+
     async def assertHistoryOK(self):
         result = await self._coin.history(self.unspent_addresses[0])
         self.assertEqual(self.history, result)
 
     async def assertHistoriesOK(self):
-        agen = self._coin.get_histories(*self.unspent_addresses)
+        agen = self._coin.get_histories(*self.unspent_addresses, merkle_proof=True)
         await self.assertGeneratorEqual(self.histories, agen, 'tx_hash')
 
     async def assertUnspentOK(self):
@@ -86,19 +95,19 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.unspent, result)
 
     async def assertUnspentsOK(self):
-        unspent_outputs = self._coin.get_unspents(*self.unspent_addresses)
+        unspent_outputs = self._coin.get_unspents(*self.unspent_addresses, merkle_proof=True)
         await self.assertGeneratorEqual(self.unspents, unspent_outputs, 'tx_hash')
 
     async def assertMixedSegwitTransactionOK(self):
 
-        # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         segwit_max_value = 0
         segwit_sender = self.segwit_addresses[0]
         segwit_from_addr_i = 0
         segwit_unspents = []
 
         for i, addr in enumerate(self.segwit_addresses):
-            addr_unspents = await c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > segwit_max_value:
                 segwit_max_value = value
@@ -106,16 +115,13 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 segwit_from_addr_i = i
                 segwit_unspents = addr_unspents
 
-        for u in segwit_unspents:
-            u['segwit'] = True
-
         regular_max_value = 0
         regular_sender = None
         regular_from_addr_i = 0
         regular_unspents = []
 
         for i, addr in enumerate(self.addresses):
-            addr_unspents = self._coin.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > regular_max_value:
                 regular_max_value = value
@@ -148,30 +154,25 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 {'value': change_value, 'address': change_address}]
 
         # Create the transaction using all available unspents as inputs
-        tx = c.mktx(unspents, outs)
+        tx = self._coin.mktx(unspents, outs)
 
-        # For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
-        try:
-            segwit_privkey = self.privkeys[segwit_from_addr_i]
-        except IndexError:
-            segwit_privkey = input("Enter private key for script address %s: %s" % (segwit_from_addr_i, segwit_sender))
-        try:
-            regular_privkey = self.privkeys[regular_from_addr_i]
-        except IndexError:
-            regular_privkey = input("Enter private key for address %s: %s" % (regular_from_addr_i, regular_sender))
+        segwit_privkey = self.privkeys[segwit_from_addr_i]
+        regular_privkey = self.privkeys[regular_from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(segwit_sender, c.privtop2w(segwit_privkey), msg="Private key does not belong to script %s on %s" % (segwit_sender, c.display_name))
-        self.assertEqual(regular_sender, c.privtoaddr(regular_privkey), msg="Private key does not belong to address %s on %s" % (regular_sender, c.display_name))
+        self.assertEqual(segwit_sender, self._coin.privtop2w(segwit_privkey),
+                         msg=f"Private key does not belong to script {segwit_sender} on {self._coin.display_name}")
+        self.assertEqual(regular_sender, self._coin.privtoaddr(regular_privkey),
+                         msg=f"Private key does not belong to script {regular_sender} on {self._coin.display_name}")
 
-        self.assertTrue(c.is_segwit(segwit_privkey, segwit_sender))
-        self.assertFalse(c.is_segwit(regular_privkey, regular_sender))
+        self.assertTrue(self._coin.is_segwit(segwit_privkey, segwit_sender))
+        self.assertFalse(self._coin.is_segwit(regular_privkey, regular_sender))
 
         # Sign each input with the given private keys
         for i in range(0, len(segwit_unspents)):
-            tx = c.sign(tx, i, segwit_privkey)
+            tx = self._coin.sign(tx, i, segwit_privkey)
         for i in range(len(segwit_unspents), len(unspents)):
-            tx = c.sign(tx, i, regular_privkey)
+            tx = self._coin.sign(tx, i, regular_privkey)
 
         self.assertEqual(len(tx['witness']), len(unspents))
         tx = serialize(tx)
@@ -182,16 +183,14 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertSegwitTransactionOK(self):
 
-        c = self.coin(testnet=self.testnet)
-
-        # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.segwit_addresses[0]
         from_addr_i = 0
         unspents = []
 
         for i, addr in enumerate(self.segwit_addresses):
-            addr_unspents = await c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
@@ -199,13 +198,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 from_addr_i = i
                 unspents = addr_unspents
 
-        for u in unspents:
-            u['segwit'] = True
-
-        # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = max_value - self.fee
-        send_value = int(outputs_value * 0.1)
-        change_value = int(outputs_value - send_value)
+        # Arbitrarily set send value, receiver and change address
+        send_value = int(max_value * 0.1)
 
         if sender == self.segwit_addresses[0]:
             receiver = self.segwit_addresses[1]
@@ -217,35 +211,32 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver = self.segwit_addresses[0]
             change_address = self.segwit_addresses[1]
 
-        outs = [{'value': send_value, 'address': receiver},
-                {'value': change_value, 'address': change_address}]
+        outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = c.mktx(unspents, outs)
+        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
 
-        # For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
-        try:
-            privkey = self.privkeys[from_addr_i]
-        except IndexError:
-            privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
+        privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, c.privtop2w(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+        self.assertEqual(sender, self._coin.privtop2w(privkey),
+                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
-        for i in range(0, len(unspents)):
-            tx = c.sign(tx, i, privkey)
+        tx = self._coin.signall(tx, privkey)
 
         self.assertEqual(len(tx['witness']), len(unspents))
-        tx = serialize(tx)
+
+        for i in range(0, len(unspents)):
+            self.assertNotEqual(tx['ins'][i]['script'], '')
 
         # Push the transaction to the network
-        result = await c.pushtx(tx)
+        result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
     async def assertNewSegwitTransactionOK(self):
 
-        # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.new_segwit_addresses[0]
         from_addr_i = 0
@@ -261,9 +252,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 unspents = addr_unspents
 
         # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = max_value - self.fee
-        send_value = int(outputs_value * 0.1)
-        change_value = int(outputs_value - send_value)
+        send_value = int(max_value * 0.1)
 
         if sender == self.new_segwit_addresses[0]:
             receiver = self.new_segwit_addresses[1]
@@ -275,50 +264,48 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver = self.new_segwit_addresses[0]
             change_address = self.new_segwit_addresses[1]
 
-        outs = [{'value': send_value, 'address': receiver},
-                {'value': change_value, 'address': change_address}]
+        outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = c.mktx(unspents, outs)
+        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
 
-        # For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
-        try:
-            privkey = self.privkeys[from_addr_i]
-        except IndexError:
-            privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
+        privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, self._coin.privtosegwit(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+        self.assertEqual(sender, self._coin.privtosegwit(privkey),
+                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
-        for i in range(0, len(unspents)):
-            tx = self._coin.sign(tx, i, privkey)
+        self._coin.signall(tx, privkey)
 
         self.assertEqual(len(tx['witness']), len(unspents))
+
+        for i in range(0, len(unspents)):
+            self.assertEqual(tx['ins'][i]['script'], '')
+
         tx = serialize(tx)
 
         # Push the transaction to the network
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
-    def assertTXResultOK(self, tx: Tx, result):
+    def assertTXResultOK(self, tx: Union[str, Tx], result):
+        if not isinstance(tx, str):
+            tx = serialize(tx)
         tx_hash = public_txhash(tx)
         self.assertEqual(result, tx_hash)
         print("TX %s broadcasted successfully" % result)
 
-    async def assertTransactionOK(self, c=None):
+    async def assertTransactionOK(self):
 
-        if not c:
-            c = self.coin(testnet=self.testnet)
-
-        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
         unspents = []
 
         for i, addr in enumerate(self.addresses):
-            addr_unspents = c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
@@ -326,9 +313,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 from_addr_i = i
                 unspents = addr_unspents
 
-        # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = max_value - self.fee
-        send_value = int(outputs_value * 0.1)
+        # Arbitrarily set send value, receiver and change address
+        send_value = int(max_value * 0.1)
 
         if sender == self.addresses[0]:
             receiver = self.addresses[1]
@@ -343,32 +329,21 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = c.mktx_with_change(unspents, outs, change=change_address, fee_for_blocks=1)
+        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
 
-        # For testnets, private keys are already available. For live networks, private keys need to be entered manually at this point
-        try:
-            privkey = self.privkeys[from_addr_i]
-        except IndexError:
-            privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
+        privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, c.privtoaddr(privkey), msg="Private key does not belong to address %s on %s" % (sender, c.display_name))
+        self.assertEqual(sender, self._coin.privtoaddr(privkey),
+                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
-        for i in range(0, len(unspents)):
-            tx = c.sign(tx, i, privkey)
+        tx = self._coin.signall(tx, privkey)
 
-        tx = serialize(tx)
-        # Push the transaction to the network
-        result = await c.pushtx(tx)
-        self.assertTXResultOK(tx, result)
-
-    def decodetx(self, tx):
-        try:
-            import blockcypher
-            return blockcypher.decodetx(tx, coin_symbol=self.blockcypher_coin_symbol, api_key=self.blockcypher_api_key)
-        except ImportError:
-            pass
+        # Serialize and push the transaction to the network
+        tx_serialized = serialize(tx)
+        result = await self._coin.pushtx(tx)
+        self.assertTXResultOK(tx_serialized, result)
 
     def delete_key_by_name(self, obj, key):
         if isinstance(obj, dict):
@@ -399,19 +374,18 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                              ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime'])
 
     async def assertMultiSigTransactionOK(self):
-        c = self.coin(testnet=True)
         pubs = [privtopub(priv) for priv in self.privkeys]
-        script, sender = c.mk_multsig_address(pubs, 2)
+        script, sender = self._coin.mk_multsig_address(pubs, 2)
         self.assertEqual(sender, self.multisig_address)
         receiver = self.addresses[0]
         value = 1100000
-        tx = c.preparetx(sender, receiver, value, self.fee)
+        tx =  await self._coin.preparetx(sender, receiver, value, self.fee)
         for i in range(0, len(tx['ins'])):
-            sig1 = c.multisign(tx, i, script, self.privkeys[0])
-            sig3 = c.multisign(tx, i, script, self.privkeys[2])
+            sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
+            sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
             tx = apply_multisignatures(tx, i, script, sig1, sig3)
         #Push the transaction to the network
-        result = c.pushtx(tx)
+        result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
     async def assertBlockHeaderOK(self):
@@ -428,19 +402,23 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         )
 
     async def assertMerkleProofOK(self):
+        tx = self.unspent[0]
+        tx_hash = tx['tx_hash']
         proof = await self._coin.merkle_prove(self.unspent[0])
-        self.assertEqual(len(proof), 1)
-        self.assertEqual(self.num_merkle_siblings, proof[0]['siblings'])
+        self.assertDictEqual(dict(proof), {
+            'tx_hash': tx_hash,
+            'proven': True
+        })
 
     async def assertSendMultiTXOK(self):
 
-        #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
 
         for i, addr in enumerate(self.addresses):
-            addr_unspents = c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
@@ -449,7 +427,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         privkey = self.privkeys[from_addr_i]
 
-        #Arbitrarily set send value, change value, receiver and change address
+        # Arbitrarily set send value, change value, receiver and change address
         fee = self.fee * 0.1
         outputs_value = max_value - fee
         send_value1 = int(outputs_value * 0.1)
@@ -465,14 +443,14 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver1 = self.addresses[0]
             receiver2 = self.addresses[1]
 
-        result = self._coin.sendmultitx(privkey, sender, [{'address': receiver1, 'value': send_value1},
-                                                 {'address': receiver2, 'value': send_value2}], fee=self.fee)
+        result = await self._coin.sendmultitx(privkey, sender, [{'address': receiver1, 'value': send_value1},
+                                              {'address': receiver2, 'value': send_value2}], fee=self.fee)
         self.assertIsInstance(result, str)
         print("TX %s broadcasted successfully" % result)
 
     async def assertSendOK(self):
 
-        # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
+        # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0

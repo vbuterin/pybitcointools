@@ -2,10 +2,11 @@
 import copy
 from .main import *
 import binascii
+from copy import deepcopy
 from . import segwit_addr
 from _functools import reduce
 
-from typing import AnyStr
+from typing import AnyStr, Union
 from .types import Tx
 
 
@@ -13,7 +14,7 @@ from .types import Tx
 
 
 def json_is_base(obj, base):
-    if not is_python2 and isinstance(obj, bytes):
+    if isinstance(obj, bytes):
         return False
     
     alpha = get_code_string(base)
@@ -35,6 +36,7 @@ def json_is_base(obj, base):
                 return False
         return True
 
+
 def json_changebase(obj, changer):
     if isinstance(obj, string_or_bytes_types):
         return changer(obj)
@@ -54,11 +56,14 @@ SIGHASH_SINGLE = 3
 SIGHASH_ANYONECANPAY = 0x81
 SIGHASH_FORKID = 0x40
 
+
 def encode_1_byte(val):
     return encode(val, 256, 1)[::-1]
 
+
 def encode_4_bytes(val):
     return encode(val, 256, 4)[::-1]
+
 
 def encode_8_bytes(val):
     return encode(val, 256, 8)[::-1]
@@ -143,10 +148,11 @@ def deserialize(tx: AnyStr) -> Tx:
     return obj
 
 
-def serialize(txobj, include_witness=True):
-    txobj = txobj.copy()
-    if 'addresses' in txobj.keys():
-        del txobj['addresses']
+def serialize(txobj: Tx, include_witness=True):
+    txobj = deepcopy(txobj)
+    for i in txobj['ins']:
+        if 'address' in i:
+            del i['address']
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []
@@ -170,13 +176,15 @@ def serialize(txobj, include_witness=True):
         o.append(num_to_var_int(len(out["script"])) + out["script"])
     if include_witness and "witness" in txobj.keys():
         for witness in txobj["witness"]:
-            o.append(num_to_var_int(witness["number"]) + (witness["scriptCode"] if witness["scriptCode"] or is_python2 else bytes()))
+            o.append(num_to_var_int(witness["number"]) + (witness["scriptCode"] if witness["scriptCode"] else bytes()))
     o.append(encode_4_bytes(txobj["locktime"]))
     return list_to_bytes(o)
 
+
 # https://github.com/Bitcoin-UAHF/spec/blob/master/replay-protected-sighash.md#OP_CHECKSIG
 def uahf_digest(txobj, i):
-    txobj.pop('addresses', None)
+    for inp in txobj['ins']:
+        inp.pop('address')
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []
@@ -198,7 +206,7 @@ def uahf_digest(txobj, i):
     inp = txobj['ins'][i]
     o.append(inp["tx_hash"][::-1])
     o.append(encode_4_bytes(inp["tx_pos"]))
-    o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
+    o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] else bytes()))
     o.append(encode_8_bytes(inp['value']))
     o.append(encode_4_bytes(inp['sequence']))
 
@@ -213,11 +221,12 @@ def uahf_digest(txobj, i):
 
     return list_to_bytes(o)
 
-def signature_form(tx, i, script, hashcode=SIGHASH_ALL, segwit=False):
+
+def signature_form(tx, i: int, script, hashcode: int = SIGHASH_ALL, segwit: bool = False) -> bytes:
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
-    newtx = copy.deepcopy(tx)
+    newtx = deepcopy(tx)
     for j, inp in enumerate(newtx["ins"]):
         if j == i:
             newtx['ins'][j]['script'] = script
@@ -284,18 +293,25 @@ def is_bip66(sig):
         return False
     return True
 
-def txhash(tx, hashcode=None, wtxid=True):
+
+def txhash(tx: AnyStr, hashcode=None, wtxid=True):
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
-    if not wtxid and is_segwit(tx):
+    if isinstance(tx, string_or_bytes_types):
+        segwit = is_segwit(tx)
+    else:
+        segwit = False
+    if not wtxid and segwit:
         tx = serialize(deserialize(tx), include_witness=False)
     if hashcode:
         return dbl_sha256(from_string_to_bytes(tx) + encode(int(hashcode), 256, 4)[::-1])
     else:
         return safe_hexlify(bin_dbl_sha256(tx)[::-1])
 
+
 def public_txhash(tx, hashcode=None):
     return txhash(tx, hashcode=hashcode, wtxid=False)
+
 
 def bin_txhash(tx, hashcode=None):
     return binascii.unhexlify(txhash(tx, hashcode))
@@ -348,6 +364,7 @@ def decode_p2w_scripthash_script(script, witver, segwit_hrp):
     witprog = safe_from_hex(script[4:])
     return segwit_addr.encode(segwit_hrp, witver, witprog)
 
+
 def mk_p2w_scripthash_script(witver, witprog):
     """
     Used in converting a decoded pay to witness script hash address to output script
@@ -356,18 +373,21 @@ def mk_p2w_scripthash_script(witver, witprog):
     OP_n = witver + 0x50 if witver > 0 else 0
     return bytes_to_hex_string([OP_n]) + '14' + (bytes_to_hex_string(witprog))
 
+
 def mk_p2wpkh_redeemscript(pubkey):
     """
     Used in converting public key to p2wpkh script
     """
     return '160014' + pubkey_to_hash_hex(pubkey)
 
-def mk_p2wpkh_script(pubkey):
+
+def mk_p2wpkh_script(pubkey: str, prefix: str = 'a914', suffix: str = '87') -> str:
     """
     Used in converting public key to p2wpkh script
     """
     script = mk_p2wpkh_redeemscript(pubkey)[2:]
-    return 'a914'+ hex_to_hash160(script) + '87'
+    return prefix + hex_to_hash160(script) + suffix
+
 
 def mk_p2wpkh_scriptcode(pubkey):
     """
@@ -375,10 +395,12 @@ def mk_p2wpkh_scriptcode(pubkey):
     """
     return '76a914' + pubkey_to_hash_hex(pubkey) + '88ac'
 
+
 def p2wpkh_nested_script(pubkey):
     return '0014' + hash160(safe_from_hex(pubkey))
 
 # Output script to address representation
+
 
 def deserialize_script(script):
     if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
@@ -426,22 +448,16 @@ def serialize_script_unit(unit):
             return from_int_to_byte(78)+encode(len(unit), 256, 4)[::-1]+unit
 
 
-if is_python2:
-    def serialize_script(script):
-        if json_is_base(script, 16):
-            return binascii.hexlify(serialize_script(json_changebase(script,
-                                    lambda x: binascii.unhexlify(x))))
-        return ''.join(map(serialize_script_unit, script))
-else:
-    def serialize_script(script) -> bytes:
-        if json_is_base(script, 16):
-            return safe_hexlify(serialize_script(json_changebase(script,
-                                    lambda x: binascii.unhexlify(x))))
-        
-        result = bytes()
-        for b in map(serialize_script_unit, script):
-            result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
-        return result
+def serialize_script(script) -> bytes:
+    if json_is_base(script, 16):
+        return safe_hexlify(serialize_script(json_changebase(script,
+                            lambda x: binascii.unhexlify(x))))
+
+    result = bytes()
+    for b in map(serialize_script_unit, script):
+        result += b if isinstance(b, bytes) else bytes(b, 'utf-8')
+    return result
+
 
 def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],M
     """

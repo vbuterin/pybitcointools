@@ -1,4 +1,5 @@
 from .main import *
+from .transaction import deserialize
 from .types import BlockHeader, MerkleProof
 from binascii import hexlify
 
@@ -28,6 +29,9 @@ def deserialize_header(inp: bytes) -> BlockHeader:
 
 
 def mk_merkle_proof(merkle_root: bytes, hashes: List[str], index: int) -> MerkleProof:
+    """
+    This function requires all transaction hashes in a block to be provided
+    """
     tx_hash = hashes[index]
     try:
         nodes = [safe_from_hex(h)[::-1] for h in hashes]
@@ -42,8 +46,6 @@ def mk_merkle_proof(merkle_root: bytes, hashes: List[str], index: int) -> Merkle
                 newnodes.append(newnodes[-1])
             nodes = newnodes
             layers.append(nodes)
-            if bytes_to_hex_string(nodes[0][::-1]) == merkle_root:
-                print("YES!")
         # Sanity check, make sure merkle root is valid
         assert bytes_to_hex_string(nodes[0][::-1]) == merkle_root
         merkle_siblings = \
@@ -59,3 +61,27 @@ def mk_merkle_proof(merkle_root: bytes, hashes: List[str], index: int) -> Merkle
             "siblings": [],
             'proven': False
         }
+
+
+def verify_merkle_proof(tx_hash: str, merkle_root: bytes, hashes: List[str], index: int) -> MerkleProof:
+    h = safe_from_hex(tx_hash)[::-1]
+    nodes = [safe_from_hex(h)[::-1] for h in hashes]
+    proven = True
+    for item in nodes:
+        inner_node = (item + h) if (index & 1) else (h + item)
+        try:
+            deserialize(inner_node)
+        except Exception as e:
+            pass
+        else:
+            proven = False          # If a node serializes as a transaction, could be an attack
+            break
+        h = bin_sha256(bin_sha256(inner_node))
+        index >>= 1
+    if index != 0:
+        proven = False
+    h = bytes_to_hex_string(h[::-1]).encode()
+    return {
+            "tx_hash": tx_hash,
+            'proven': proven and h == merkle_root
+    }

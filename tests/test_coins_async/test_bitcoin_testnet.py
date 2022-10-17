@@ -11,8 +11,9 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     new_segwit_addresses = ["tb1qcwzf2q6zedhcma23wk6gtp5r3vp3xradjc23st", "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r", "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
     privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
-    fee = 54400
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  # Private keys for above address_derivations in same order
+    #fee = 54400
+    fee = 0  # estimate from network
     blockcypher_coin_symbol = "btc-testnet"
     testnet = True
 
@@ -23,7 +24,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
                        "tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq"]
     unspent = [
         {'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'tx_pos': 0, 'height': 1238008,
-         'value': 180000000}
+         'value': 180000000, 'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA'}
     ]
     unspents = [
         {'tx_hash': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c', 'tx_pos': 0, 'height': 1238008,
@@ -57,6 +58,9 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_balances(self):
         await self.assertBalancesOK()
 
+    async def test_merkle_proof(self):
+        await self.assertMerkleProofOK()
+
     async def test_unspent(self):
         await self.assertUnspentOK()
 
@@ -69,14 +73,17 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_histories(self):
         await self.assertHistoriesOK()
 
+    async def test_balance_merkle_proven(self):
+        await self.assertBalanceMerkleProvenOK()
+
+    async def test_balances_merkle_proven(self):
+        await self.assertBalancesMerkleProvenOK()
+
     async def test_block_header(self):
         await self.assertBlockHeaderOK()
 
     async def test_block_headers(self):
         await self.assertBlockHeadersOK()
-
-    async def test_merkle_proof(self):
-        await self.assertMerkleProofOK()
 
     async def test_gettx(self):
         await self.assertGetSegwitTXOK()
@@ -84,26 +91,26 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_gettxs(self):
         await self.assertGetSegwitTxsOK()
 
-    def test_transaction(self):
-        self.assertTransactionOK()
+    async def test_transaction(self):
+        await self.assertTransactionOK()
 
-    def test_transaction_mixed_segwit(self):
-        self.assertMixedSegwitTransactionOK()
+    async def test_transaction_segwit(self):
+        await self.assertSegwitTransactionOK()
 
-    def test_transaction_segwit(self):
-        self.assertSegwitTransactionOK()
+    async def test_transaction_new_segwit(self):
+        await self.assertNewSegwitTransactionOK()
 
-    def test_transacton_new_segwit(self):
-        self.assertNewSegwitTransactionOK()
+    async def test_transaction_mixed_segwit(self):
+        await self.assertMixedSegwitTransactionOK()
 
-    def test_transaction_multisig(self):
-        self.assertMultiSigTransactionOK()
+    async def test_transaction_multisig(self):
+        await self.assertMultiSigTransactionOK()
 
-    def test_sendmultitx(self):
-        self.assertSendMultiTXOK()
+    async def test_sendmultitx(self):
+        await self.assertSendMultiTXOK()
 
-    def test_send(self):
-        self.assertSendOK()
+    async def test_send(self):
+        await self.assertSendOK()
 
     @skip('Takes too long')
     def test_subscribe_block_headers(self):

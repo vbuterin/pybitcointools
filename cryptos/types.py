@@ -8,7 +8,7 @@ class TxInput(TypedDict):
     tx_pos: int
     script: str
     sequence: int
-    segwit: NotRequired[bool]
+    address: NotRequired[str]
 
 
 class TxOut(TypedDict):
@@ -29,7 +29,6 @@ class Tx(TypedDict):
     marker: NotRequired[str]
     flag: NotRequired[str]
     witness: NotRequired[List[Witness]]
-    addresses: NotRequired[List[str]]
     tx_hash: NotRequired[str]
     locktime: int
 
@@ -46,5 +45,10 @@ class BlockHeader(TypedDict):
 
 class MerkleProof(TypedDict):
     tx_hash: str
-    siblings: List[str]
+    siblings: NotRequired[List[str]]
     proven: bool
+
+
+class AddressBalance(TypedDict):
+    address: str
+    balance: int

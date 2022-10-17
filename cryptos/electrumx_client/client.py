@@ -301,6 +301,7 @@ class ElectrumXClient:
 
             async with self.restart_condition:
                 self.restart_condition.notify_all()
+            print('Connected to', self.host)
             await self.monitor_connection()
         self.session = None
 
