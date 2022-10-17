@@ -1,7 +1,9 @@
 from .main import *
+from .types import BlockHeader, MerkleProof
+from binascii import hexlify
 
 
-def serialize_header(inp):
+def serialize_header(inp: BlockHeader) -> bytes:
     o = encode(inp['version'], 256, 4)[::-1] + \
         inp['prevhash'].decode('hex')[::-1] + \
         inp['merkle_root'].decode('hex')[::-1] + \
@@ -13,12 +15,11 @@ def serialize_header(inp):
     return o.encode('hex')
 
 
-def deserialize_header(inp: bytes):
-    inp = inp.decode()
+def deserialize_header(inp: bytes) -> BlockHeader:
     return {
         "version": decode(inp[:4][::-1], 256),
-        "prevhash": inp[4:36][::-1].encode(),
-        "merkle_root": inp[36:68][::-1].encode(),
+        "prevhash": hexlify(inp[4:36][::-1]),
+        "merkle_root": hexlify(inp[36:68][::-1]),
         "timestamp": decode(inp[68:72][::-1], 256),
         "bits": decode(inp[72:76][::-1], 256),
         "nonce": decode(inp[76:80][::-1], 256),
@@ -26,8 +27,8 @@ def deserialize_header(inp: bytes):
     }
 
 
-def mk_merkle_proof(merkle_root, hashes, index):
-    hash = hashes[index]
+def mk_merkle_proof(merkle_root: bytes, hashes: List[str], index: int) -> MerkleProof:
+    tx_hash = hashes[index]
     try:
         nodes = [safe_from_hex(h)[::-1] for h in hashes]
         if len(nodes) % 2 and len(nodes) > 2:
@@ -41,18 +42,20 @@ def mk_merkle_proof(merkle_root, hashes, index):
                 newnodes.append(newnodes[-1])
             nodes = newnodes
             layers.append(nodes)
+            if bytes_to_hex_string(nodes[0][::-1]) == merkle_root:
+                print("YES!")
         # Sanity check, make sure merkle root is valid
         assert bytes_to_hex_string(nodes[0][::-1]) == merkle_root
         merkle_siblings = \
             [layers[i][(index >> i) ^ 1] for i in range(len(layers)-1)]
         return {
-            "tx_hash": hash,
+            "tx_hash": tx_hash,
             "siblings": [bytes_to_hex_string(x[::-1]) for x in merkle_siblings],
             'proven': True
         }
     except:
         return {
-            "tx_hash": hashes[index],
+            "tx_hash": tx_hash,
             "siblings": [],
             'proven': False
         }

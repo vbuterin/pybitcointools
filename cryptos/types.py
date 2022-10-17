@@ -32,3 +32,19 @@ class Tx(TypedDict):
     addresses: NotRequired[List[str]]
     tx_hash: NotRequired[str]
     locktime: int
+
+
+class BlockHeader(TypedDict):
+    version: int
+    prevhash: bytes
+    merkle_root: bytes
+    timestamp: int
+    bits: int
+    nonce: int
+    hash: bytes
+
+
+class MerkleProof(TypedDict):
+    tx_hash: str
+    siblings: List[str]
+    proven: bool

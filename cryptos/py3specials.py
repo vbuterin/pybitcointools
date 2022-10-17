@@ -1,6 +1,7 @@
 import os
 import binascii
 import hashlib
+from typing import AnyStr
 
 
 string_types = (str)
@@ -55,29 +56,36 @@ def bin_to_b58check(inp, magicbyte: int = 0) -> str:
     return '1' * leadingzbytes + changebase(inp+checksum, 256, 58)
 
 
-def bytes_to_hex_string(b):
+def bytes_to_hex_string(b: bytes) -> str:
     if isinstance(b, str):
         return b
 
     return ''.join('{:02x}'.format(y) for y in b)
 
-def safe_from_hex(s):
+
+def safe_from_hex(s: str) -> bytes:
     return bytes.fromhex(s)
 
-def from_int_representation_to_bytes(a):
+
+def from_int_representation_to_bytes(a: int) -> bytes:
     return bytes(str(a), 'utf-8')
 
-def from_int_to_byte(a):
+
+def from_int_to_byte(a: int) -> bytes:
     return bytes([a])
 
-def from_byte_to_int(a):
+
+def from_byte_to_int(a: bytes) -> int:
     return a
 
-def from_string_to_bytes(a):
+
+def from_string_to_bytes(a: AnyStr) -> bytes:
     return a if isinstance(a, bytes) else bytes(a, 'utf-8')
 
-def safe_hexlify(a):
+
+def safe_hexlify(a: bytes) -> str:
     return str(binascii.hexlify(a), 'utf-8')
+
 
 def encode(val, base, minlen=0):
     base, minlen = int(base), int(minlen)

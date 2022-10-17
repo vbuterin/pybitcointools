@@ -1,5 +1,6 @@
 import asyncio
 from ..transaction import *
+from binascii import unhexlify
 from ..blocks import mk_merkle_proof, deserialize_header
 from .. import segwit_addr
 from ..electrumx_client import ElectrumXClient
@@ -8,8 +9,8 @@ from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
-from ..types import Tx, Witness, TxInput, TxOut
-from ..electrumx_client.types import ElectrumXBlockCPResponse, BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse
+from ..types import Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof
+from ..electrumx_client.types import BlockHeaderNotificationCallback, AddressNotificationCallback, ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx, ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse
 
 
 class BaseCoin:
@@ -145,19 +146,22 @@ class BaseCoin:
             arg = args[i]
             yield arg, result
 
-    async def block_header(self, height: int) -> Dict[str, Any]:
+    async def raw_block_header(self, height: int) -> str:
+        return await self.client.block_header(height)
+
+    async def block_header(self, height: int) -> BlockHeader:
         """
         Return block header data for the given height
         """
-        header = await self.client.block_header(height)
-        return deserialize_header(header.encode())
+        header = await self.raw_block_header(height)
+        return deserialize_header(unhexlify(header))
 
-    async def block_headers(self, *args: int) -> AsyncGenerator[Dict[str, Any], None]:
+    async def block_headers(self, *args: int) -> AsyncGenerator[BlockHeader, None]:
         """
         Return block header data for the given heights
         """
         for header in await asyncio.gather(*[self.block_header(h) for h in args]):
-            yield deserialize_header(header.encode())
+            yield header
 
     async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
         """
@@ -213,19 +217,17 @@ class BaseCoin:
     async def get_merkle(self, tx: ElectrumXTx) -> ElectrumXMerkleResponse:
         return await self.client.get_merkle(tx['tx_hash'], tx['height'])
 
-    async def merkle_prove(self, tx: ElectrumXTx) -> Optional[Dict[str, Any]]:
+    async def merkle_prove(self, tx: ElectrumXTx) -> MerkleProof:
         """
         Prove that information returned from server about a transaction in the blockchain is valid. Only run on a
         tx with at least 1 confirmation.
         """
 
-        """Not all these tasks are needed"""
-
-        merkle, block_header, tsc_merkle = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']))
+        merkle, block_header = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']))
         proof = mk_merkle_proof(block_header['merkle_root'], merkle['merkle'], merkle['pos'])
         return proof
 
-    async def merkle_prove_txid(self, tx_hash: str):
+    async def merkle_prove_by_txid(self, tx_hash: str) -> MerkleProof:
         tx = await self.get_tx(tx_hash)
         return await self.merkle_prove(tx)
 
@@ -279,11 +281,15 @@ class BaseCoin:
 
     async def get_tx(self, tx_hash: str) -> Tx:
         """
-        Fetch transaction from the blockchain and deserialise each one to a dictionary
+        Fetch transaction from the blockchain and deserialise it to a dictionary
         """
         tx = await self.get_raw_tx(tx_hash)
         deserialized_tx = deserialize(tx)
         return deserialized_tx
+
+    async def get_txs(self, *args: str) -> AsyncGenerator[Tx, None]:
+        for tx in await asyncio.gather(*[self.get_tx(tx_hash) for tx_hash in args]):
+            yield tx
 
     async def pushtx(self, tx: Union[str, Tx]):
         """

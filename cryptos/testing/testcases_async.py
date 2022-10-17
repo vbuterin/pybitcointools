@@ -24,7 +24,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     txid = None
     merkle_txhash = None
     merkle_txheight = None
-    tx = None
     txinputs = None
     min_latest_height = 99999999999
     fee = 0
@@ -36,6 +35,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     balance = {}
     balances = []
     history = {}
+    raw_tx = ''
     histories = []
     event = asyncio.Event()
 
@@ -53,6 +53,10 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         list1 = sorted(list1, key=itemgetter(key))
         list2 = sorted(list2, key=itemgetter(key))
         self.assertEqual(list1, list2)
+
+    @property
+    def tx(self) -> Tx:
+        return deserialize(self.raw_tx)
 
     async def assertBalanceOK(self):
         result = await self._coin.get_balance(self.unspent_addresses[0])
@@ -173,7 +177,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         tx = serialize(tx)
 
         # Push the transaction to the network
-        result = await c.pushtx(tx)
+        result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
     async def assertSegwitTransactionOK(self):
@@ -241,8 +245,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertNewSegwitTransactionOK(self):
 
-        c = self.coin(testnet=self.testnet)
-
         # Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
         sender = self.new_segwit_addresses[0]
@@ -250,7 +252,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         unspents = []
 
         for i, addr in enumerate(self.new_segwit_addresses):
-            addr_unspents = c.unspent(addr)
+            addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
@@ -286,17 +288,17 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, c.privtosegwit(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+        self.assertEqual(sender, self._coin.privtosegwit(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
 
         # Sign each input with the given private key
         for i in range(0, len(unspents)):
-            tx = c.sign(tx, i, privkey)
+            tx = self._coin.sign(tx, i, privkey)
 
         self.assertEqual(len(tx['witness']), len(unspents))
         tx = serialize(tx)
 
         # Push the transaction to the network
-        result = c.pushtx(tx)
+        result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
     def assertTXResultOK(self, tx: Tx, result):
@@ -381,17 +383,22 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             for i in obj:
                 self.delete_key_by_name(i, key)
 
-    def assertGetTXOK(self):
-        coin = self.coin(testnet=self.testnet)
-        tx = coin.get_txs(self.txid)[0]
+    async def assertGetTXOK(self):
+        tx = await self._coin.get_tx(self.txid)
         self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'locktime', 'tx_hash'])
+        self.assertEqual(tx, self.tx)
 
-    def assertGetSegwitTXOK(self):
-        coin = self.coin(testnet=self.testnet)
-        tx = coin.get_txs(self.txid)[0]
-        self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime', 'tx_hash'])
+    async def assertGetSegwitTXOK(self):
+        tx = await self._coin.get_tx(self.txid)
+        self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime'])
+        self.assertEqual(tx, self.tx)
 
-    def assertMultiSigTransactionOK(self):
+    async def assertGetSegwitTxsOK(self):
+        txs = await alist(self._coin.get_txs(self.txid))
+        self.assertListEqual(list(txs[0].keys()),
+                             ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime'])
+
+    async def assertMultiSigTransactionOK(self):
         c = self.coin(testnet=True)
         pubs = [privtopub(priv) for priv in self.privkeys]
         script, sender = c.mk_multsig_address(pubs, 2)
@@ -407,25 +414,25 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         result = c.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
-    def assertBlockHeaderOK(self):
+    async def assertBlockHeaderOK(self):
         blockinfo = await self._coin.block_header(self.txheight)
-        self.assertListEqual(list(blockinfo.keys()),
-                             ["block_height", "version", "prev_block_hash", "merkle_root", "timestamp", "bits", "nonce"]
+        self.assertListEqual(sorted(blockinfo.keys()),
+                             ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
                              )
 
-    def assertBlockHeadersOK(self):
+    async def assertBlockHeadersOK(self):
         blockinfos = await alist(self._coin.block_headers(self.txheight))
-        blockinfo = blockinfos[0]
-        self.assertListEqual(list(blockinfo.keys()),
-            ["block_height", "version", "prev_block_hash", "merkle_root", "timestamp", "bits", "nonce"]
+        for blockinfo in blockinfos:
+            self.assertListEqual(sorted(blockinfo.keys()),
+            ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
         )
 
-    def assertMerkleProofOK(self):
-        proof = self._coin.merkle_prove({'tx_hash': self.merkle_txhash, 'height': self.merkle_txheight})
+    async def assertMerkleProofOK(self):
+        proof = await self._coin.merkle_prove(self.unspent[0])
         self.assertEqual(len(proof), 1)
-        #self.assertEqual(self.num_merkle_siblings, len(proof[0]['siblings']))
+        self.assertEqual(self.num_merkle_siblings, proof[0]['siblings'])
 
-    def assertSendMultiTXOK(self):
+    async def assertSendMultiTXOK(self):
 
         #Find which of the three address_derivations currently has the most coins_async and choose that as the sender
         max_value = 0
@@ -505,7 +512,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(list(data.keys()), block_keys)
         await self._coin.unsubscribe_from_block_headers()
 
-    def assertSubscribeAddressOK(self):
+    async def assertSubscribeAddressOK(self):
         queue = asyncio.Queue()
         address = self.addresses[0]
 

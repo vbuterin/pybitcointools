@@ -280,21 +280,16 @@ class ElectrumXClient:
             #         Hence, in practice the connection issue will only be detected the next time we try
             #         to send a message (plus timeout), which can take minutes...
             if not self.session or self.session.is_closing():
-                print("no session", self.session, self.session.is_closing())
                 raise GracefulDisconnect('session was closed')
             elif i == self._ping_interval:
                 try:
-                    print('Pinging')
                     await self._send_request("server.ping", timeout=self.connection_timeout)
-                    print('Ping ok')
                     i = 0
                 except TimeoutError:
-                    print('Ping not ok')
                     raise GracefulDisconnect('session was closed')
 
     async def _open_session(self, sslc: Optional[ssl.SSLContext] = None) -> None:
         session_factory = lambda *args, **kwargs: NotificationSession(*args, **kwargs)
-        print('Connecting to', self.host, self.port)
         async with _RSClient(session_factory=session_factory,
                              host=self.host, port=self.port,
                              ssl=sslc) as session:
@@ -302,13 +297,11 @@ class ElectrumXClient:
 
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
-            print('Connected to', self.host, self.port, "Checking version")
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
 
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()
-        print('Setting session to None')
         self.session = None
 
     async def _connect(self) -> None:
@@ -319,7 +312,6 @@ class ElectrumXClient:
         await self.session.close()
 
     async def _on_connection_failure(self):
-        print('Connection to', self.host, 'failed')
         self.session = None
         self._failed_servers.append(self.host)
         if not self._is_closing:
@@ -333,8 +325,6 @@ class ElectrumXClient:
             await self._connect()
         except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
                 ProtocolNotSupportedError, ssl.SSLError) as e:
-            print(e.__class__)
-            print(e)
             await self._on_connection_failure()
 
     async def wait_new_start(self):
@@ -372,7 +362,6 @@ class ElectrumXClient:
                 await asyncio.wait(all_tasks)
 
     async def close(self):
-        print('Closing client')
         self._is_closing = True
         await self.cancel_subscriptions()
         if self.session:
@@ -384,7 +373,6 @@ class ElectrumXClient:
                 self._connection_task.cancel()
             except asyncio.CancelledError:
                 pass
-        print('Client closed')
 
     async def _send_request(self, method: str, *args, timeout: int = 30, **kwargs):
         return await self.session.send_request(method, args, timeout=timeout, **kwargs)
@@ -446,13 +434,10 @@ class ElectrumXClient:
                     if not just_restarted or item != last_item:
                         last_item = item
                         if is_coro:
-                            print('Running callback as coro with', item)
                             coro = callback(*item)
                             task = asyncio.create_task(coro)
                         else:
-                            print('Running callback')
                             task = asyncio.get_running_loop().run_in_executor(None, callback, *item)
-                        print('Creating callback task')
                         self._tasks.append(task)
                         task.add_done_callback(self._on_task_complete)
                     just_restarted = False
@@ -478,7 +463,6 @@ class ElectrumXClient:
         await asyncio.wait(tasks)
 
     def _create_subscribe_task(self, method: str, callback: Callable, *args) -> None:
-        print('Creating subscribe task', method)
         task = asyncio.create_task(self._subscribe(method, callback, *args))
         name = self._get_sub_name(method, *args)
         if not self._active_subscriptions.get(name):
@@ -487,9 +471,7 @@ class ElectrumXClient:
         task.add_done_callback(self._on_subscription_task_complete)
 
     async def subscribe(self, callback: Callable, method: str, *args) -> None:
-        print("Subscribe")
         await self._ensure_connected()
-        print('Running subscribe for', method)
         self._create_subscribe_task(method, callback, *args)
 
     async def block_header(self, height: int, cp_height: int = 0) -> ElectrumXBlockResponse:

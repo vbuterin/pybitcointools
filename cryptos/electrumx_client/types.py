@@ -68,6 +68,7 @@ class ElectrumXTxAddress(TypedDict):
 
 
 ElectrumXMultiTxResponse = List[ElectrumXTxAddress]
+ElectrumXMultiTxResponse = List[ElectrumXTxAddress]
 
 
 class ElectrumXScripthashNotification(TypedDict):
@@ -75,7 +76,7 @@ class ElectrumXScripthashNotification(TypedDict):
     status: str
 
 
-AddressNotificationCallback = Union[Callable[[ElectrumXScripthashNotification], None], Callable[ElectrumXScripthashNotification], Awaitable[None]]
+AddressNotificationCallback = Union[Callable[[ElectrumXScripthashNotification], None], Callable[[ElectrumXScripthashNotification], Awaitable[None]]]
 
 
 ElectrumXGetTxResponse = Union[str, Dict[str, JsonType]]

@@ -49,7 +49,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     txid = "1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c"
     txheight = 1238008
     txinputs = [{'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
-    tx = {'txid': '1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c'}
+    raw_tx = "01000000000101333ae299a6c6353d88e6540c67d8c82281259bc29b3313bcbc9b62a9a7e78a1b0100000017160014ffe21a1b058e7f8dedfcc3f1526f82303cff4fc7ffffffff020095ba0a000000001976a9147e585aa1913cf12e9948e90f67188ee9250d555688acfcb92b4d2c00000017a914e223701f10c2a5e7782ef6e10a2560f4c6e968a2870247304402207f2aa4118eee2ef231eab3afcbf6b01b4c1ca3672bd87a3864cf405741bd2c1d02202ab7502cbc50126f68cb2b366e5b3799d3ec0a3359c6a895a730a6891c7bcae10121023c13734016f27089393f9fc79736e4dca1f27725c68e720e1855202f3fbf037e00000000"
 
     async def test_balance(self):
         await self.assertBalanceOK()
@@ -69,15 +69,20 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_histories(self):
         await self.assertHistoriesOK()
 
-    def test_block_headers(self):
-        self.assertBlockHeadersOK()
+    async def test_block_header(self):
+        await self.assertBlockHeaderOK()
 
-    @skip("Not working")
-    def test_merkle_proof(self):
-        self.assertMerkleProofOK()
+    async def test_block_headers(self):
+        await self.assertBlockHeadersOK()
 
-    def test_gettx(self):
-        self.assertGetSegwitTXOK()
+    async def test_merkle_proof(self):
+        await self.assertMerkleProofOK()
+
+    async def test_gettx(self):
+        await self.assertGetSegwitTXOK()
+
+    async def test_gettxs(self):
+        await self.assertGetSegwitTxsOK()
 
     def test_transaction(self):
         self.assertTransactionOK()
