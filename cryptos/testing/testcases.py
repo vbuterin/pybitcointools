@@ -146,8 +146,8 @@ class BaseCoinTestCase(unittest.TestCase):
         self.assertEqual(segwit_sender, c.privtop2w(segwit_privkey), msg="Private key does not belong to script %s on %s" % (segwit_sender, c.display_name))
         self.assertEqual(regular_sender, c.privtoaddr(regular_privkey), msg="Private key does not belong to address %s on %s" % (regular_sender, c.display_name))
 
-        self.assertTrue(c.is_segwit(segwit_privkey, segwit_sender))
-        self.assertFalse(c.is_segwit(regular_privkey, regular_sender))
+        self.assertTrue(c.is_segwit_or_multisig(segwit_privkey, segwit_sender))
+        self.assertFalse(c.is_segwit_or_multisig(regular_privkey, regular_sender))
 
         #Sign each input with the given private keys
         for i in range(0, len(segwit_unspents)):
@@ -272,7 +272,7 @@ class BaseCoinTestCase(unittest.TestCase):
             privkey = input("Enter private key for address %s: %s" % (from_addr_i, sender))
 
         #Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, c.privtosegwit(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
+        self.assertEqual(sender, c.privtosegwitaddress(privkey), msg="Private key does not belong to script %s on %s" % (sender, c.display_name))
 
         #Sign each input with the given private key
         for i in range(0, len(unspents)):

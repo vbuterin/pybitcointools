@@ -506,14 +506,15 @@ def apply_multisignatures(txobj, i, script, *args):
     if not isinstance(txobj, dict):
         txobj = deserialize(txobj)
     if isinstance(txobj, str) and re.match('^[0-9a-fA-F]*$', txobj):
-        return safe_hexlify(apply_multisignatures(binascii.unhexlify(txobj), i, script, sigs))
+        return safe_hexlify(serialize(apply_multisignatures(binascii.unhexlify(txobj), i, script, sigs)))
 
     # Not pushing empty elements on the top of the stack if passing no
     # script (in case of bare multisig inputs there is no script)
     script_blob = [] if script.__len__() == 0 else [script]
 
     txobj["ins"][i]["script"] = safe_hexlify(serialize_script([None]+sigs+script_blob))
-    return serialize(txobj)
+    return txobj
+
 
 def select(unspents, value):
     value = int(value)
@@ -530,3 +531,9 @@ def select(unspents, value):
     if tv < value:
         raise Exception("Not enough funds")
     return low[:i]
+
+
+def calculate_fee(tx: Tx) -> int:
+    in_value = sum(i['value'] for i in tx['ins'])
+    out_value = sum(o['value'] for o in tx['outs'])
+    return in_value - out_value

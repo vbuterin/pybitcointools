@@ -1,7 +1,9 @@
 import unittest
 import asyncio
+from copy import deepcopy
 from operator import itemgetter
 from cryptos import *
+from cryptos.transaction import calculate_fee
 from cryptos import coins_async
 from cryptos.electrumx_client.types import ElectrumXScripthashNotification
 from cryptos.utils import alist
@@ -129,12 +131,12 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 regular_from_addr_i = i
                 regular_unspents = addr_unspents
 
+        self.assertIn(regular_sender, self.addresses)
+        self.assertIn(segwit_sender, self.segwit_addresses)
         unspents = segwit_unspents + regular_unspents
-
+        total_value = segwit_max_value + regular_max_value
         # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = segwit_max_value + regular_max_value - self.fee
-        send_value = int(outputs_value * 0.5)
-        change_value = int(outputs_value - send_value)
+        send_value = int(total_value * 0.5)
 
         if segwit_sender == self.segwit_addresses[0]:
             receiver = self.segwit_addresses[1]
@@ -150,31 +152,77 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         else:
             change_address = self.addresses[0]
 
-        outs = [{'value': send_value, 'address': receiver},
-                {'value': change_value, 'address': change_address}]
+        outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = self._coin.mktx(unspents, outs)
+        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
 
         segwit_privkey = self.privkeys[segwit_from_addr_i]
         regular_privkey = self.privkeys[regular_from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
         self.assertEqual(segwit_sender, self._coin.privtop2w(segwit_privkey),
-                         msg=f"Private key does not belong to script {segwit_sender} on {self._coin.display_name}")
+                         msg=f"Private key does not belong to address {segwit_sender} on {self._coin.display_name}")
         self.assertEqual(regular_sender, self._coin.privtoaddr(regular_privkey),
-                         msg=f"Private key does not belong to script {regular_sender} on {self._coin.display_name}")
+                         msg=f"Private key does not belong to address {regular_sender} on {self._coin.display_name}")
 
-        self.assertTrue(self._coin.is_segwit(segwit_privkey, segwit_sender))
-        self.assertFalse(self._coin.is_segwit(regular_privkey, regular_sender))
+        self.assertTrue(self._coin.is_segwit_or_multisig(segwit_sender))
+        self.assertFalse(self._coin.is_segwit_or_multisig(regular_sender))
 
         # Sign each input with the given private keys
+        # Try signing one at a time and also with signall and make sure they give the same result
+
+        tx2 = deepcopy(tx)
+
         for i in range(0, len(segwit_unspents)):
             tx = self._coin.sign(tx, i, segwit_privkey)
         for i in range(len(segwit_unspents), len(unspents)):
             tx = self._coin.sign(tx, i, regular_privkey)
 
+        tx2 = self._coin.signall(tx2, {segwit_sender: segwit_privkey, regular_sender: regular_privkey})
+
+        self.assertDictEqual(tx, tx2)
+        self.assertEqual(serialize(tx), serialize(tx2))
+
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.fee * 2)
+        self.assertEqual(len(tx['ins']), len(unspents))
+        self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
+        self.assertEqual(tx['marker'], 0)
+        self.assertEqual(tx['flag'], 1)
+
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertNotEqual(script, '')
+            prev_script = script
+
+        prev_script_code = None
+
+        for w in tx['witness']:
+            script_code = w['scriptCode']
+            self.assertIsInstance(script_code, str)
+            if script_code:
+                self.assertEqual(w['number'], 2)
+                if prev_script_code:
+                    self.assertNotEqual(script_code, prev_script_code)
+            else:
+                self.assertEqual(w['number'], 0)
+            prev_script_code = script_code
+
         tx = serialize(tx)
 
         # Push the transaction to the network
@@ -220,17 +268,52 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Verify that the private key belongs to the sender address for this network
         self.assertEqual(sender, self._coin.privtop2w(privkey),
-                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
+                         msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
         tx = self._coin.signall(tx, privkey)
 
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.fee * 2)
+        self.assertEqual(len(tx['ins']), len(unspents))
+        self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
+        self.assertEqual(tx['marker'], 0)
+        self.assertEqual(tx['flag'], 1)
 
-        for i in range(0, len(unspents)):
-            self.assertNotEqual(tx['ins'][i]['script'], '')
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            if prev_script:
+                self.assertEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
+            prev_script = script
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertEqual(len(script), 46)
+            prev_script = script
+
+        prev_script_code = None
+        for w in tx['witness']:
+            self.assertEqual(w['number'], 2)
+            script_code = w['scriptCode']
+            if prev_script_code:
+                self.assertNotEqual(script_code, prev_script_code)
+            self.assertIsInstance(script_code, str)
+            self.assertNotEqual(script_code, '')
+            prev_script_code = script_code
 
         # Push the transaction to the network
+
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
@@ -272,16 +355,46 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, self._coin.privtosegwit(privkey),
-                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
+        self.assertEqual(sender, self._coin.privtosegwitaddress(privkey),
+                         msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
-        self._coin.signall(tx, privkey)
+        tx = self._coin.signall(tx, privkey)
 
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.fee * 2)
+        self.assertEqual(len(tx['ins']), len(unspents))
+        self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
+        self.assertEqual(tx['marker'], 0)
+        self.assertEqual(tx['flag'], 1)
 
-        for i in range(0, len(unspents)):
-            self.assertEqual(tx['ins'][i]['script'], '')
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            self.assertEqual(script, '')
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertEqual(len(script), 44)
+            prev_script = script
+
+        prev_script_code = None
+        for w in tx['witness']:
+            self.assertEqual(w['number'], 2)
+            script_code = w['scriptCode']
+            if prev_script_code:
+                self.assertNotEqual(script_code, prev_script_code)
+            self.assertIsInstance(script_code, str)
+            self.assertNotEqual(script_code, '')
+            prev_script_code = script_code
 
         tx = serialize(tx)
 
@@ -335,10 +448,39 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Verify that the private key belongs to the sender address for this network
         self.assertEqual(sender, self._coin.privtoaddr(privkey),
-                         msg=f"Private key does not belong to script {sender} on {self._coin.display_name}")
+                         msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
         tx = self._coin.signall(tx, privkey)
+
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.fee * 2)
+        self.assertEqual(len(tx['ins']), len(unspents))
+        self.assertEqual(len(tx['outs']), 2)
+        self.assertNotIn('witness', tx)
+        self.assertNotIn('marker', tx)
+        self.assertNotIn('flag', tx)
+
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
+            prev_script = script
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertEqual(len(script), 50)
+            prev_script = script
 
         # Serialize and push the transaction to the network
         tx_serialized = serialize(tx)
@@ -375,16 +517,46 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertMultiSigTransactionOK(self):
         pubs = [privtopub(priv) for priv in self.privkeys]
-        script, sender = self._coin.mk_multsig_address(pubs, 2)
+        script, sender = self._coin.mk_multsig_address(*pubs, num_required=2)
         self.assertEqual(sender, self.multisig_address)
         receiver = self.addresses[0]
-        value = 1100000
-        tx =  await self._coin.preparetx(sender, receiver, value, self.fee)
+        value = 10000
+        tx = await self._coin.preparetx(sender, receiver, value, self.fee)
         for i in range(0, len(tx['ins'])):
             sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
             sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
             tx = apply_multisignatures(tx, i, script, sig1, sig3)
-        #Push the transaction to the network
+
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.fee * 2)
+        self.assertGreaterEqual(len(tx['ins']), 1)
+        self.assertEqual(len(tx['outs']), 2)
+        self.assertNotIn('witness', tx)
+        self.assertNotIn('marker', tx)
+        self.assertNotIn('flag', tx)
+
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
+            prev_script = script
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertNotEqual(script, '')
+            prev_script = script
+
+        # Push the transaction to the network
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
@@ -410,7 +582,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             'proven': True
         })
 
-    async def assertSendMultiTXOK(self):
+    async def assertSendMultiRecipientsTXOK(self):
 
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
@@ -428,9 +600,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         privkey = self.privkeys[from_addr_i]
 
         # Arbitrarily set send value, change value, receiver and change address
-        fee = self.fee * 0.1
+        fee = int(self.fee * 0.1)
         outputs_value = max_value - fee
-        send_value1 = int(outputs_value * 0.1)
+        send_value1 = int(outputs_value * 0.2)
         send_value2 = int(outputs_value * 0.5)
 
         if sender == self.addresses[0]:
@@ -443,9 +615,17 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver1 = self.addresses[0]
             receiver2 = self.addresses[1]
 
-        result = await self._coin.sendmultitx(privkey, sender, [{'address': receiver1, 'value': send_value1},
-                                              {'address': receiver2, 'value': send_value2}], fee=self.fee)
+        self.assertEqual(sender, self._coin.privtoaddr(privkey),
+                         msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
+
+        outs = [{'address': receiver1, 'value': send_value1},  {'address': receiver2, 'value': send_value2}]
+        tx = await self._coin.preparesignedmultirecipienttx(privkey, sender, outs, fee=fee)
+        serialized_tx = serialize(tx)
+        pass
+
+        result = await self._coin.send_to_multiple_receivers_tx(privkey, sender, outs, fee=fee)
         self.assertIsInstance(result, str)
+        self.assertTXResultOK(tx, result)
         print("TX %s broadcasted successfully" % result)
 
     async def assertSendOK(self):

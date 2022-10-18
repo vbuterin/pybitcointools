@@ -49,7 +49,7 @@ class Wallet:
         if self.xtype == "p2pkh":
             return self.coin.pubtoaddr(pubkey)
         elif self.xtype == "p2wpkh":
-            return self.coin.pubtosegwit(pubkey)
+            return self.coin.pubtosegwitaddress(pubkey)
         elif self.xtype == "p2wpkh-p2sh":
             return self.coin.pubtop2w(pubkey)
 
@@ -224,7 +224,7 @@ class HDWallet(Wallet):
         if self.xtype == "p2pkh":
             return self.coin.pubtoaddr(pubkey)
         elif self.xtype == "p2wpkh":
-            return self.coin.pubtosegwit(pubkey)
+            return self.coin.pubtosegwitaddress(pubkey)
         elif self.xtype == "p2wpkh-p2sh":
             return self.coin.pubtop2w(pubkey)
 

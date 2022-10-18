@@ -120,7 +120,6 @@ class NotificationSession(RPCSession):
         try:
             if isinstance(request, Notification):
                 params, result = request.args[:-1], request.args[-1]
-                print(params, result)
                 key = self.get_hashable_key_for_rpc_call(request.method, params)
                 if key in self.subscriptions:
                     self.cache[key] = result
@@ -301,7 +300,6 @@ class ElectrumXClient:
 
             async with self.restart_condition:
                 self.restart_condition.notify_all()
-            print('Connected to', self.host)
             await self.monitor_connection()
         self.session = None
 
@@ -517,8 +515,12 @@ class ElectrumXClient:
     async def get_tx(self, tx_hash: str, verbose: bool = False) -> ElectrumXGetTxResponse:
         return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
 
-    async def get_merkle(self, tx_hash: str, height: int) -> ElectrumXMerkleResponse:
-        return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
+    async def get_merkle(self, tx_hash: str, height: int) -> Optional[ElectrumXMerkleResponse]:
+        try:
+            return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
+        except aiorpcx.jsonrpc.RPCError as e:
+            if "No confirmed transaction" in e.message:
+                return None
 
     async def get_donation_address(self) -> str:
         return await self.send_request("server.donation_address")

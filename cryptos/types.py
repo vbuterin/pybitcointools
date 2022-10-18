@@ -8,6 +8,7 @@ class TxInput(TypedDict):
     tx_pos: int
     script: str
     sequence: int
+    value: NotRequired[int]
     address: NotRequired[str]
 
 
