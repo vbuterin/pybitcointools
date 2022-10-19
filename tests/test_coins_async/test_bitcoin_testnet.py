@@ -151,3 +151,10 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
 
     async def test_subscribe_address_sync(self):
         await self.assertSubscribeAddressSyncCallbackOK()
+
+    async def test_subscribe_address_transactions(self):
+        await self.assertSubscribeAddressTransactionsOK()
+
+    async def test_subscribe_address_transactions_sync(self):
+        await self.assertSubscribeAddressTransactionsSyncCallbackOK()
+

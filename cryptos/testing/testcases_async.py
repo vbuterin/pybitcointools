@@ -747,3 +747,22 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(addr, address)
         self.assertNotEqual(initial_status, status)
         await self._coin.unsubscribe_from_address(address)
+
+    async def assertSubscribeAddressTransactionsOK(self):
+        queue = asyncio.Queue()
+        address = self.addresses[0]
+
+        async def add_to_queue(address: str, txs: List[Tx], history: List[Tx], confirmed: int,
+                               unconfirmed: int, proven: int) -> None:
+            await queue.put((address, txs, history, confirmed, unconfirmed, proven))
+
+        await self._coin.subscribe_to_address_transactions(add_to_queue, address)
+        addr, start_txs, start_history, start_confirmed, start_unconfirmed, start_proven = await queue.get()
+        self.assertEqual(addr, address)
+        self.assertEqual(start_txs, [])
+        await self.assertTransactionOK()
+        addr, new_txs, current_history, current_confirmed, current_unconfirmed, current_proven = await queue.get()
+        self.assertEqual(addr, address)
+        self.assertEqual(len(new_txs), 1)
+        self.assertNotEqual(current_unconfirmed, start_unconfirmed)
+        await self._coin.unsubscribe_from_address(address)

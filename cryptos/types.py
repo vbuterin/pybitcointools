@@ -68,3 +68,8 @@ BlockHeaderCallback = Union[BlockHeaderCallbackSync, BlockHeaderCallbackAsync]
 AddressCallbackSync = Callable[[str, str], None]
 AddressCallbackAsync = Callable[[str, str], Awaitable[None]]
 AddressCallback = Union[AddressCallbackSync, AddressCallbackAsync]
+
+
+AddressTXCallbackSync = Callable[[str, List[Tx], List[Tx], int, int, int], None]
+AddressTXCallbackAsync = Callable[[str, List[Tx], List[Tx], int, int, int], Awaitable[None]]
+AddressTXCallback = Union[AddressTXCallbackSync, AddressTXCallbackAsync]

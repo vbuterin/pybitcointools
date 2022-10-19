@@ -11,8 +11,8 @@ from ..constants import SATOSHI_PER_BTC
 from functools import partial
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
 from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
-                     AddressCallback)
-from ..electrumx_client.types import (ElectrumXBlockHeaderNotification,
+                     AddressCallback, AddressTXCallback)
+from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, ElectrumXHistoryResponse,
                                       ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTxOut,
                                       ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse)
 
@@ -179,14 +179,18 @@ class BaseCoin:
 
     @staticmethod
     async def await_or_in_executor(func: Callable, *args):
-        is_coro = asyncio.iscoroutinefunction(func)
+        f = func
+        is_coro = asyncio.iscoroutinefunction(f)
+        while not is_coro and isinstance(f, partial):
+            f = f.func
+            is_coro = asyncio.iscoroutinefunction(f)
         if is_coro:
             await func(*args)
         else:
             await asyncio.get_running_loop().run_in_executor(None, func, *args)
 
     async def _block_header_callback(self, callback: BlockHeaderCallback,
-                                    header: ElectrumXBlockHeaderNotification) -> None:
+                                     header: ElectrumXBlockHeaderNotification) -> None:
         height, hex_header, header = self._get_block_header_notification_params(header)
         await self.await_or_in_executor(callback, height, hex_header, header)
 
@@ -217,7 +221,7 @@ class BaseCoin:
         return await self.client.unsubscribe_from_block_headers()
 
     async def _address_status_callback(self, callback: AddressCallback, address: str,
-                                      scripthash: str, status: str) -> None:
+                                       scripthash: str, status: str) -> None:
         await self.await_or_in_executor(callback, address, status)
 
     async def subscribe_to_address(self, callback: AddressCallback, addr: str) -> None:
@@ -225,9 +229,10 @@ class BaseCoin:
         Run callback when an address changes (e.g. a new transaction)
         Callback should be in the format:
 
-        def on_address_event(scripthash, status):
+        def on_address_event(address: str, status: str) -> None:
             pass
         """
+
         orig_addr = addr
         if self.client.requires_scripthash:
             addr = self.addrtoscripthash(addr)
@@ -241,6 +246,42 @@ class BaseCoin:
         if self.client.requires_scripthash:
             addr = self.addrtoscripthash(addr)
         return await self.client.unsubscribe_from_address(addr)
+
+    async def _address_transaction_callback(self, callback: AddressTXCallback, history: ElectrumXHistoryResponse,
+                                            address: str, status: str) -> None:
+        updated_history, balance, merkle_proven = await asyncio.gather(self.history(address), self.get_balance(address),
+                                                                       self.balance_merkle_proven(address))
+        if history == ["-"]:
+            # First response
+            new_txs = []
+            history.clear()
+            history += updated_history
+        else:
+            new_txs = [t for t in updated_history if t not in history]
+
+        prev_history = history.copy()
+        history += new_txs
+        await self.await_or_in_executor(callback, address, new_txs, prev_history, balance['confirmed'],
+                                        balance['unconfirmed'], merkle_proven)
+
+    async def subscribe_to_address_transactions(self, callback: AddressTXCallback, addr: str) -> None:
+        """
+        When an address changes retrieve transactions and balances and run a callback
+        Callback should be in the format:
+
+        def on_address_change(address: str, txs: List[Txs], history: List[txs], confirmed: int, unconfirmed: int, proven: int) -> None:
+            pass
+
+        Any transactions since the last notification are in Txs. All previous transactions are in history.
+        Balances according to the network are in confirmed and unconfirmed.
+        Balances confirmed locally is in proven.
+        """
+
+        history = ["-"]
+
+        callback = partial(self._address_transaction_callback, callback, history)
+
+        return await self.subscribe_to_address(callback, addr)
 
     async def get_balance(self, addr: str) -> ElectrumXBalanceResponse:
         """
