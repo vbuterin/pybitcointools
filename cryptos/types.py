@@ -1,5 +1,5 @@
 from typing import TypedDict
-from typing import List, AnyStr
+from typing import List, AnyStr, Union, Callable, Awaitable
 from typing_extensions import NotRequired
 
 
@@ -53,3 +53,18 @@ class MerkleProof(TypedDict):
 class AddressBalance(TypedDict):
     address: str
     balance: int
+
+
+class AddressStatusUpdate(TypedDict):
+    address: str
+    status: str
+
+
+BlockHeaderCallbackSync = Callable[[int, str, BlockHeader], None]
+BlockHeaderCallbackAsync = Callable[[int, str, BlockHeader], Awaitable[None]]
+BlockHeaderCallback = Union[BlockHeaderCallbackSync, BlockHeaderCallbackAsync]
+
+
+AddressCallbackSync = Callable[[str, str], None]
+AddressCallbackAsync = Callable[[str, str], Awaitable[None]]
+AddressCallback = Union[AddressCallbackSync, AddressCallbackAsync]

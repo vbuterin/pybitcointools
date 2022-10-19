@@ -405,7 +405,6 @@ class ElectrumXClient:
 
     async def _subscribe(self, method: str, callback: Callable, *args) -> None:
         queue = asyncio.Queue()
-        is_coro = asyncio.iscoroutinefunction(callback)
         session = None
         subscribed = False
         just_restarted = False
@@ -432,11 +431,7 @@ class ElectrumXClient:
                     """
                     if not just_restarted or item != last_item:
                         last_item = item
-                        if is_coro:
-                            coro = callback(*item)
-                            task = asyncio.create_task(coro)
-                        else:
-                            task = asyncio.get_running_loop().run_in_executor(None, callback, *item)
+                        task = asyncio.create_task(callback(*item))
                         self._tasks.append(task)
                         task.add_done_callback(self._on_task_complete)
                     just_restarted = False

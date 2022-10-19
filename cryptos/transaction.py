@@ -79,7 +79,11 @@ def dbl_sha256_list(vals):
 
 # Transaction serialization and deserialization
 
-def is_segwit(tx):
+def is_segwit(tx: bytes) -> bool:
+    """
+    Checks that the marker in a transaction is set to 0. For legacy transactions this would indicate the number of
+    inputs so will be at least 1.
+    """
     return tx[4] == 0
 
 
@@ -148,7 +152,7 @@ def deserialize(tx: AnyStr) -> Tx:
     return obj
 
 
-def serialize(txobj: Tx, include_witness=True):
+def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
     txobj = deepcopy(txobj)
     for i in txobj['ins']:
         if 'address' in i:
@@ -181,7 +185,6 @@ def serialize(txobj: Tx, include_witness=True):
     return list_to_bytes(o)
 
 
-# https://github.com/Bitcoin-UAHF/spec/blob/master/replay-protected-sighash.md#OP_CHECKSIG
 def uahf_digest(txobj, i):
     for inp in txobj['ins']:
         inp.pop('address')
@@ -222,7 +225,7 @@ def uahf_digest(txobj, i):
     return list_to_bytes(o)
 
 
-def signature_form(tx, i: int, script, hashcode: int = SIGHASH_ALL, segwit: bool = False) -> bytes:
+def signature_form(tx: Union[AnyStr, Tx], i: int, script, hashcode: int = SIGHASH_ALL, segwit: bool = False) -> bytes:
     i, hashcode = int(i), int(hashcode)
     if isinstance(tx, string_or_bytes_types):
         tx = deserialize(tx)
@@ -259,14 +262,16 @@ def der_encode_sig(v, r, s):
     right = '02'+encode(len(b2)//2, 16, 2)+b2
     return '30'+encode(len(left+right)//2, 16, 2)+left+right
 
+
 def der_decode_sig(sig):
     leftlen = decode(sig[6:8], 16)*2
     left = sig[8:8+leftlen]
     rightlen = decode(sig[10+leftlen:12+leftlen], 16)*2
     right = sig[12+leftlen:12+leftlen+rightlen]
-    return (None, decode(left, 16), decode(right, 16))
+    return None, decode(left, 16), decode(right, 16)
 
-def is_bip66(sig):
+
+def is_bip66(sig: str) -> bool:
     """Checks hex DER sig for BIP66 consistency"""
     #https://raw.githubusercontent.com/bitcoin/bips/master/bip-0066.mediawiki
     #0x30  [total-len]  0x02  [R-len]  [R]  0x02  [S-len]  [S]  [sighash]
@@ -294,7 +299,7 @@ def is_bip66(sig):
     return True
 
 
-def txhash(tx: AnyStr, hashcode=None, wtxid=True):
+def txhash(tx: AnyStr, hashcode: int = None, wtxid: bool = True) -> str:
     if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
         tx = changebase(tx, 16, 256)
     if isinstance(tx, string_or_bytes_types):
@@ -309,11 +314,11 @@ def txhash(tx: AnyStr, hashcode=None, wtxid=True):
         return safe_hexlify(bin_dbl_sha256(tx)[::-1])
 
 
-def public_txhash(tx, hashcode=None):
+def public_txhash(tx: AnyStr, hashcode: int = None) -> str:
     return txhash(tx, hashcode=hashcode, wtxid=False)
 
 
-def bin_txhash(tx, hashcode=None):
+def bin_txhash(tx: AnyStr, hashcode: int = None) -> bytes:
     return binascii.unhexlify(txhash(tx, hashcode))
 
 

@@ -27,7 +27,7 @@ class ElectrumXBlockHeaderNotification(TypedDict):
     hex: str
 
 
-BlockHeaderNotificationCallback = Union[Callable[[ElectrumXBlockHeaderNotification], None], Callable[[ElectrumXBlockHeaderNotification], Awaitable[None]]]
+BlockHeaderNotificationCallback = Callable[[ElectrumXBlockHeaderNotification], Awaitable[None]]
 
 
 class ElectrumXBalanceResponse(TypedDict):
@@ -69,7 +69,6 @@ class ElectrumXTxAddress(TypedDict):
 
 
 ElectrumXMultiTxResponse = List[ElectrumXTxAddress]
-ElectrumXMultiTxResponse = List[ElectrumXTxAddress]
 
 
 class ElectrumXScripthashNotification(TypedDict):
@@ -77,7 +76,7 @@ class ElectrumXScripthashNotification(TypedDict):
     status: str
 
 
-AddressNotificationCallback = Union[Callable[[ElectrumXScripthashNotification], None], Callable[[ElectrumXScripthashNotification], Awaitable[None]]]
+AddressNotificationCallback = Callable[[ElectrumXScripthashNotification], Awaitable[None]]
 
 
 ElectrumXGetTxResponse = Union[str, Dict[str, JsonType]]

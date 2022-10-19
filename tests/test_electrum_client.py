@@ -371,6 +371,7 @@ class TestElectrumSSLClient(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(self.client.server_version, known_electrum_ssl_version)
         self.assertEqual(self.client.port, 50002)
         task.cancel()
+
     async def test_send_request_async(self):
         result = await self.client.send_request('blockchain.block.header', 1)
         self.assertEqual(result,

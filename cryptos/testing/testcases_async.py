@@ -1,6 +1,6 @@
 import unittest
 import asyncio
-from copy import deepcopy
+from queue import Queue
 from operator import itemgetter
 from cryptos import *
 from cryptos.transaction import calculate_fee
@@ -8,7 +8,7 @@ from cryptos import coins_async
 from cryptos.electrumx_client.types import ElectrumXScripthashNotification
 from cryptos.utils import alist
 from cryptos.types import Tx
-from typing import AsyncGenerator, Any, Union
+from typing import AsyncGenerator, Any, Union, List
 
 
 class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
@@ -21,7 +21,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     segwit_addresses = []
     new_segwit_addresses = []
     txheight = None
-    multisig_address = ""
+    multisig_addresses: List[str] = []
     privkeys = []
     txid = None
     merkle_txhash = None
@@ -224,7 +224,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             prev_script_code = script_code
 
         tx = serialize(tx)
-
+        print(tx)
         # Push the transaction to the network
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
@@ -517,21 +517,48 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertMultiSigTransactionOK(self):
         pubs = [privtopub(priv) for priv in self.privkeys]
-        script, sender = self._coin.mk_multsig_address(*pubs, num_required=2)
-        self.assertEqual(sender, self.multisig_address)
-        receiver = self.addresses[0]
-        value = 10000
-        tx = await self._coin.preparetx(sender, receiver, value, self.fee)
+        script, address1 = self._coin.mk_multsig_address(*pubs, num_required=2)
+        self.assertEqual(address1, self.multisig_addresses[0])
+        pubs2 = [privtopub(priv) for priv in self.privkeys[0:2]]
+        script2, address2 = self._coin.mk_multsig_address(*pubs2)
+        self.assertEqual(address2, self.multisig_addresses[1])
+
+        # Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        from_addr_i = 0
+        unspents = []
+        sender = None
+
+        for i, addr in enumerate(self.multisig_addresses):
+            addr_unspents = await self._coin.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = addr
+                from_addr_i = i
+                unspents = addr_unspents
+
+        # Arbitrarily set send value, receiver and change address
+        send_value = int(max_value * 0.1)
+
+        receiver = address2 if sender == address1 else address1
+
+        tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
+
         for i in range(0, len(tx['ins'])):
-            sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
-            sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
-            tx = apply_multisignatures(tx, i, script, sig1, sig3)
+            if sender == address1:
+                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
+                sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
+                tx = apply_multisignatures(tx, i, script, sig1, sig3)
+            else:
+                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
+                sig2 = self._coin.multisign(tx, i, script, self.privkeys[1])
+                tx = apply_multisignatures(tx, i, script, sig1, sig2)
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
-        self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertEqual(fee, self.fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
         self.assertNotIn('witness', tx)
@@ -558,6 +585,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Push the transaction to the network
         result = await self._coin.pushtx(tx)
+        print(serialize(tx))
         self.assertTXResultOK(tx, result)
 
     async def assertBlockHeaderOK(self):
@@ -600,8 +628,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         privkey = self.privkeys[from_addr_i]
 
         # Arbitrarily set send value, change value, receiver and change address
-        fee = int(self.fee * 0.1)
-        outputs_value = max_value - fee
+        outputs_value = max_value - self.fee
         send_value1 = int(outputs_value * 0.2)
         send_value2 = int(outputs_value * 0.5)
 
@@ -619,13 +646,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                          msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         outs = [{'address': receiver1, 'value': send_value1},  {'address': receiver2, 'value': send_value2}]
-        tx = await self._coin.preparesignedmultirecipienttx(privkey, sender, outs, fee=fee)
-        serialized_tx = serialize(tx)
-        pass
 
-        result = await self._coin.send_to_multiple_receivers_tx(privkey, sender, outs, fee=fee)
+        result = await self._coin.send_to_multiple_receivers_tx(privkey, sender, outs, fee=self.fee)
         self.assertIsInstance(result, str)
-        self.assertTXResultOK(tx, result)
         print("TX %s broadcasted successfully" % result)
 
     async def assertSendOK(self):
@@ -646,9 +669,11 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         privkey = self.privkeys[from_addr_i]
 
+        self.assertEqual(sender, self._coin.privtoaddr(privkey),
+                         msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
+
         # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = max_value - self.fee
-        send_value = int(outputs_value * 0.1)
+        send_value = int(max_value * 0.2)
 
         if sender == self.addresses[0]:
             receiver = self.addresses[1]
@@ -657,33 +682,68 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         else:
             receiver = self.addresses[0]
 
-        result = await self._coin.send(privkey, sender, receiver, send_value, fee=self.fee)
+        result = await self._coin.send(privkey, sender, receiver, send_value)
         self.assertIsInstance(result, str)
         print("TX %s broadcasted successfully" % result)
 
     async def assertSubscribeBlockHeadersOK(self):
         queue = asyncio.Queue()
-        block_keys = ['block_height', 'version', 'prev_block_hash', 'merkle_root', 'timestamp', 'bits', 'nonce']
-        await self._coin.subscribe_to_block_headers(queue.put)
+        block_keys = ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
+
+        async def on_new_block(height: int, hex_header: str, header: BlockHeader) -> None:
+            await queue.put((height, hex_header, header))
+
+        await self._coin.subscribe_to_block_headers(on_new_block)
         result = await queue.get()
-        data = result[0]['data']
-        self.assertListEqual(list(data.keys()), block_keys)
+        height, hex_header, header = result
+        self.assertGreater(height, self.min_latest_height)
+        self.assertEqual(deserialize_header(binascii.unhexlify(hex_header)), header)
+        self.assertListEqual(sorted(header.keys()), block_keys)
+        await self._coin.unsubscribe_from_block_headers()
+
+    async def assertSubscribeBlockHeadersSyncCallbackOK(self):
+        queue = Queue()
+        block_keys = ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
+
+        def on_new_block(height: int, hex_header: str, header: BlockHeader) -> None:
+            queue.put_nowait((height, hex_header, header))
+
+        await self._coin.subscribe_to_block_headers(on_new_block)
+        result = await asyncio.get_event_loop().run_in_executor(None, queue.get)
+        height, hex_header, header = result
+        self.assertGreater(height, self.min_latest_height)
+        self.assertEqual(deserialize_header(binascii.unhexlify(hex_header)), header)
+        self.assertListEqual(sorted(header.keys()), block_keys)
         await self._coin.unsubscribe_from_block_headers()
 
     async def assertSubscribeAddressOK(self):
         queue = asyncio.Queue()
         address = self.addresses[0]
 
-        async def add_to_queue(notification: ElectrumXScripthashNotification) -> None:
-            await queue.put(notification)
+        async def add_to_queue(addr: str, status: str) -> None:
+            await queue.put((addr, status))
 
         await self._coin.subscribe_to_address(add_to_queue, address)
-        result = await queue.get()
-        initial_status = result[0]['data']['status']
-        self.assertListEqual(list(result[0].keys()), ['data', 'error', 'method', 'params'])
+        addr, initial_status = await queue.get()
+        self.assertEqual(addr, address)
         await self.assertTransactionOK()
-        items = await queue.get()
-        data = items[0]
-        self.assertListEqual(list(data.keys()), ['address', 'status'])
-        self.assertNotEqual(initial_status, data['status'])
+        addr, status = await queue.get()
+        self.assertEqual(addr, address)
+        self.assertNotEqual(initial_status, status)
+        await self._coin.unsubscribe_from_address(address)
+
+    async def assertSubscribeAddressSyncCallbackOK(self):
+        queue = Queue()
+        address = self.segwit_addresses[0]
+
+        def add_to_queue(addr: str, status: str) -> None:
+            queue.put((addr, status))
+
+        await self._coin.subscribe_to_address(add_to_queue, address)
+        addr, initial_status = await asyncio.get_event_loop().run_in_executor(None, queue.get)
+        self.assertEqual(addr, address)
+        await self.assertSegwitTransactionOK()
+        addr, status = await asyncio.get_event_loop().run_in_executor(None, queue.get)
+        self.assertEqual(addr, address)
+        self.assertNotEqual(initial_status, status)
         await self._coin.unsubscribe_from_address(address)

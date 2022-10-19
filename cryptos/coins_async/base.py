@@ -8,9 +8,11 @@ from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
+from functools import partial
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
-from ..types import Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance
-from ..electrumx_client.types import (BlockHeaderNotificationCallback, AddressNotificationCallback,
+from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
+                     AddressCallback)
+from ..electrumx_client.types import (ElectrumXBlockHeaderNotification,
                                       ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTxOut,
                                       ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse)
 
@@ -127,9 +129,9 @@ class BaseCoin:
         for inp in txobj['ins']:
             address = inp.get('address')
             if address and self.is_new_segwit(address):
-                size += self.signature_sizes['p2wpkh']
+                pass        # Segwit signatures not included in tx size for fee purposes?
             elif address and self.is_legacy_segwit_or_multisig(address):
-                size += self.signature_sizes['p2w_p2sh']
+                size += self.signature_sizes['p2w_p2sh']    # Not sure if segwit or not
             else:
                 size += self.signature_sizes['p2pkh']
         return size
@@ -168,15 +170,44 @@ class BaseCoin:
         for header in await asyncio.gather(*[self.block_header(h) for h in args]):
             yield header
 
-    async def subscribe_to_block_headers(self, callback: BlockHeaderNotificationCallback) -> None:
+    @staticmethod
+    def _get_block_header_notification_params(header: ElectrumXBlockHeaderNotification) -> Tuple[int, str, BlockHeader]:
+        height = header['height']
+        hex_header = header['hex']
+        header = deserialize_header(unhexlify(hex_header))
+        return height, hex_header, header
+
+    @staticmethod
+    async def await_or_in_executor(func: Callable, *args):
+        is_coro = asyncio.iscoroutinefunction(func)
+        if is_coro:
+            await func(*args)
+        else:
+            await asyncio.get_running_loop().run_in_executor(None, func, *args)
+
+    async def _block_header_callback(self, callback: BlockHeaderCallback,
+                                    header: ElectrumXBlockHeaderNotification) -> None:
+        height, hex_header, header = self._get_block_header_notification_params(header)
+        await self.await_or_in_executor(callback, height, hex_header, header)
+
+    async def subscribe_to_block_headers(self, callback: BlockHeaderCallback) -> None:
         """
         Run callback when a new block is added to the blockchain
         Callback should be in the format:
 
-        def on_block_headers(header):
+        from cryptos.types import BlockHeader
+
+        async def on_block_headers(height: int, hex_header: str, header:BlockHeader) -> None:
+            pass
+
+        or
+
+        def on_block_headers(height: int, hex_header: str, header:BlockHeader) -> None:
             pass
 
         """
+
+        callback = partial(self._block_header_callback, callback)
         return await self.client.subscribe_to_block_headers(callback)
 
     async def unsubscribe_from_block_headers(self) -> None:
@@ -185,7 +216,11 @@ class BaseCoin:
         """
         return await self.client.unsubscribe_from_block_headers()
 
-    async def subscribe_to_address(self, callback: AddressNotificationCallback, addr: str) -> None:
+    async def _address_status_callback(self, callback: AddressCallback, address: str,
+                                      scripthash: str, status: str) -> None:
+        await self.await_or_in_executor(callback, address, status)
+
+    async def subscribe_to_address(self, callback: AddressCallback, addr: str) -> None:
         """
         Run callback when an address changes (e.g. a new transaction)
         Callback should be in the format:
@@ -193,9 +228,10 @@ class BaseCoin:
         def on_address_event(scripthash, status):
             pass
         """
-
+        orig_addr = addr
         if self.client.requires_scripthash:
             addr = self.addrtoscripthash(addr)
+        callback = partial(self._address_status_callback, callback, orig_addr)
         return await self.client.subscribe_to_address(callback, addr)
 
     async def unsubscribe_from_address(self, addr: str):
@@ -607,8 +643,8 @@ class BaseCoin:
 
         if fee is None:
             fee = await self.estimate_fee(txobj, numblocks=estimate_fee_blocks)
-        if isum < osum + fee + 5430:
-            raise Exception("Not enough money")
+        if isum < osum + fee:
+            raise Exception(f"Not enough money. You have {isum} but need {osum+fee} ({osum} + fee of {fee}).")
 
         change_out['value'] = isum - osum - fee
 
@@ -619,9 +655,13 @@ class BaseCoin:
         """
         Prepare transaction with multiple outputs, with change sent to from address
         """
-        outvalue = sum(out['value'] for out in outs)
+        outvalue = int(sum(out['value'] for out in outs))
         unspents = await self.unspent(frm)
-        unspents2 = select(unspents, int(outvalue) + int(fee))
+        if not fee:
+            unspents2 = select(unspents, outvalue)
+            tx = await self.mktx_with_change(unspents2, deepcopy(outs), fee=0, change=change_addr)
+            fee = await self.estimate_fee(tx, estimate_fee_blocks)
+        unspents2 = select(unspents, outvalue + fee)
         change_addr = change_addr or frm
         return await self.mktx_with_change(unspents2, outs, fee=fee, change=change_addr,
                                            estimate_fee_blocks=estimate_fee_blocks)
@@ -645,7 +685,6 @@ class BaseCoin:
         private key.It will also be used, along with the privkey to automatically detect a segwit transaction for coins
         which support segwit, overriding the segwit kw
         """
-        segwit = self.is_segwit_or_multisig(frm)
         tx = await self.preparemultitx(frm, outs, fee=fee, change_addr=change_addr,
                                        estimate_fee_blocks=estimate_fee_blocks)
         tx2 = self.signall(tx, privkey)
@@ -681,7 +720,7 @@ class BaseCoin:
         return await self.pushtx(tx)
 
     async def send(self, privkey, frm: str, to: str, value: int, change_addr: str = None,
-                   fee : int = None, estimate_fee_blocks: int = 6):
+                   fee: int = None, estimate_fee_blocks: int = 6):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
         from address or change address, if set.
@@ -692,8 +731,8 @@ class BaseCoin:
         coins which support segwit, overriding the segwit kw
         """
         outs = [{'address': to, 'value': value}]
-        return await self.sendmultitx(privkey, frm, outs, change_addr=change_addr,
-                                      fee=fee, estimate_fee_blocks=estimate_fee_blocks)
+        return await self.send_to_multiple_receivers_tx(privkey, frm, outs, change_addr=change_addr,
+                                                        fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
     async def inspect(self, tx: Union[str, Tx]):
         if not isinstance(tx, dict):

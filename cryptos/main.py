@@ -614,3 +614,7 @@ def magicbyte_to_prefix(magicbyte) -> List[str]:
 
 def script_to_scripthash(script):
     return safe_hexlify(bin_sha256(safe_from_hex(script))[::-1])
+
+
+def generate_private_key() -> str:
+    return binascii.hexlify(os.urandom(32)).decode()
