@@ -1,21 +1,18 @@
 import asyncio
-import janus
-import threading
 from concurrent.futures import Future
-from typing import Any, Optional, Tuple, Type
-from ..coins_async import BaseCoin as BaseAsyncCoin
+import threading
+import janus
+from cryptos.coins_async.base import BaseCoin
+from typing import Optional, Tuple, Any
 
 
-class BaseCoin:
-    async_class: Type[BaseAsyncCoin]
+class SyncCoinMixin(BaseCoin):
     is_closing: bool = False
     _thread: threading.Thread = None
 
-    def __init__(self, *args, **kwargs):
-        self._client_args = args
-        self._client_kwargs = kwargs
+    def __init__(self, testnet: bool = False, use_ssl: bool = None, **kwargs):
+        super().__init__(testnet=testnet, use_ssl=use_ssl, **kwargs)
         self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple, dict[str, Any]]]] = None
-        self._async: Optional[BaseAsyncCoin] = None
         self._loop_is_started = threading.Event()
 
     def start(self, *args, **kwargs):
@@ -29,26 +26,25 @@ class BaseCoin:
 
     async def run(self):
         self._request_queue = janus.Queue()
-        self._async = self.async_class(*self._client_args, **self._client_kwargs)
-        try:
-            fut: Future
-            method: str
-            args: tuple
-            kwargs: dict
-            if not self.is_closing:
+        fut: Future
+        method: str
+        args: tuple
+        kwargs: dict
+        if not self.is_closing:
+            try:
                 asyncio.get_running_loop().call_soon(self._loop_is_started.set)
                 while True:
                     val = await self._request_queue.async_q.get()
                     fut, method, args, kwargs = val
-                    if method == "_close":
+                    if method == "close":
                         break
                     try:
-                        result = await getattr(self._async, method)(*args, **kwargs)
+                        result = await getattr(super(), method)(*args, **kwargs)
                         fut.set_result(result)
                     except Exception as e:
                         fut.set_exception(e)
-        finally:
-            await self._async.close()
+            finally:
+                await super().close()
             self._loop_is_started.clear()
 
     def _run_async(self, method: str, *args, **kwargs):
@@ -64,5 +60,5 @@ class BaseCoin:
         self.is_closing = True
         if self._loop_is_started.is_set():
             fut = Future()
-            self._request_queue.sync_q.put((fut, "_close", (), {}))
+            self._request_queue.sync_q.put((fut, "close", (), {}))
             fut.result(timeout=10)

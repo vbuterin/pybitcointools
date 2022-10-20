@@ -1,7 +1,7 @@
 import os
 import binascii
 import hashlib
-from typing import AnyStr
+from typing import AnyStr, Union, List
 
 
 string_types = (str)
@@ -56,7 +56,7 @@ def bin_to_b58check(inp, magicbyte: int = 0) -> str:
     return '1' * leadingzbytes + changebase(inp+checksum, 256, 58)
 
 
-def bytes_to_hex_string(b: bytes) -> str:
+def bytes_to_hex_string(b: Union[bytes, List[str]]) -> str:
     if isinstance(b, str):
         return b
 

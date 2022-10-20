@@ -473,9 +473,9 @@ class BaseCoin:
         if re.match('^[0-9a-fA-F]*$', script):
             script = binascii.unhexlify(script)
         if script[:3] == b'\x76\xa9\x14' and script[-2:] == b'\x88\xac' and len(script) == 25:
-            return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash address_derivations
+            return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash address
         else:
-            # BIP0016 scripthash address_derivations
+            # BIP0016 scripthash address
             return bin_to_b58check(script[2:-1], self.script_magicbyte)
 
     def p2sh_scriptaddr(self, script: str) -> str:
