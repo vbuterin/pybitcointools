@@ -11,10 +11,11 @@ from ..constants import SATOSHI_PER_BTC
 from functools import partial
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
 from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
-                     AddressCallback, AddressTXCallback)
+                     AddressCallback, AddressTXCallback, PrivkeyType, PrivateKeySignAllType, TXInspectType)
 from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, ElectrumXHistoryResponse,
                                       ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx,
-                                      ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse)
+                                      ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse,
+                                      ElectrumXVerboseTX)
 
 
 class BaseCoin:
@@ -249,6 +250,9 @@ class BaseCoin:
             await fut
         return self._block
 
+    def is_closing(self) -> bool:
+        return not self.client or self.client.is_closing
+
     async def confirmations(self, height: int) -> int:
         if height > 0:
             return (await self.block)[0] - height + 1
@@ -391,7 +395,8 @@ class BaseCoin:
                 yield tx
 
     async def balance_merkle_proven(self, addr: str) -> int:
-        return sum(u['value'] for u in await self.unspent(addr, merkle_proof=True))
+        result = sum(u['value'] for u in await self.unspent(addr, merkle_proof=True))
+        return result
 
     async def balances_merkle_proven(self, *args: str) -> AsyncGenerator[AddressBalance, None]:
         async for addr, result in self._tasks_with_inputs(self.unspent, *args, merkle_proof=True):
@@ -428,7 +433,7 @@ class BaseCoin:
         deserialized_tx = deserialize(tx)
         return deserialized_tx
 
-    async def get_verbose_tx(self, tx_hash: str) -> Dict[str, Any]: # Make TypedDict
+    async def get_verbose_tx(self, tx_hash: str) -> ElectrumXVerboseTX:
         """
         Fetch transaction from the blockchain in verbose form
         """
@@ -446,7 +451,7 @@ class BaseCoin:
             tx = serialize(tx)
         return await self.client.broadcast_tx(tx)
 
-    def privtopub(self, privkey) -> str:
+    def privtopub(self, privkey: PrivkeyType) -> str:
         """
         Get public key from private key
         """
@@ -458,7 +463,7 @@ class BaseCoin:
         """
         return pubtoaddr(pubkey, magicbyte=self.magicbyte)
 
-    def privtoaddr(self, privkey) -> str:
+    def privtoaddr(self, privkey: PrivkeyType) -> str:
         """
         Get address from a private key
         """
@@ -471,7 +476,7 @@ class BaseCoin:
         pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
         return self.pubtoaddr(pubkey)
 
-    def encode_privkey(self, privkey, formt, script_type: str ="p2pkh"):
+    def encode_privkey(self, privkey: PrivkeyType, formt, script_type: str ="p2pkh"):
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def is_p2pkh(self, addr: str) -> bool:
@@ -557,19 +562,19 @@ class BaseCoin:
         compressed_pub = compress(pub)
         return self.scripttoaddr(mk_p2wpkh_script(compressed_pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
 
-    def privtop2w(self, priv: str) -> str:
+    def privtop2w(self, priv: PrivkeyType) -> str:
         """
         Convert a private key to a pay to witness public key hash address
         """
         return self.pubtop2w(privtopub(priv))
 
-    def hash_to_segwit_addr(self, hash: str) -> str:
+    def hash_to_segwit_addr(self, pub_hash: str) -> str:
         """
         Convert a hash to the new segwit address format outlined in BIP-0173
         """
-        return segwit_addr.encode(self.segwit_hrp, 0, hash)
+        return segwit_addr.encode(self.segwit_hrp, 0, pub_hash)
 
-    def privtosegwitaddress(self, privkey) -> str:
+    def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
         """
         Convert a private key to the new segwit address format outlined in BIP01743
         """
@@ -598,7 +603,7 @@ class BaseCoin:
         address = self.p2sh_scriptaddr(script)
         return script, address
 
-    def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: bytes) -> Tx:
+    def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
         """
         Sign a transaction input with index using a private key
         """
@@ -645,7 +650,7 @@ class BaseCoin:
                 txobj["witness"].append(witness)
         return txobj
 
-    def signall(self, txobj: Union[str, Tx], priv: Union[Dict[str, bytes], bytes]) -> Tx:
+    def signall(self, txobj: Union[str, Tx], priv: PrivateKeySignAllType) -> Tx:
         """
         Sign all inputs to a transaction using a private key.
         Priv is either a private key or a dictionary of address keys and private key values
@@ -709,7 +714,7 @@ class BaseCoin:
         txobj.update({'ins': ins, 'outs': outs})
         return txobj
 
-    async def mktx_with_change(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]],
+    async def mktx_with_change(self, ins: List[Union[TxInput, AnyStr, ElectrumXTx]], outs: List[Union[TxOut, AnyStr]],
                                change_addr: str = None, fee: int = None, estimate_fee_blocks: int = 6,
                                locktime: int = 0, sequence: int = 0xFFFFFFFF) -> Tx:
         """[in0, in1...],[out0, out1...]
@@ -758,8 +763,8 @@ class BaseCoin:
         return await self.preparemultitx(frm, outs, fee=fee, estimate_fee_blocks=estimate_fee_blocks,
                                          change_addr=change_addr)
 
-    async def preparesignedmultirecipienttx(self, privkey, frm: str, outs: List[TxOut], change_addr: str = None,    # Privkey Type?
-                                            fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
+    async def preparesignedmultirecipienttx(self, privkey: PrivateKeySignAllType, frm: str, outs: List[TxOut],
+                                            change_addr: str = None, fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
         """
         Prepare transaction with multiple outputs, with change sent back to from address or given change_addr
         Requires private key, address:value pairs and optionally the change address and fee
@@ -773,8 +778,8 @@ class BaseCoin:
         tx2 = self.signall(tx, privkey)
         return tx2
 
-    async def preparesignedtx(self, privkey, frm: str, to: str, value: int, change_addr: str = None,
-                              fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
+    async def preparesignedtx(self, privkey: PrivateKeySignAllType, frm: str, to: str, value: int,
+                              change_addr: str = None, fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
         """
         Prepare a tx with a specific amount from address belonging to private key to another address, returning change
         to the from address or change address, if set.
@@ -788,8 +793,8 @@ class BaseCoin:
         return await self.preparesignedmultirecipienttx(privkey, frm, outs, change_addr=change_addr,
                                                         fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
-    async def send_to_multiple_receivers_tx(self, privkey, addr: str, outs: List[TxOut], change_addr: str = None,   # Privkey Type?
-                                            fee: int = None, estimate_fee_blocks: int = 6):
+    async def send_to_multiple_receivers_tx(self, privkey: PrivateKeySignAllType, addr: str, outs: List[TxOut],
+                                            change_addr: str = None, fee: int = None, estimate_fee_blocks: int = 6):
         """
         Send transaction with multiple outputs, with change sent back to from addrss
         Requires private key, address:value pairs and optionally the change address and fee
@@ -802,7 +807,7 @@ class BaseCoin:
                                                       fee=fee, estimate_fee_blocks=estimate_fee_blocks)
         return await self.pushtx(tx)
 
-    async def send(self, privkey, frm: str, to: str, value: int, change_addr: str = None,                       # Privkey Type?
+    async def send(self, privkey: PrivateKeySignAllType, frm: str, to: str, value: int, change_addr: str = None,
                    fee: int = None, estimate_fee_blocks: int = 6):
         """
         Send a specific amount from address belonging to private key to another address, returning change to the
@@ -817,7 +822,7 @@ class BaseCoin:
         return await self.send_to_multiple_receivers_tx(privkey, frm, outs, change_addr=change_addr,
                                                         fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
-    async def inspect(self, tx: Union[str, Tx]) -> Dict[str, Any]:    # Better typing
+    async def inspect(self, tx: Union[str, Tx]) -> TXInspectType:
         if not isinstance(tx, dict):
             tx = deserialize(tx)
         isum = 0
@@ -825,7 +830,7 @@ class BaseCoin:
         for _in in tx['ins']:
             h = _in['tx_hash']
             i = _in['tx_pos']
-            prevout = await anext(self.get_txs(h))['outs'][i]
+            prevout = (await anext(self.get_txs(h)))['outs'][i]
             isum += prevout['value']
             a = self.scripttoaddr(prevout['script'])
             ins[a] = ins.get(a, 0) + prevout['value']

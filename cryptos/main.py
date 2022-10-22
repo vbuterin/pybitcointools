@@ -287,7 +287,7 @@ def decompress(pubkey: str) -> str:
         return encode_pubkey(decode_pubkey(pubkey, f), 'hex')
 
 
-def privkey_to_pubkey(privkey):
+def privkey_to_pubkey(privkey: Union[int, str]):
     f = get_privkey_format(privkey)
     privkey = decode_privkey(privkey, f)
     if privkey >= N:

@@ -192,7 +192,6 @@ class TestElectrumClient(unittest.IsolatedAsyncioTestCase):
         host1 = self.client.host
         self.assertEqual(len(self.client.session.subscriptions['blockchain.headers.subscribe[]']), 1)
         await self.client.redo_connection()
-        await self.client.wait_new_start()
         host2 = self.client.host
         assert host1 != host2
         await asyncio.sleep(2)
@@ -522,21 +521,13 @@ class TestElectrumClientNotifications(unittest.IsolatedAsyncioTestCase):
         result2 = await queue.get()
         self.assertEqual(result2['height'], 2350326)
         self.assertEqual(result2['hex'], expected_hex2)
-        print('sleeping')
         await asyncio.sleep(3)
-        print('Checking queue size')
         print(queue.qsize())
         self.assertRaises(asyncio.QueueEmpty, queue.get_nowait)
-        print('Redoing connection')
         await self.client.redo_connection()
-        print('Waiting new start')
-        await self.client.wait_new_start()
-        print('Connection redone')
         host2 = self.client.host
         assert host1 != host2
-        print('waiting on result3')
         result3 = await queue.get()
-        print('result3 received')
         self.assertEqual(result3['height'], 2350327)
         self.assertEqual(result3['hex'], expected_hex3)
         self.assertRaises(asyncio.QueueEmpty, queue.get_nowait)

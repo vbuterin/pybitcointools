@@ -2,9 +2,6 @@ from typing import TypedDict, Union, Callable, List, Dict, Any, Literal, Awaitab
 from typing_extensions import NotRequired
 
 
-JsonType = Union[str, int, Dict[str, Any], List[Union[str, int, Dict, List]]]
-
-
 class ElectrumXBlockCPResponse(TypedDict):
     branch: str
     header: str
@@ -79,7 +76,24 @@ class ElectrumXScripthashNotification(TypedDict):
 AddressNotificationCallback = Callable[[ElectrumXScripthashNotification], Awaitable[None]]
 
 
-ElectrumXGetTxResponse = Union[str, Dict[str, JsonType]]
+class ElectrumXVerboseTX(TypedDict):
+    blockhash: str
+    blocktime: int
+    confirmations: int
+    hash: str
+    hex: str
+    locktime: int
+    size: int
+    time: int
+    txid: str
+    version: int
+    vin: List[Dict[str, Any]]
+    vout: List[Dict[str, Any]]
+    vsize: int
+    weight: int
+
+
+ElectrumXGetTxResponse = Union[str, ElectrumXVerboseTX]
 
 
 class ElectrumXMerkleResponse(TypedDict):

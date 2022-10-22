@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Dict
 from typing import List, AnyStr, Union, Callable, Awaitable
 from typing_extensions import NotRequired
 from .electrumx_client.types import ElectrumXTx
@@ -74,3 +74,14 @@ AddressCallback = Union[AddressCallbackSync, AddressCallbackAsync]
 AddressTXCallbackSync = Callable[[str, List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], int, int, int], None]
 AddressTXCallbackAsync = Callable[[str, List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], int, int, int], Awaitable[None]]
 AddressTXCallback = Union[AddressTXCallbackSync, AddressTXCallbackAsync]
+
+
+# Either a single private key or a mapping of addresses to private keys
+PrivkeyType = Union[int, str, bytes]
+PrivateKeySignAllType = Union[Dict[str, PrivkeyType], PrivkeyType]
+
+
+class TXInspectType(TypedDict):
+    ins: List[TxInput]
+    outs: List[TxOut]
+    fee: int

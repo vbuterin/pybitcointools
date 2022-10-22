@@ -6,39 +6,40 @@ from cryptos import *
 from cryptos.transaction import calculate_fee
 from cryptos import coins_async
 from cryptos.utils import alist
-from cryptos.types import Tx
+from cryptos.types import Tx, TxOut
+from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
 from typing import AsyncGenerator, Any, Union, List
 
 
 class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
-    name = ""
-    unspent_address = ""
-    unspent_addresses = []
-    unspent = {}
-    unspents = []
-    addresses = []
-    segwit_addresses = []
-    native_segwit_addresses = []
-    txheight = None
-    multisig_addresses: List[str] = []
-    privkeys = []
-    txid = None
-    merkle_txhash = None
-    merkle_txheight = None
-    txinputs = None
-    min_latest_height = 99999999999
-    fee = 100
+    name: str = ""
     coin = coins_async.Bitcoin
-    blockcypher_api_key = None
-    blockcypher_coin_symbol = None
-    testnet = True
-    num_merkle_siblings = 0
-    balance = {}
-    balances = []
-    history = {}
-    raw_tx = ''
-    histories = []
-    event = asyncio.Event()
+    addresses: List[str] = []
+    segwit_addresses: List[str] = []
+    native_segwit_addresses: List[str] = []
+    multisig_addresses: List[str] = []
+
+    fee: int = 500
+    max_fee: int = 3500
+    testnet: bool = True
+    min_latest_height: int = 99999999999
+
+    unspent_addresses: List[str] = []
+    unspent: List[ElectrumXTx] = []
+    unspents: List[ElectrumXTx] = []
+
+    txheight: int = None
+    privkeys: List[str] = []     # Private keys for above addresses in same order
+    txid: str = None
+    merkle_txhash: int = None
+    merkle_txheight: int = None
+    txinputs: List[TxOut] = None
+
+    balance: ElectrumXMultiBalanceResponse = {}
+    balances: List[ElectrumXMultiBalanceResponse] = []
+    history: List[ElectrumXTx] = {}
+    histories: List[ElectrumXTx] = []
+    raw_tx: str = ''
 
     @classmethod
     def setUpClass(cls):
@@ -180,7 +181,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         tx2 = self._coin.signall(tx2, {segwit_sender: segwit_privkey, regular_sender: regular_privkey})
 
-        self.assertDictEqual(tx, tx2)
+        self.assertDictEqual(dict(tx), dict(tx2))
         self.assertEqual(serialize(tx), serialize(tx2))
 
         self.assertEqual(tx['locktime'], 0)
@@ -456,7 +457,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
         self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
         self.assertNotIn('witness', tx)
@@ -509,6 +510,12 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime'])
         self.assertEqual(tx, self.tx)
 
+    async def assertGetVerboseTXOK(self):
+        tx = await self._coin.get_verbose_tx(self.txid)
+        self.assertListEqual(sorted(tx.keys()),
+                             ['blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime', 'size', 'time',
+                              'txid', 'version', 'vin', 'vout', 'vsize', 'weight'])
+
     async def assertGetSegwitTxsOK(self):
         txs = await alist(self._coin.get_txs(self.txid))
         self.assertListEqual(list(txs[0].keys()),
@@ -524,8 +531,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
-        from_addr_i = 0
-        unspents = []
         sender = None
 
         for i, addr in enumerate(self.multisig_addresses):
@@ -534,8 +539,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             if value > max_value:
                 max_value = value
                 sender = addr
-                from_addr_i = i
-                unspents = addr_unspents
 
         # Arbitrarily set send value, receiver and change address
         send_value = int(max_value * 0.1)
@@ -772,16 +775,16 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         address = self.addresses[0]
 
         async def add_to_queue(address: str, txs: List[Tx], newly_confirmed: List[Tx], history: List[Tx],
-                               confirmed: int, unconfirmed: int, proven: int) -> None:
-            await queue.put((address, txs, newly_confirmed, history, confirmed, unconfirmed, proven))
+                               unspent: List[Tx], confirmed: int, unconfirmed: int, proven: int) -> None:
+            await queue.put((address, txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven))
 
         await self._coin.subscribe_to_address_transactions(add_to_queue, address)
-        addr, start_txs, start_newly_confirmed, start_history, start_confirmed, start_unconfirmed, start_proven = await queue.get()
+        addr, start_txs, start_newly_confirmed, start_history, unspent, start_confirmed, start_unconfirmed, start_proven = await queue.get()
         self.assertEqual(addr, address)
         self.assertEqual(start_txs, [])
         self.assertEqual(start_newly_confirmed, [])
         await self.assertSendOK()
-        addr, new_txs, newly_confirmed, history, confirmed, unconfirmed, proven = await queue.get()
+        addr, new_txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven = await queue.get()
         self.assertEqual(addr, address)
         self.assertEqual(len(new_txs), 1)
         self.assertEqual(len(newly_confirmed), 0)
@@ -795,16 +798,16 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         address = self.addresses[0]
 
         def add_to_queue(address: str, txs: List[Tx], newly_confirmed: List[Tx], history: List[Tx],
-                         confirmed: int, unconfirmed: int, proven: int) -> None:
-            queue.put((address, txs, newly_confirmed, history, confirmed, unconfirmed, proven))
+                         unspent: List[Tx], confirmed: int, unconfirmed: int, proven: int) -> None:
+            queue.put((address, txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven))
 
         await self._coin.subscribe_to_address_transactions(add_to_queue, address)
-        addr, start_txs, start_newly_confirmed, start_history, start_confirmed, start_unconfirmed, start_proven = await asyncio.get_event_loop().run_in_executor(None, queue.get)
+        addr, start_txs, start_newly_confirmed, start_history, start_unspent, start_confirmed, start_unconfirmed, start_proven = await asyncio.get_event_loop().run_in_executor(None, queue.get)
         self.assertEqual(addr, address)
         self.assertEqual(start_txs, [])
         self.assertEqual(start_newly_confirmed, [])
         await self.assertSendOK()
-        addr, new_txs, newly_confirmed, history, confirmed, unconfirmed, proven = await asyncio.get_event_loop().run_in_executor(
+        addr, new_txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven = await asyncio.get_event_loop().run_in_executor(
             None, queue.get)
         self.assertEqual(addr, address)
         self.assertEqual(len(new_txs), 1)

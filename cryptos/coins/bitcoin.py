@@ -1,6 +1,6 @@
 from cryptos.coins_async.bitcoin import Bitcoin as AsyncBitcoin
-from mixins import BaseCoin
+from .base import BaseSyncCoin
 
 
-class Bitcoin(AsyncBitcoin, BaseCoin):
-    pass
+class Bitcoin(BaseSyncCoin):
+    coin_class = AsyncBitcoin

@@ -222,7 +222,7 @@ class ElectrumXClient:
         self._port_key = "s" if self._use_ssl else "t"
         self._servers = {k: v for k, v in servers.items() if v.get(self._port_key)}
         self._lock = asyncio.Lock()
-        self._is_closing = False
+        self.is_closing = False
         self._failed_servers: List[str] = []
         self.version = constants.PROTOCOL_VERSION
         self.server_version: Optional[List[str]] = None
@@ -297,7 +297,6 @@ class ElectrumXClient:
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
-
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()
@@ -309,11 +308,12 @@ class ElectrumXClient:
 
     async def redo_connection(self):
         await self.session.close()
+        await self.wait_new_start()
 
     async def _on_connection_failure(self):
         self.session = None
         self._failed_servers.append(self.host)
-        if not self._is_closing:
+        if not self.is_closing:
             if len(self._failed_servers) == len(self._servers):
                 raise CannotConnectToAnyElectrumXServer
             await self.connect_to_any_server()
@@ -332,7 +332,7 @@ class ElectrumXClient:
 
     async def _ensure_connected(self):
         async with self._lock:
-            if not self._is_closing:
+            if not self.is_closing:
                 if not self.session:
                     """
                     Wait until successful connection or connection task completes without any successful connections
@@ -361,7 +361,7 @@ class ElectrumXClient:
                 await asyncio.wait(all_tasks)
 
     async def close(self):
-        self._is_closing = True
+        self.is_closing = True
         await self.cancel_subscriptions()
         if self.session:
             await self.session.close(force_after=5)
@@ -440,7 +440,7 @@ class ElectrumXClient:
         finally:
             if session:
                 session.unsubscribe(queue)
-                if "scripthash" in method and not self._is_closing and self.compare_versions("1.4.2"):
+                if "scripthash" in method and not self.is_closing and self.compare_versions("1.4.2"):
                     await self.send_request("blockchain.scripthash.unsubscribe", *args)
 
     @staticmethod
@@ -508,7 +508,14 @@ class ElectrumXClient:
         return await self.send_request("blockchain.transaction.broadcast", raw_tx)
 
     async def get_tx(self, tx_hash: str, verbose: bool = False) -> ElectrumXGetTxResponse:
-        return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
+        try:
+            return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
+        except aiorpcx.jsonrpc.ProtocolError as e:
+            if any(msg in e.message for msg in ("verbose transactions are currently unsupported",)):
+                "Some servers return this even if later than v 1.2 when verbose transactions were introducteds"
+                await self.redo_connection()
+                return await self.get_tx(tx_hash, verbose=verbose)
+            raise e
 
     async def get_merkle(self, tx_hash: str, height: int) -> Optional[ElectrumXMerkleResponse]:
         if height <= 0:     # Transaction not in blockchain yet
