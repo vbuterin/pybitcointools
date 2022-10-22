@@ -731,9 +731,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         height = block[0]
         self.assertEqual(confirmations, 0)
         confirmations = await self._coin.confirmations(height - 1)
-        self.assertEqual(confirmations, 1)
+        self.assertEqual(confirmations, 2)
         confirmations = await self._coin.confirmations(1)
-        self.assertEqual(confirmations, height - 1)
+        self.assertEqual(confirmations, height)
 
     async def assertSubscribeAddressOK(self):
         queue = asyncio.Queue()

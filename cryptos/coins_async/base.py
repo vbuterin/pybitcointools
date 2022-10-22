@@ -244,7 +244,7 @@ class BaseCoin:
 
     async def confirmations(self, height: int) -> int:
         if height > 0:
-            return (await self.block)[0] - height
+            return (await self.block)[0] - height + 1
         return 0
 
     async def unsubscribe_from_block_headers(self) -> None:
