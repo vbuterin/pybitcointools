@@ -774,7 +774,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
         self.assertSendOK()
         addr, new_txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven = queue.get()
         self.assertEqual(addr, address)
-        self.assertEqual(len(new_txs), 1)
+        self.assertGreaterEqual(len(new_txs), 1)
         self.assertEqual(len(newly_confirmed), 0)
         self.assertGreaterEqual(len(history), 9)
         self.assertEqual(len(start_history), len(history))

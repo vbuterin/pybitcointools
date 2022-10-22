@@ -31,7 +31,7 @@ def electrum_privkey(seed, n, for_change=0):
 # (conventionally 0 for ordinary address_derivations, 1 for change) , returns pubkey
 
 
-def electrum_pubkey(masterkey, n, for_change=0):
+def electrum_pubkey(masterkey: AnyStr, n: int, for_change: int = 0) -> AnyStr:
     if len(masterkey) == 32:
         mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64:

@@ -11,7 +11,7 @@ from ..constants import SATOSHI_PER_BTC
 from functools import partial
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
 from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
-                     AddressCallback, AddressTXCallback, PrivkeyType, PrivateKeySignAllType, TXInspectType)
+                     AddressCallback, AddressTXCallback, PrivkeyType, PrivateKeySignAllType, TXInspectType, PubKeyType)
 from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, ElectrumXHistoryResponse,
                                       ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx,
                                       ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse,
@@ -315,7 +315,7 @@ class BaseCoin:
         When an address changes retrieve transactions and balances and run a callback
         Callback should be in the format:
 
-        def on_address_change(address: str, txs: List[ElectrumXTx], newly_confirmed: List[ElectrumXTx], history: List[ElectrumXTx], confirmed: int, unconfirmed: int, proven: int) -> None:
+        def on_address_change(address: str, txs: List[ElectrumXTx], newly_confirmed: List[ElectrumXTx], history: List[ElectrumXTx], unspent: List[ElectrumTX], confirmed: int, unconfirmed: int, proven: int) -> None:
             pass
 
         Any transactions since the last notification are in Txs. All previous transactions are in history.
@@ -457,9 +457,9 @@ class BaseCoin:
         """
         return privtopub(privkey)
 
-    def pubtoaddr(self, pubkey):
+    def pubtoaddr(self, pubkey: PubKeyType) -> str:
         """
-        Get address from a pubic key
+        Get address from a public key
         """
         return pubtoaddr(pubkey, magicbyte=self.magicbyte)
 
@@ -469,14 +469,14 @@ class BaseCoin:
         """
         return privtoaddr(privkey, magicbyte=self.magicbyte)
 
-    def electrum_address(self, masterkey, n, for_change: int = 0) -> str:
+    def electrum_address(self, masterkey: AnyStr, n: int, for_change: int = 0) -> str:
         """
         For old electrum seeds
         """
         pubkey = electrum_pubkey(masterkey, n, for_change=for_change)
         return self.pubtoaddr(pubkey)
 
-    def encode_privkey(self, privkey: PrivkeyType, formt, script_type: str ="p2pkh"):
+    def encode_privkey(self, privkey: PrivkeyType, formt: str, script_type: str = "p2pkh") -> PrivkeyType:
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def is_p2pkh(self, addr: str) -> bool:
@@ -578,9 +578,9 @@ class BaseCoin:
         """
         Convert a private key to the new segwit address format outlined in BIP01743
         """
-        return self.pubtosegwitaddress(self.privtopub(privkey))
+        return self.pub_to_segwit_address(self.privtopub(privkey))
 
-    def pubtosegwitaddress(self, pubkey) -> str:
+    def pub_to_segwit_address(self, pubkey) -> str:
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
@@ -670,7 +670,7 @@ class BaseCoin:
     def multisign(self, tx: Union[str, Tx], i: int, script: str, pk) -> Tx:
         return multisign(tx, i, script, pk, self.hashcode)
 
-    def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int =0,
+    def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int = 0,
              sequence: int = 0xFFFFFFFF) -> Tx:
         """[in0, in1...],[out0, out1...]
 
@@ -874,18 +874,18 @@ class BaseCoin:
         ks = p2wpkh_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
-    def watch_p2wpkh_wallet(self, xpub, **kwargs) -> HDWallet:
+    def watch_p2wpkh_wallet(self, xpub: str, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2wpkh')
         return HDWallet(ks, **kwargs)
 
-    def electrum_wallet(self, seed, passphrase=None, **kwargs) -> HDWallet:
+    def electrum_wallet(self, seed:str, passphrase: str = None, **kwargs) -> HDWallet:
         ks = from_electrum_seed(seed, passphrase, False, coin=self)
         return HDWallet(ks, **kwargs)
 
-    def watch_electrum_wallet(self, xpub, **kwargs) -> HDWallet:
+    def watch_electrum_wallet(self, xpub: str, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2pkh', electrum=True)
         return HDWallet(ks, **kwargs)
 
-    def watch_electrum_p2wpkh_wallet(self, xpub, **kwargs) -> HDWallet:
+    def watch_electrum_p2wpkh_wallet(self, xpub: str, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2wpkh', electrum=True)
         return HDWallet(ks, **kwargs)

@@ -5,11 +5,12 @@ import inspect
 import janus
 from ..coins_async.base import BaseCoin
 from cryptos.utils import alist
+from ..wallet import HDWallet
 from ..electrumx_client.types import (ElectrumXBalanceResponse, ElectrumXMultiBalanceResponse, ElectrumXTx,
                                       ElectrumXMerkleResponse, ElectrumXUnspentResponse, ElectrumXMultiTxResponse,
                                       ElectrumXHistoryResponse)
 from ..types import (Tx, BlockHeader, BlockHeaderCallbackSync, AddressCallbackSync, AddressTXCallbackSync, MerkleProof,
-                     AddressBalance, TxOut, TxInput, TXInspectType, PrivateKeySignAllType)
+                     AddressBalance, TxOut, TxInput, TXInspectType, PrivateKeySignAllType, PrivkeyType, PubKeyType)
 from typing import Optional, Tuple, Any, List, Union, Dict, AnyStr, Type
 
 
@@ -89,8 +90,8 @@ class BaseSyncCoin:
             self._request_queue.sync_q.put((fut, "close", (), {}))
             fut.result(timeout=100)
 
-    def __getattr__(self, item: str) -> Any:
-        return getattr(self._async_coin, item)
+    def tx_size(self, txobj: Tx) -> float:
+        return self._async_coin.tx_size(txobj)
 
     def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
         return self._run_async("estimate_fee_per_kb", numblocks=numblocks)
@@ -177,6 +178,86 @@ class BaseSyncCoin:
     def pushtx(self, tx: Union[str, Tx]):
         return self._run_async("pushtx", tx)
 
+    def privtopub(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtopub(privkey)
+
+    def pubtoaddr(self, pubkey: PubKeyType) -> str:
+        return self._async_coin.pubtoaddr(pubkey)
+
+    def privtoaddr(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtoaddr(privkey)
+
+    def electrum_address(self, masterkey: AnyStr, n: int, for_change: int = 0) -> str:
+        return self._async_coin.electrum_address(masterkey, n, for_change=for_change)
+
+    def encode_privkey(self, privkey: PrivkeyType, formt: str, script_type: str = "p2pkh") -> PrivkeyType:
+        return self._async_coin.encode_privkey(privkey, formt, script_type)
+
+    def is_p2pkh(self, addr: str) -> bool:
+        return self._async_coin.is_p2pkh(addr)
+
+    def is_p2sh(self, addr: str) -> bool:
+        return self._async_coin.is_p2sh(addr)
+
+    def is_native_segwit(self, addr: str) -> bool:
+        return self._async_coin.is_native_segwit(addr)
+
+    def is_address(self, addr: str) -> bool:
+        return self._async_coin.is_address(addr)
+
+    def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
+        return self._async_coin.is_legacy_segwit_or_multisig(addr)
+
+    def is_segwit_or_multisig(self, addr: str) -> bool:
+        return self._async_coin.is_segwit_or_multisig(addr)
+
+    def output_script_to_address(self, script: str) -> str:
+        return self._async_coin.output_script_to_address(script)
+
+    def scripttoaddr(self, script: str) -> str:
+        return self._async_coin.scripttoaddr(script)
+
+    def p2sh_scriptaddr(self, script: str) -> str:
+        return self._async_coin.p2sh_scriptaddr(script)
+
+    def addrtoscript(self, addr: str) -> str:
+        return self._async_coin.addrtoscript(addr)
+
+    def addrtoscripthash(self, addr: str) -> str:
+        return self._async_coin.addrtoscripthash(addr)
+
+    def pubtop2w(self, pub: str) -> str:
+        return self._async_coin.pubtop2w(pub)
+
+    def hash_to_segwit_addr(self, pub_hash: str) -> str:
+        return self._async_coin.hash_to_segwit_addr(pub_hash)
+
+    def pub_to_segwit_address(self, pubkey) -> str:
+        return self._async_coin.pub_to_segwit_address(pubkey)
+
+    def script_to_p2wsh(self, script) -> str:
+        return self._async_coin.script_to_p2wsh(script)
+
+    def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multsig_address(*args, num_required=num_required)
+
+    def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
+        return self._async_coin.sign(txobj, i, priv)
+
+    def signall(self, txobj: Union[str, Tx], priv: PrivateKeySignAllType) -> Tx:
+        return self._async_coin.signall(txobj, priv)
+
+    def multisign(self, tx: Union[str, Tx], i: int, script: str, pk) -> Tx:
+        return self._async_coin.multisign(tx, i, script, pk)
+
+    def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int = 0,
+             sequence: int = 0xFFFFFFFF) -> Tx:
+        return self._async_coin.mktx(ins, outs, locktime=locktime, sequence=sequence)
+
+    def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int = 0,
+             sequence: int = 0xFFFFFFFF) -> Tx:
+        return self._async_coin.mktx(ins, outs, locktime=locktime, sequence=sequence)
+
     def mktx_with_change(self, ins: List[Union[TxInput, AnyStr, ElectrumXTx]], outs: List[Union[TxOut, AnyStr]],
                          change_addr: str = None, fee: int = None, estimate_fee_blocks: int = 6, locktime: int = 0,
                          sequence: int = 0xFFFFFFFF) -> Tx:
@@ -215,3 +296,30 @@ class BaseSyncCoin:
 
     def inspect(self, tx: Union[str, Tx]) -> TXInspectType:
         return self._run_async("inspect", tx)
+
+    def wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
+        return self._async_coin.wallet(seed, passphrase=passphrase, **kwargs)
+
+    def watch_wallet(self, xpub: str, **kwargs) -> HDWallet:
+        return self._async_coin.watch_wallet(xpub, **kwargs)
+
+    def p2wpkh_p2sh_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
+        return self._async_coin.p2wpkh_p2sh_wallet(seed, passphrase=passphrase, **kwargs)
+
+    def watch_p2wpkh_p2sh_wallet(self, xpub: str, **kwargs) -> HDWallet:
+        return self._async_coin.watch_p2wpkh_p2sh_wallet(xpub, **kwargs)
+
+    def p2wpkh_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
+        return self._async_coin.p2wpkh_wallet(seed, passphrase=passphrase, **kwargs)
+
+    def watch_p2wpkh_wallet(self, xpub: str, **kwargs) -> HDWallet:
+        return self._async_coin.watch_p2wpkh_wallet(xpub, **kwargs)
+
+    def electrum_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
+        return self._async_coin.electrum_wallet(seed, passphrase=passphrase, **kwargs)
+
+    def watch_electrum_wallet(self, xpub: str, **kwargs) -> HDWallet:
+        return self._async_coin.watch_electrum_wallet(xpub, **kwargs)
+
+    def watch_electrum_p2wpkh_wallet(self, xpub: str, **kwargs) -> HDWallet:
+        return self._async_coin.watch_electrum_p2wpkh_wallet(xpub, **kwargs)

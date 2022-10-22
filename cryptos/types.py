@@ -79,6 +79,7 @@ AddressTXCallback = Union[AddressTXCallbackSync, AddressTXCallbackAsync]
 # Either a single private key or a mapping of addresses to private keys
 PrivkeyType = Union[int, str, bytes]
 PrivateKeySignAllType = Union[Dict[str, PrivkeyType], PrivkeyType]
+PubKeyType = Union[list, tuple, str, bytes]
 
 
 class TXInspectType(TypedDict):

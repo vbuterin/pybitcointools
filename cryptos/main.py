@@ -10,6 +10,7 @@ import hmac
 from .ripemd import *
 
 from typing import List
+from .types import PrivkeyType
 
 # Elliptic curve parameters (secp256k1)
 
@@ -153,15 +154,10 @@ def fast_add(a, b):
 # Functions for handling pubkey and privkey formats
 
 
-def get_pubkey_format(pub):
-    if is_python2:
-        two = '\x02'
-        three = '\x03'
-        four = '\x04'
-    else:
-        two = 2
-        three = 3
-        four = 4
+def get_pubkey_format(pub) -> str:
+    two = 2
+    three = 3
+    four = 4
 
     if isinstance(pub, (tuple, list)): return 'decimal'
     elif len(pub) == 65 and pub[0] == four: return 'bin'
@@ -218,7 +214,8 @@ def get_privkey_format(priv):
         elif len(bin_p) == 33: return 'wif_compressed'
         else: raise Exception("WIF does not represent privkey")
 
-def encode_privkey(priv, formt, vbyte=128):
+
+def encode_privkey(priv: PrivkeyType, formt: str, vbyte: int = 128) -> PrivkeyType:
     if not isinstance(priv, int_types):
         return encode_privkey(decode_privkey(priv), formt, vbyte)
     if formt == 'decimal': return priv
@@ -232,7 +229,8 @@ def encode_privkey(priv, formt, vbyte=128):
         return bin_to_b58check(encode(priv, 256, 32) + b'\x01', int(vbyte))
     else: raise Exception("Invalid format!")
 
-def decode_privkey(priv,formt: str = None) -> str:
+
+def decode_privkey(priv: PrivkeyType, formt: str = None) -> PrivkeyType:
     if not formt: formt = get_privkey_format(priv)
     if formt == 'decimal': return priv
     elif formt == 'bin': return decode(priv, 256)
@@ -244,9 +242,11 @@ def decode_privkey(priv,formt: str = None) -> str:
         return decode(b58check_to_bin(priv)[:32],256)
     else: raise Exception("WIF does not represent privkey")
 
+
 def add_pubkeys(p1, p2):
     f1, f2 = get_pubkey_format(p1), get_pubkey_format(p2)
     return encode_pubkey(fast_add(decode_pubkey(p1, f1), decode_pubkey(p2, f2)), f1)
+
 
 def add_privkeys(p1, p2):
     f1, f2 = get_privkey_format(p1), get_privkey_format(p2)
