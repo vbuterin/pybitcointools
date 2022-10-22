@@ -13,7 +13,7 @@ from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, 
 from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
                      AddressCallback, AddressTXCallback)
 from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, ElectrumXHistoryResponse,
-                                      ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTxOut,
+                                      ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx,
                                       ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse)
 
 
@@ -36,6 +36,7 @@ class BaseCoin:
         'use_ssl': True
     }
     _client: ElectrumXClient = None
+    _block: Tuple[int, str, BlockHeader] = None
     is_testnet: bool = False
     testnet_overrides: Dict[str, Any] = {}
     hashcode: int = SIGHASH_ALL
@@ -148,7 +149,7 @@ class BaseCoin:
         return int(num_bytes * satoshi_fee_per_byte)
 
     @staticmethod
-    async def tasks_with_inputs(coro: Callable, *args: Any, **kwargs) -> Generator[Tuple[str, Any], None, None]:
+    async def _tasks_with_inputs(coro: Callable, *args: Any, **kwargs) -> Generator[Tuple[str, Any], None, None]:
         for i, result in enumerate(await asyncio.gather(*[coro(arg, **kwargs) for arg in args])):
             arg = args[i]
             yield arg, result
@@ -187,7 +188,17 @@ class BaseCoin:
         if is_coro:
             await func(*args)
         else:
-            await asyncio.get_running_loop().run_in_executor(None, func, *args)
+            try:
+                await asyncio.get_running_loop().run_in_executor(None, func, *args)
+            except RuntimeError as e:
+                if "Non-thread-safe" in e:
+                    """
+                    Sync callbacks are called in another thread so cannot interact with asyncio objects.
+                    """
+                    raise Exception(
+                        "Syncronous callbacks cannot interact with asyncio objects such as Futures. Make the callback a coroutine function.")
+                else:
+                    raise e
 
     async def _block_header_callback(self, callback: BlockHeaderCallback,
                                      header: ElectrumXBlockHeaderNotification) -> None:
@@ -213,6 +224,28 @@ class BaseCoin:
 
         callback = partial(self._block_header_callback, callback)
         return await self.client.subscribe_to_block_headers(callback)
+
+    async def _update_block(self, fut: asyncio.Future, height: int, hex_header: str, header: BlockHeader):
+        self._block = (height, hex_header, header)
+        if not fut.done():
+            fut.set_result(True)
+
+    @property
+    async def block(self) -> Tuple[int, str, BlockHeader]:
+        """
+        Gets the latest block in the blockchain.
+        First time this is run it will subscribe to block headers.
+        """
+        if not self._block:
+            fut = asyncio.Future()
+            await self.subscribe_to_block_headers(partial(self._update_block, fut))
+            await fut
+        return self._block
+
+    async def confirmations(self, height: int) -> int:
+        if height > 0:
+            return (await self.block)[0] - height
+        return 0
 
     async def unsubscribe_from_block_headers(self) -> None:
         """
@@ -249,27 +282,35 @@ class BaseCoin:
 
     async def _address_transaction_callback(self, callback: AddressTXCallback, history: ElectrumXHistoryResponse,
                                             address: str, status: str) -> None:
-        updated_history, balance, merkle_proven = await asyncio.gather(self.history(address), self.get_balance(address),
-                                                                       self.balance_merkle_proven(address))
+        updated_history, unspents, balance, merkle_proven = await asyncio.gather(self.history(address),
+                                                                                 self.unspent(address),
+                                                                                 self.get_balance(address),
+                                                                                 self.balance_merkle_proven(address))
         if history == ["-"]:
             # First response
             new_txs = []
             history.clear()
             history += updated_history
+            newly_confirmed = []
         else:
-            new_txs = [t for t in updated_history if t not in history]
+            tx_hashes = {t['tx_hash']: t['height'] for t in history}
+            new_txs = [t for t in updated_history if t['tx_hash'] not in tx_hashes.keys()]
+            newly_confirmed = [t for t in updated_history if
+                               tx_hashes.get('tx_hash') and not t['height'] == tx_hashes['tx_hash']]
 
-        prev_history = history.copy()
+        prev_history = [tx for tx in history if tx not in newly_confirmed]
+        for tx in newly_confirmed:
+            history.remove(tx)
         history += new_txs
-        await self.await_or_in_executor(callback, address, new_txs, prev_history, balance['confirmed'],
-                                        balance['unconfirmed'], merkle_proven)
+        await self.await_or_in_executor(callback, address, new_txs, newly_confirmed, prev_history, unspents,
+                                        balance['confirmed'], balance['unconfirmed'], merkle_proven)
 
     async def subscribe_to_address_transactions(self, callback: AddressTXCallback, addr: str) -> None:
         """
         When an address changes retrieve transactions and balances and run a callback
         Callback should be in the format:
 
-        def on_address_change(address: str, txs: List[Txs], history: List[txs], confirmed: int, unconfirmed: int, proven: int) -> None:
+        def on_address_change(address: str, txs: List[ElectrumXTx], newly_confirmed: List[ElectrumXTx], history: List[ElectrumXTx], confirmed: int, unconfirmed: int, proven: int) -> None:
             pass
 
         Any transactions since the last notification are in Txs. All previous transactions are in history.
@@ -292,14 +333,14 @@ class BaseCoin:
         return await self.client.get_balance(addr)
 
     async def get_balances(self, *args: str) -> AsyncGenerator[ElectrumXMultiBalanceResponse, None]:
-        async for addr, result in self.tasks_with_inputs(self.get_balance, *args):
+        async for addr, result in self._tasks_with_inputs(self.get_balance, *args):
             result['address'] = addr
             yield result
 
-    async def get_merkle(self, tx: ElectrumXTxOut) -> Optional[ElectrumXMerkleResponse]:
+    async def get_merkle(self, tx: ElectrumXTx) -> Optional[ElectrumXMerkleResponse]:
         return await self.client.get_merkle(tx['tx_hash'], tx['height'])
 
-    async def merkle_prove(self, tx: ElectrumXTxOut) -> MerkleProof:
+    async def merkle_prove(self, tx: ElectrumXTx) -> MerkleProof:
         """
         Prove that information returned from server about a transaction in the blockchain is valid. Only run on a
         tx with at least 1 confirmation.
@@ -319,7 +360,7 @@ class BaseCoin:
         tx = await self.get_tx(tx_hash)
         return await self.merkle_prove(tx)
 
-    async def _filter_by_proof(self, *txs: ElectrumXTxOut) -> Iterable[ElectrumXTxOut]:
+    async def _filter_by_proof(self, *txs: ElectrumXTx) -> Iterable[ElectrumXTx]:
         """
         Return only transactions with verified merkle proof
         """
@@ -346,16 +387,16 @@ class BaseCoin:
 
     async def get_unspents(self, *args: str, merkle_proof: bool = False
                            ) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
-        async for addr, result in self.tasks_with_inputs(self.unspent, *args, merkle_proof=merkle_proof):
+        async for addr, result in self._tasks_with_inputs(self.unspent, *args, merkle_proof=merkle_proof):
             for tx in result:
                 tx['address'] = addr
                 yield tx
 
     async def balances_merkle_proven(self, *args: str) -> AsyncGenerator[AddressBalance, None]:
-        async for addr, result in self.tasks_with_inputs(self.unspent, *args, merkle_proof=True):
+        async for addr, result in self._tasks_with_inputs(self.unspent, *args, merkle_proof=True):
             yield {'address': addr, 'balance': sum(tx['value'] for tx in result)}
 
-    async def history(self, addr: str, merkle_proof: bool = False) -> List[ElectrumXTxOut]:
+    async def history(self, addr: str, merkle_proof: bool = False) -> ElectrumXHistoryResponse:
         """
         Get transaction history for address
         """
@@ -367,7 +408,7 @@ class BaseCoin:
         return txs
 
     async def get_histories(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
-        async for addr, result in self.tasks_with_inputs(self.history, *args, merkle_proof=merkle_proof):
+        async for addr, result in self._tasks_with_inputs(self.history, *args, merkle_proof=merkle_proof):
             for tx in result:
                 tx['address'] = addr
                 yield tx

@@ -511,11 +511,14 @@ class ElectrumXClient:
         return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
 
     async def get_merkle(self, tx_hash: str, height: int) -> Optional[ElectrumXMerkleResponse]:
+        if height <= 0:     # Transaction not in blockchain yet
+            return None
         try:
             return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
         except aiorpcx.jsonrpc.RPCError as e:
-            if "No confirmed transaction" in e.message:
+            if any(msg in e.message for msg in ("No confirmed transaction", "unconfirmed")):
                 return None
+            raise e
 
     async def get_donation_address(self) -> str:
         return await self.send_request("server.donation_address")

@@ -146,6 +146,12 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_subscribe_block_headers_sync(self):
         await self.assertSubscribeBlockHeadersSyncCallbackOK()
 
+    async def test_latest_block(self):
+        await self.assertLatestBlockOK()
+
+    async def test_confirmations(self):
+        await self.assertConfirmationsOK()
+
     async def test_subscribe_address(self):
         await self.assertSubscribeAddressOK()
 
@@ -156,5 +162,5 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         await self.assertSubscribeAddressTransactionsOK()
 
     async def test_subscribe_address_transactions_sync(self):
-        await self.assertSubscribeAddressTransactionsSyncCallbackOK()
+        await self.assertSubscribeAddressTransactionsSyncOK()
 

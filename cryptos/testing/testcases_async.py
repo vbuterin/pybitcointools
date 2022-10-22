@@ -5,7 +5,6 @@ from operator import itemgetter
 from cryptos import *
 from cryptos.transaction import calculate_fee
 from cryptos import coins_async
-from cryptos.electrumx_client.types import ElectrumXScripthashNotification
 from cryptos.utils import alist
 from cryptos.types import Tx
 from typing import AsyncGenerator, Any, Union, List
@@ -28,7 +27,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     merkle_txheight = None
     txinputs = None
     min_latest_height = 99999999999
-    fee = 0
+    fee = 100
     coin = coins_async.Bitcoin
     blockcypher_api_key = None
     blockcypher_coin_symbol = None
@@ -188,7 +187,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
         self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
@@ -277,7 +276,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
         self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertLessEqual(fee, self.fee * 4)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
@@ -716,6 +715,26 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(sorted(header.keys()), block_keys)
         await self._coin.unsubscribe_from_block_headers()
 
+    async def assertLatestBlockOK(self):
+        height, hex_header, header = await self._coin.block
+        self.assertGreater(height, self.min_latest_height)
+        self.assertIsInstance(hex_header, str)
+        self.assertIsInstance(header, dict)
+        height, hex_header, header = await self._coin.block
+        self.assertGreater(height, self.min_latest_height)
+        self.assertIsInstance(hex_header, str)
+        self.assertIsInstance(header, dict)
+
+    async def assertConfirmationsOK(self):
+        confirmations = await self._coin.confirmations(0)
+        block = await self._coin.block
+        height = block[0]
+        self.assertEqual(confirmations, 0)
+        confirmations = await self._coin.confirmations(height - 1)
+        self.assertEqual(confirmations, 1)
+        confirmations = await self._coin.confirmations(1)
+        self.assertEqual(confirmations, height - 1)
+
     async def assertSubscribeAddressOK(self):
         queue = asyncio.Queue()
         address = self.addresses[0]
@@ -752,17 +771,45 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         queue = asyncio.Queue()
         address = self.addresses[0]
 
-        async def add_to_queue(address: str, txs: List[Tx], history: List[Tx], confirmed: int,
-                               unconfirmed: int, proven: int) -> None:
-            await queue.put((address, txs, history, confirmed, unconfirmed, proven))
+        async def add_to_queue(address: str, txs: List[Tx], newly_confirmed: List[Tx], history: List[Tx],
+                               confirmed: int, unconfirmed: int, proven: int) -> None:
+            await queue.put((address, txs, newly_confirmed, history, confirmed, unconfirmed, proven))
 
         await self._coin.subscribe_to_address_transactions(add_to_queue, address)
-        addr, start_txs, start_history, start_confirmed, start_unconfirmed, start_proven = await queue.get()
+        addr, start_txs, start_newly_confirmed, start_history, start_confirmed, start_unconfirmed, start_proven = await queue.get()
         self.assertEqual(addr, address)
         self.assertEqual(start_txs, [])
-        await self.assertTransactionOK()
-        addr, new_txs, current_history, current_confirmed, current_unconfirmed, current_proven = await queue.get()
+        self.assertEqual(start_newly_confirmed, [])
+        await self.assertSendOK()
+        addr, new_txs, newly_confirmed, history, confirmed, unconfirmed, proven = await queue.get()
         self.assertEqual(addr, address)
         self.assertEqual(len(new_txs), 1)
-        self.assertNotEqual(current_unconfirmed, start_unconfirmed)
+        self.assertEqual(len(newly_confirmed), 0)
+        self.assertGreaterEqual(len(history), 9)
+        self.assertEqual(len(start_history), len(history))
+        self.assertNotEqual(unconfirmed, start_unconfirmed)
+        await self._coin.unsubscribe_from_address(address)
+
+    async def assertSubscribeAddressTransactionsSyncOK(self):
+        queue = Queue()
+        address = self.addresses[0]
+
+        def add_to_queue(address: str, txs: List[Tx], newly_confirmed: List[Tx], history: List[Tx],
+                         confirmed: int, unconfirmed: int, proven: int) -> None:
+            queue.put((address, txs, newly_confirmed, history, confirmed, unconfirmed, proven))
+
+        await self._coin.subscribe_to_address_transactions(add_to_queue, address)
+        addr, start_txs, start_newly_confirmed, start_history, start_confirmed, start_unconfirmed, start_proven = await asyncio.get_event_loop().run_in_executor(None, queue.get)
+        self.assertEqual(addr, address)
+        self.assertEqual(start_txs, [])
+        self.assertEqual(start_newly_confirmed, [])
+        await self.assertSendOK()
+        addr, new_txs, newly_confirmed, history, confirmed, unconfirmed, proven = await asyncio.get_event_loop().run_in_executor(
+            None, queue.get)
+        self.assertEqual(addr, address)
+        self.assertEqual(len(new_txs), 1)
+        self.assertEqual(len(newly_confirmed), 0)
+        self.assertGreaterEqual(len(history), 9)
+        self.assertEqual(len(start_history), len(history))
+        self.assertNotEqual(unconfirmed, start_unconfirmed)
         await self._coin.unsubscribe_from_address(address)

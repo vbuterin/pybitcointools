@@ -2,7 +2,8 @@ import asyncio
 from concurrent.futures import Future
 import threading
 import janus
-from cryptos.coins_async.base import BaseCoin
+from ..coins_async.base import BaseCoin
+from ..types import Tx, BlockHeader
 from typing import Optional, Tuple, Any
 
 
@@ -62,3 +63,16 @@ class SyncCoinMixin(BaseCoin):
             fut = Future()
             self._request_queue.sync_q.put((fut, "close", (), {}))
             fut.result(timeout=10)
+
+    def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
+        return self._run_async("estimate_fee_per_kb", numblocks=numblocks)
+
+    def estimate_fee(self, txobj: Tx, numblocks: int = 6) -> int:
+        return self._run_async("estimate_fee", numblocks=numblocks)
+
+    def raw_block_header(self, height: int) -> str:
+        return self._run_async("raw_block_header", height)
+
+    def block_header(self, height: int) -> BlockHeader:
+        return self._run_async("block_header", height)
+

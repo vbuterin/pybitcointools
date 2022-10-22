@@ -1,6 +1,7 @@
 from typing import TypedDict
 from typing import List, AnyStr, Union, Callable, Awaitable
 from typing_extensions import NotRequired
+from .electrumx_client.types import ElectrumXTx
 
 
 class TxInput(TypedDict):
@@ -70,6 +71,6 @@ AddressCallbackAsync = Callable[[str, str], Awaitable[None]]
 AddressCallback = Union[AddressCallbackSync, AddressCallbackAsync]
 
 
-AddressTXCallbackSync = Callable[[str, List[Tx], List[Tx], int, int, int], None]
-AddressTXCallbackAsync = Callable[[str, List[Tx], List[Tx], int, int, int], Awaitable[None]]
+AddressTXCallbackSync = Callable[[str, List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], int, int, int], None]
+AddressTXCallbackAsync = Callable[[str, List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], List[ElectrumXTx], int, int, int], Awaitable[None]]
 AddressTXCallback = Union[AddressTXCallbackSync, AddressTXCallbackAsync]

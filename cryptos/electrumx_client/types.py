@@ -41,7 +41,7 @@ class ElectrumXMultiBalanceResponse(TypedDict):
     address: str
 
 
-class ElectrumXTxOut(TypedDict):
+class ElectrumXTx(TypedDict):
     height: int
     tx_hash: str
     fee: NotRequired[int]
@@ -50,13 +50,13 @@ class ElectrumXTxOut(TypedDict):
     address: NotRequired[str]
 
 
-ElectrumXHistoryResponse = List[ElectrumXTxOut]
+ElectrumXHistoryResponse = List[ElectrumXTx]
 
 
-ElectrumXMempoolResponse = List[ElectrumXTxOut]
+ElectrumXMempoolResponse = List[ElectrumXTx]
 
 
-ElectrumXUnspentResponse = List[ElectrumXTxOut]
+ElectrumXUnspentResponse = List[ElectrumXTx]
 
 
 class ElectrumXTxAddress(TypedDict):
