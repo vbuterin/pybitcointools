@@ -18,7 +18,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     unspents = []
     addresses = []
     segwit_addresses = []
-    new_segwit_addresses = []
+    native_segwit_addresses = []
     txheight = None
     multisig_addresses: List[str] = []
     privkeys = []
@@ -154,7 +154,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
 
         segwit_privkey = self.privkeys[segwit_from_addr_i]
         regular_privkey = self.privkeys[regular_from_addr_i]
@@ -261,7 +261,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -316,15 +316,15 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 
-    async def assertNewSegwitTransactionOK(self):
+    async def assertNativeSegwitTransactionOK(self):
 
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
-        sender = self.new_segwit_addresses[0]
+        sender = self.native_segwit_addresses[0]
         from_addr_i = 0
         unspents = []
 
-        for i, addr in enumerate(self.new_segwit_addresses):
+        for i, addr in enumerate(self.native_segwit_addresses):
             addr_unspents = await self._coin.unspent(addr)
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
@@ -336,20 +336,20 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         # Arbitrarily set send value, change value, receiver and change address
         send_value = int(max_value * 0.1)
 
-        if sender == self.new_segwit_addresses[0]:
-            receiver = self.new_segwit_addresses[1]
-            change_address = self.new_segwit_addresses[2]
-        elif sender == self.new_segwit_addresses[1]:
-            receiver = self.new_segwit_addresses[2]
-            change_address = self.new_segwit_addresses[0]
+        if sender == self.native_segwit_addresses[0]:
+            receiver = self.native_segwit_addresses[1]
+            change_address = self.native_segwit_addresses[2]
+        elif sender == self.native_segwit_addresses[1]:
+            receiver = self.native_segwit_addresses[2]
+            change_address = self.native_segwit_addresses[0]
         else:
-            receiver = self.new_segwit_addresses[0]
-            change_address = self.new_segwit_addresses[1]
+            receiver = self.native_segwit_addresses[0]
+            change_address = self.native_segwit_addresses[1]
 
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -441,7 +441,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change=change_address)
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
 
         privkey = self.privkeys[from_addr_i]
 
