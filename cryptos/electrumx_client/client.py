@@ -15,11 +15,11 @@ from aiorpcx.rawsocket import RSClient
 from collections import defaultdict
 import json
 import random
-from typing import List, Dict, Any, Optional, Callable, Tuple
+from typing import List, Dict, Any, Optional, Callable
 from .types import (ElectrumXBlockResponse, ElectrumXBlockHeadersResponse, BlockHeaderNotificationCallback,
     ElectrumXBalanceResponse, ElectrumXHistoryResponse, ElectrumXMempoolResponse, ElectrumXUnspentResponse,
-    AddressNotificationCallback, ElectrumXGetTxResponse, ElectrumXMerkleResponse, ElectrumXTSCMerkleResponse,
-                    TxidOrTx, TargetType)
+    AddressNotificationCallback, ElectrumXGetTxResponse, ElectrumXMerkleResponse)
+
 
 ca_path = certifi.where()
 
@@ -297,6 +297,7 @@ class ElectrumXClient:
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
+            print('Connected to', self.host)
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()
@@ -512,14 +513,14 @@ class ElectrumXClient:
             return await self.send_request("blockchain.transaction.get", tx_hash, verbose)
         except aiorpcx.jsonrpc.ProtocolError as e:
             if any(msg in e.message for msg in ("verbose transactions are currently unsupported",)):
-                "Some servers return this even if later than v 1.2 when verbose transactions were introducteds"
+                "Some servers return this even if later than v 1.2 when verbose transactions were introduced"
                 await self.redo_connection()
                 return await self.get_tx(tx_hash, verbose=verbose)
             raise e
 
     async def get_merkle(self, tx_hash: str, height: int) -> Optional[ElectrumXMerkleResponse]:
-        if height <= 0:     # Transaction not in blockchain yet
-            return None
+        if height <= 0:
+            return None     # Transaction not in blockchain yet
         try:
             return await self.send_request("blockchain.transaction.get_merkle", tx_hash, height)
         except aiorpcx.jsonrpc.RPCError as e:

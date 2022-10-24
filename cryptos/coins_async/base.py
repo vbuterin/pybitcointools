@@ -79,12 +79,12 @@ class BaseCoin:
     electrum_xpub_headers: Dict[str, int] = xpub_headers
 
     def __init__(self, testnet: bool = False, use_ssl: bool = None, **kwargs):
-        if use_ssl is not None:
-            self.explorer_kwargs['use_ssl'] = use_ssl
         if testnet:
             self.is_testnet = True
             for k, v in self.testnet_overrides.items():
                 setattr(self, k, v)
+        if use_ssl is not None:
+            self.explorer_kwargs['use_ssl'] = use_ssl
         # override default attributes from kwargs
         for key, value in kwargs.items():
             if isinstance(value, dict):
@@ -362,7 +362,7 @@ class BaseCoin:
         return proof
 
     async def merkle_prove_by_txid(self, tx_hash: str) -> MerkleProof:
-        tx = await self.get_verbose_tx(tx_hash)
+        tx = await self.get_tx(tx_hash)
         return await self.merkle_prove(tx)
 
     async def _filter_by_proof(self, *txs: ElectrumXTx) -> Iterable[ElectrumXTx]:

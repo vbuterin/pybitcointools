@@ -3,6 +3,7 @@ from cryptos.types import TxOut
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
 from typing import List
+from unittest.mock import patch
 
 
 class TestBitcoinTestnet(BaseAsyncCoinTestCase):
@@ -116,7 +117,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertSegwitTransactionOK()
 
-    async def test_transaction_native_segwit(self):
+    async def test_transaction_native_segwit(self, mock):
         await self.assertNativeSegwitTransactionOK()
 
     async def test_transaction_mixed_segwit(self):
