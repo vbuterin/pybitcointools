@@ -3,7 +3,6 @@ from cryptos.types import TxOut
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
 from typing import List
-from unittest.mock import patch
 
 
 class TestBitcoinTestnet(BaseAsyncCoinTestCase):
@@ -118,6 +117,11 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         await self.assertSegwitTransactionOK()
 
     async def test_transaction_native_segwit(self):
+        """
+        Sample transaction:
+        TxID: b368c55cd8895c561f176645ce418b3e3ac7e3c98aa74f4a7bcf286e53c86515
+        01000000000101b591790699e5ed133c10f908ca3bd3b63efbbf184b506b9dd269fa88ea0844bd0100000000ffffffff02e8030000000000001600144f19399fc1f1fc2f4c0c2c33cae4e9067e7893b8041919000000000016001482e21b6cfa7ae4b293cfe227dff00404d3df5e9502483045022100f91616ce6ba2026311673c5754c96281178b222da7ca79250a857ae9295f262e022053c69cd5ee26c8866af7b319eb6cfa97b332f11f1ef8f2575d4dd51379161e9b012102de476e251a827e58199ed4d6d7c2177f0a97a2dda150d7a9e59fc5682519eb9400000000
+        """
         await self.assertNativeSegwitTransactionOK()
 
     async def test_transaction_mixed_segwit(self):

@@ -1,4 +1,5 @@
 import asyncio
+import aiorpcx
 from ..transaction import *
 from binascii import unhexlify
 from ..blocks import verify_merkle_proof, deserialize_header
@@ -45,6 +46,8 @@ class BaseCoin:
     hd_path: int = 0
     block_interval: int = 10
     minimum_fee: int = 300
+    txid_bytes_len = 32
+    p2pkh_address_len = 34
     signature_sizes: Dict[str, int] = {
         'p2pkh': 213,
         'p2w_p2sh': 46 + (213 / 4),
@@ -449,7 +452,14 @@ class BaseCoin:
         """
         if not isinstance(tx, str):
             tx = serialize(tx)
-        return await self.client.broadcast_tx(tx)
+        try:
+            return await self.client.broadcast_tx(tx)
+        except (aiorpcx.jsonrpc.ProtocolError, aiorpcx.jsonrpc.RPCError) as e:
+            tx_obj = deserialize(tx)
+            message = f'{tx_obj}\n{tx}\n{e.message}'
+            if any(code == e.code for code in (1, -32600)):
+                raise TXRejectedError(message)
+            raise TXInvalidError(message)
 
     def privtopub(self, privkey: PrivkeyType) -> str:
         """
@@ -480,14 +490,21 @@ class BaseCoin:
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def is_p2pkh(self, addr: str) -> bool:
-        script = mk_pubkey_script(addr)
-        return any(str(i) == addr[0] for i in self.address_prefixes)
+        try:
+            changebase(addr, 58, 256)
+            return any(str(i) == addr[0] for i in self.address_prefixes) and len(addr) == self.p2pkh_address_len
+        except Exception:
+            return False
 
     def is_p2sh(self, addr: str) -> bool:
         """
         Check if addr is a a pay to script address
         """
-        return any(str(i) == addr[0] for i in self.script_prefixes)
+        try:
+            changebase(addr, 58, 256)
+            return any(str(i) == addr[0] for i in self.script_prefixes) and len(addr) == self.p2pkh_address_len
+        except Exception:
+            return False
 
     def is_native_segwit(self, addr: str) -> bool:
         return self.segwit_hrp and addr.startswith(self.segwit_hrp)

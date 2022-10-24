@@ -93,6 +93,14 @@ class RequestTimedOut(GracefulDisconnect):
         return "Network request timed out."
 
 
+class TXInvalidError(BaseException):
+    pass
+
+
+class TXRejectedError(TXInvalidError):
+    pass
+
+
 class NetworkTimeout:
     # seconds
     class Generic:
