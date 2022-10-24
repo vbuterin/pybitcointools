@@ -525,9 +525,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertMultiSigTransactionOK(self):
         pubs = [privtopub(priv) for priv in self.privkeys]
-        script, address1 = self._coin.mk_multsig_address(*pubs, num_required=2)
+        script1, address1 = self._coin.mk_multsig_address(*pubs, num_required=2)
         self.assertEqual(address1, self.multisig_addresses[0])
-        pubs2 = [privtopub(priv) for priv in self.privkeys[0:2]]
+        pubs2 = pubs[0:2]
         script2, address2 = self._coin.mk_multsig_address(*pubs2)
         self.assertEqual(address2, self.multisig_addresses[1])
 
@@ -545,7 +545,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         # Arbitrarily set send value, receiver and change address
         send_value = int(max_value * 0.1)
 
-        receiver = address2 if sender == address1 else address1
+        receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
         tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
 

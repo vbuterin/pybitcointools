@@ -19,6 +19,15 @@ from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, Electrum
                                       ElectrumXVerboseTX)
 
 
+class TXInvalidError(BaseException):
+    pass
+
+
+class TXRejectedError(TXInvalidError):
+    pass
+
+
+
 class BaseCoin:
     """
     Base implementation of crypto coin class
@@ -47,7 +56,6 @@ class BaseCoin:
     block_interval: int = 10
     minimum_fee: int = 300
     txid_bytes_len = 32
-    p2pkh_address_len = 34
     signature_sizes: Dict[str, int] = {
         'p2pkh': 213,
         'p2w_p2sh': 46 + (213 / 4),
@@ -492,7 +500,7 @@ class BaseCoin:
     def is_p2pkh(self, addr: str) -> bool:
         try:
             changebase(addr, 58, 256)
-            return any(str(i) == addr[0] for i in self.address_prefixes) and len(addr) == self.p2pkh_address_len
+            return any(str(i) == addr[0] for i in self.address_prefixes)
         except Exception:
             return False
 
@@ -502,7 +510,7 @@ class BaseCoin:
         """
         try:
             changebase(addr, 58, 256)
-            return any(str(i) == addr[0] for i in self.script_prefixes) and len(addr) == self.p2pkh_address_len
+            return any(str(i) == addr[0] for i in self.script_prefixes)
         except Exception:
             return False
 
@@ -781,7 +789,7 @@ class BaseCoin:
         """
         outvalue = int(sum(out['value'] for out in outs))
         unspents = await self.unspent(frm)
-        if not fee:
+        if fee is None:
             unspents2 = select(unspents, outvalue)
             tx = await self.mktx_with_change(unspents2, deepcopy(outs), fee=0, change_addr=change_addr)
             fee = max(await self.estimate_fee(tx, estimate_fee_blocks), self.minimum_fee)
