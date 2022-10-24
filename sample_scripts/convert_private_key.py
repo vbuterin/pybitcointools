@@ -14,3 +14,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     coin = Bitcoin(testnet=args.testnet)
     print(coin.encode_privkey(args.priv, args.output_format, script_type=args.script_type))
+
+
+

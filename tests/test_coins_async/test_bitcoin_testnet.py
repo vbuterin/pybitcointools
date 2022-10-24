@@ -13,9 +13,9 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
                             "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses: List[str] = ["2N74sauceDn2qeHFJuNfJ3c1anxPcDRrVtz", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU",
                                    "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
-    native_segwit_addresses: List[str] = ["tb1quvys2uxzwl4sqex5xh59kar2y8rt4k7ym0vug3",
+    native_segwit_addresses: List[str] = ["tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue",
                                           "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r",
-                                          "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
+                                          "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
@@ -117,7 +117,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertSegwitTransactionOK()
 
-    async def test_transaction_native_segwit(self, mock):
+    async def test_transaction_native_segwit(self):
         await self.assertNativeSegwitTransactionOK()
 
     async def test_transaction_mixed_segwit(self):

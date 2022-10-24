@@ -586,7 +586,7 @@ class BaseCoin:
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
-        return self.hash_to_segwit_addr(pubkey_to_hash(pubkey))
+        return self.hash_to_segwit_addr(pubkey_to_hash(compress(pubkey)))
 
     def script_to_p2wsh(self, script) -> str:
         """
