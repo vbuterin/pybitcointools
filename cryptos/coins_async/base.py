@@ -480,6 +480,7 @@ class BaseCoin:
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def is_p2pkh(self, addr: str) -> bool:
+        script = mk_pubkey_script(addr)
         return any(str(i) == addr[0] for i in self.address_prefixes)
 
     def is_p2sh(self, addr: str) -> bool:
@@ -495,7 +496,7 @@ class BaseCoin:
         """
         Check if addr is a valid address for this chain
         """
-        return self.is_p2sh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr)
+        return self.is_p2pkh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr)
 
     def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
         script = self.addrtoscript(addr)
@@ -537,7 +538,7 @@ class BaseCoin:
         """
         Convert an output address to a script
         """
-        if self.segwit_hrp:
+        if self.is_native_segwit(addr):
             witver, witprog = segwit_addr.decode(self.segwit_hrp, addr)
             if witprog is not None:
                 return mk_p2w_scripthash_script(witver, witprog)
@@ -559,8 +560,9 @@ class BaseCoin:
         """
         if not self.segwit_supported:
             raise Exception("Segwit not supported for this coin")
-        compressed_pub = compress(pub)
-        return self.scripttoaddr(mk_p2wpkh_script(compressed_pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
+        if len(pub) > 70:
+            pub = compress(pub)
+        return self.scripttoaddr(mk_p2wpkh_script(pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
 
     def privtop2w(self, priv: PrivkeyType) -> str:
         """
@@ -580,7 +582,7 @@ class BaseCoin:
         """
         return self.pub_to_segwit_address(self.privtopub(privkey))
 
-    def pub_to_segwit_address(self, pubkey) -> str:
+    def pub_to_segwit_address(self, pubkey: str) -> str:
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
@@ -615,21 +617,28 @@ class BaseCoin:
             priv = safe_hexlify(priv)
         pub = self.privtopub(priv)
         inp = txobj['ins'][i]
+        p2pk = False
+        segwit = False
+        native_segwit = False
         try:
             if address := inp['address']:
                 segwit = native_segwit = self.is_native_segwit(address)
                 segwit = segwit or self.is_legacy_segwit_or_multisig(address)
-            else:
-                native_segwit = segwit = False
+                if segwit:
+                    pub = compress(pub)
+                elif len(address) in [66, 130]:
+                   pub = address
+                   p2pk = True
         except (IndexError, KeyError):
-            native_segwit = segwit = False
+            pass
         if segwit:
             if 'witness' not in txobj.keys():
                 txobj.update({"marker": 0, "flag": 1, "witness": []})
                 for _ in range(0, i):
                     witness: Witness = {"number": 0, "scriptCode": ''}
+                    # Pycharm IDE gives a type error for the following line, no idea why...
+                    # noinspection PyTypeChecker
                     txobj["witness"].append(witness)
-            pub = compress(pub)
             script = mk_p2wpkh_scriptcode(pub)
             signing_tx = signature_form(txobj, i, script, self.hashcode, segwit=True)
             sig = ecdsa_tx_sign(signing_tx, priv, self.secondary_hashcode)
@@ -638,15 +647,25 @@ class BaseCoin:
             else:
                 txobj["ins"][i]["script"] = mk_p2wpkh_redeemscript(pub)
             witness: Witness = {"number": 2, "scriptCode": serialize_script([sig, pub])}
+            # Pycharm IDE gives a type error for the following line, no idea why...
+            # noinspection PyTypeChecker
             txobj["witness"].append(witness)
         else:
-            address = self.pubtoaddr(pub)
-            script = mk_pubkey_script(address)
+            if p2pk:
+                script = mk_p2pk_script(pub)
+            else:
+                address = self.pubtoaddr(pub)
+                script = mk_pubkey_script(address)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
             sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
-            txobj["ins"][i]["script"] = serialize_script([sig, pub])
+            # Pycharm IDE gives a type error for the following line, no idea why...
+            # noinspection PyTypeChecker
+            script = serialize_script([sig]) if p2pk else serialize_script([sig, pub])
+            txobj["ins"][i]["script"] = script
             if "witness" in txobj.keys():
                 witness: Witness = {"number": 0, "scriptCode": ''}
+                # Pycharm IDE gives a type error for the following line, no idea why...
+                # noinspection PyTypeChecker
                 txobj["witness"].append(witness)
         return txobj
 
@@ -748,7 +767,7 @@ class BaseCoin:
         if not fee:
             unspents2 = select(unspents, outvalue)
             tx = await self.mktx_with_change(unspents2, deepcopy(outs), fee=0, change_addr=change_addr)
-            fee = await self.estimate_fee(tx, estimate_fee_blocks)
+            fee = max(await self.estimate_fee(tx, estimate_fee_blocks), self.minimum_fee)
         unspents2 = select(unspents, outvalue + fee)
         change_addr = change_addr or frm
         return await self.mktx_with_change(unspents2, outs, fee=fee, change_addr=change_addr,
@@ -864,7 +883,7 @@ class BaseCoin:
         ks = p2wpkh_p2sh_from_bip39_seed(seed, passphrase, coin=self)
         return HDWallet(ks, **kwargs)
 
-    def watch_p2wpkh_p2sh_wallet(self, xpub,**kwargs) -> HDWallet:
+    def watch_p2wpkh_p2sh_wallet(self, xpub, **kwargs) -> HDWallet:
         ks = from_xpub(xpub, self, 'p2wpkh-p2sh')
         return HDWallet(ks, **kwargs)
 
@@ -878,7 +897,7 @@ class BaseCoin:
         ks = from_xpub(xpub, self, 'p2wpkh')
         return HDWallet(ks, **kwargs)
 
-    def electrum_wallet(self, seed:str, passphrase: str = None, **kwargs) -> HDWallet:
+    def electrum_wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         ks = from_electrum_seed(seed, passphrase, False, coin=self)
         return HDWallet(ks, **kwargs)
 

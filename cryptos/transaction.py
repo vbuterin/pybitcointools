@@ -172,7 +172,7 @@ def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
     for inp in txobj["ins"]:
         o.append(inp["tx_hash"][::-1])
         o.append(encode_4_bytes(inp["tx_pos"]))
-        o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] or is_python2 else bytes()))
+        o.append(num_to_var_int(len(inp["script"])) + (inp["script"] if inp["script"] else bytes()))
         o.append(encode_4_bytes(inp["sequence"]))
     o.append(num_to_var_int(len(txobj["outs"])))
     for out in txobj["outs"]:
@@ -221,7 +221,7 @@ def uahf_digest(txobj, i):
     o.append(outputs_hashed)
 
     o.append(encode_4_bytes(txobj["locktime"]))
-
+    # o.append(b'\x01\x00\x00\x00')
     return list_to_bytes(o)
 
 
@@ -340,11 +340,20 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
-def mk_pubkey_script(addr):
+def mk_pubkey_script(addr: str) -> str:
     """
     Used in converting p2pkh address to input or output script
     """
     return '76a914' + b58check_to_hex(addr) + '88ac'
+
+
+def mk_p2pk_script(pub: str) -> str:
+    """
+    Used in converting public key to p2pk script
+    """
+    length = hex(int(len(pub) / 2)).split('0x')[1]
+    return length + pub + 'ac'
+
 
 def mk_scripthash_script(addr):
     """

@@ -347,9 +347,10 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             receiver = self.native_segwit_addresses[0]
             change_address = self.native_segwit_addresses[1]
 
-        outs = [{'value': send_value, 'address': receiver}]
+        outs = [{'value': 1000, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
+        unspents = select(unspents, outs[0]['value'] + self.max_fee)
         tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
 
         privkey = self.privkeys[from_addr_i]
@@ -383,7 +384,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             if prev_script:
                 self.assertNotEqual(script, prev_script)
             self.assertIsInstance(script, str)
-            self.assertEqual(len(script), 44)
+            self.assertGreaterEqual(len(script), 44)
             prev_script = script
 
         prev_script_code = None
@@ -399,6 +400,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         tx = serialize(tx)
 
         # Push the transaction to the network
+        print(tx)
         result = await self._coin.pushtx(tx)
         self.assertTXResultOK(tx, result)
 

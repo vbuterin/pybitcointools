@@ -7,7 +7,7 @@ from .electrumx_client.types import ElectrumXTx
 class TxInput(TypedDict):
     tx_hash: str
     tx_pos: int
-    script: str
+    script: bytes
     sequence: int
     value: NotRequired[int]
     address: NotRequired[str]

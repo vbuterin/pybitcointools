@@ -21,7 +21,7 @@ class Wallet:
             addr_derivation = self.address_derivations[address]
         except KeyError:
             raise Exception(
-                "Address %s has not been generated yet. Generate new address_derivations with new_receiving_addresses or new_change_addresses methods" % address)
+                "Address %s has not been generated yet. Generate new addresses with new_receiving_addresses or new_change_addresses methods" % address)
         pk, compressed = self.keystore.get_private_key(addr_derivation, password)
         return self.coin.encode_privkey(pk, formt, script_type=self.script_type)
 

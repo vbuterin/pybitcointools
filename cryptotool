@@ -1,4 +1,4 @@
-#!/usr/bin/python
+git#!/usr/bin/python
 from cryptos import *
 import json
 

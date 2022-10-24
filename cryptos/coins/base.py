@@ -34,6 +34,9 @@ class BaseSyncCoin:
         self._request_queue: Optional[janus.Queue[Tuple[Future, str, tuple, dict[str, Any]]]] = None
         self._loop_is_started = threading.Event()
 
+    def __getattr__(self, item):
+        return getattr(self._async_coin, item)
+
     def start(self):
         if not self._thread or not self._thread.is_alive():
             self._thread = threading.Thread(target=self.start_event_loop, daemon=True)
