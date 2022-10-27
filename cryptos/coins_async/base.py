@@ -89,13 +89,11 @@ class BaseCoin:
     electrum_xprv_headers: Dict[str, int] = xprv_headers
     electrum_xpub_headers: Dict[str, int] = xpub_headers
 
-    def __init__(self, testnet: bool = False, use_ssl: bool = None, **kwargs):
+    def __init__(self, testnet: bool = False, **kwargs):
         if testnet:
             self.is_testnet = True
             for k, v in self.testnet_overrides.items():
                 setattr(self, k, v)
-        if use_ssl is not None:
-            self.explorer_kwargs['use_ssl'] = use_ssl
         # override default attributes from kwargs
         for key, value in kwargs.items():
             if isinstance(value, dict):
@@ -579,7 +577,7 @@ class BaseCoin:
         script = self.addrtoscript(addr)
         return script_to_scripthash(script)
 
-    def pubtop2w(self, pub: str) -> str:
+    def pubtop2sh(self, pub: str) -> str:
         """
         Convert a public key to a pay to witness public key hash address (P2WPKH, required for segwit)
         """
@@ -589,11 +587,11 @@ class BaseCoin:
             pub = compress(pub)
         return self.scripttoaddr(mk_p2wpkh_script(pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
 
-    def privtop2w(self, priv: PrivkeyType) -> str:
+    def privtop2sh(self, priv: PrivkeyType) -> str:
         """
         Convert a private key to a pay to witness public key hash address
         """
-        return self.pubtop2w(privtopub(priv))
+        return self.pubtop2sh(privtopub(priv))
 
     def hash_to_segwit_addr(self, pub_hash: str) -> str:
         """

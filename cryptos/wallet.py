@@ -51,7 +51,7 @@ class Wallet:
         elif self.xtype == "p2wpkh":
             return self.coin.pub_to_segwit_address(pubkey)
         elif self.xtype == "p2wpkh-p2sh":
-            return self.coin.pubtop2w(pubkey)
+            return self.coin.pubtop2sh(pubkey)
 
     @property
     def addresses(self):
@@ -226,7 +226,7 @@ class HDWallet(Wallet):
         elif self.xtype == "p2wpkh":
             return self.coin.pub_to_segwit_address(pubkey)
         elif self.xtype == "p2wpkh-p2sh":
-            return self.coin.pubtop2w(pubkey)
+            return self.coin.pubtop2sh(pubkey)
 
     def receiving_address(self, index):
         pubkey = self.pubkey_receiving(index)

@@ -36,7 +36,7 @@ async def send(testnet: bool, addr: str, to: str, amount: float,
     if coin.is_native_segwit(addr):
         expected_addr = coin.privtosegwitaddress(privkey)
     elif coin.is_p2sh(addr):
-        expected_addr = coin.privtop2w(privkey)
+        expected_addr = coin.privtop2sh(privkey)
     elif coin.is_p2pkh(addr):
         expected_addr = coin.privtoaddr(privkey)
     elif len(addr) == 66:

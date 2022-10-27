@@ -133,7 +133,7 @@ class NotificationSession(RPCSession):
             await self.close()
             raise
 
-    async def send_request(self, *args, timeout=None, **kwargs):
+    async def send_request(self, *args, timeout: int = None, **kwargs):
         # note: semaphores/timeouts/backpressure etc are handled by
         # aiorpcx. the timeout arg here in most cases should not be set
         msg_id = next(self._msg_counter)
@@ -208,13 +208,14 @@ class ElectrumXClient:
     requires_scripthash: bool = True
 
     def __init__(self, server_file: str = "bitcoin.json", connection_timeout: int = 5,
-                 use_ssl: bool = True, client_name: str = constants.CLIENT_NAME, ping_interval: int = 30,
-                 accept_self_signed_certs: bool = False):
+                 use_ssl: bool = True, tor: bool = False, client_name: str = constants.CLIENT_NAME,
+                 ping_interval: int = 30, accept_self_signed_certs: bool = True):
         self._active_subscriptions: Dict[str, List[asyncio.Task]] = {}
         self._tasks = []
         self.restart_condition = asyncio.Condition()
         self._connection_task: Optional[asyncio.Task] = None
         self._use_ssl = use_ssl
+        self._tor = tor
         self._accept_self_signed_certs = accept_self_signed_certs
         self.cert_path: Optional[Path] = None
         self.connection_timeout = connection_timeout
@@ -238,7 +239,8 @@ class ElectrumXClient:
         return False
 
     def _get_eligible_servers(self) -> Dict[str, Any]:
-        return {k: v for k, v in self._servers.items() if k not in self._failed_servers and self._port_key in v.keys()}
+        return {k: v for k, v in self._servers.items() if k not in self._failed_servers and self._port_key in v.keys() and
+                (self._tor and k.endswith('onion') or (not self._tor and not k.endswith('onion')))}
 
     def _choose_new_server(self) -> str:
         eligible = self._get_eligible_servers()
@@ -289,6 +291,7 @@ class ElectrumXClient:
 
     async def _open_session(self, sslc: Optional[ssl.SSLContext] = None) -> None:
         session_factory = lambda *args, **kwargs: NotificationSession(*args, **kwargs)
+        print('Connecting to', self.host)
         async with _RSClient(session_factory=session_factory,
                              host=self.host, port=self.port,
                              ssl=sslc) as session:
@@ -322,7 +325,7 @@ class ElectrumXClient:
     async def connect_to_any_server(self) -> None:
         self._set_new_server()
         try:
-            await self._connect()
+            await asyncio.wait_for(self._connect(), timeout=5)
         except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
                 ProtocolNotSupportedError, ssl.SSLError) as e:
             await self._on_connection_failure()
@@ -374,21 +377,21 @@ class ElectrumXClient:
             except asyncio.CancelledError:
                 pass
 
-    async def _send_request(self, method: str, *args, timeout: int = 30, **kwargs):
+    async def _send_request(self, method: str, *args, timeout: int = 30, **kwargs) -> Any:
         return await self.session.send_request(method, args, timeout=timeout, **kwargs)
 
-    async def send_request(self, method: str, *args, timeout: int = 30, **kwargs):
+    async def send_request(self, method: str, *args, timeout: int = 30, **kwargs) -> Any:
         await self._ensure_connected()
         return await self._send_request(method, *args, timeout=timeout, **kwargs)
 
-    def _on_task_complete(self, task: asyncio.Task):
+    def _on_task_complete(self, task: asyncio.Task) -> None:
         if task in self._tasks:
             self._tasks.remove(task)
         if not task.cancelled():
             if exc := task.exception():
                 raise exc
 
-    def _on_subscription_task_complete(self, task: asyncio.Task):
+    def _on_subscription_task_complete(self, task: asyncio.Task) -> None:
         remove_method = None
         try:
             for method, tasks in self._active_subscriptions.items():

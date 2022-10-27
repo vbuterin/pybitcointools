@@ -9,5 +9,5 @@ if __name__ == "__main__":
     private_key = generate_private_key()
     print(f'Private key: {private_key}')
     print(f'Address: {b.privtoaddr(private_key)}')
-    print(f'Segwit Script Address: {b.privtop2w(private_key)}')
+    print(f'Segwit Script Address: {b.privtop2sh(private_key)}')
     print(f'Native Segwit Address: {b.privtosegwitaddress(private_key)}')

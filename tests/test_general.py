@@ -418,8 +418,8 @@ class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
             self.assertEqual(ca, c.scripttoaddr(c.addrtoscript(ca)))
             self.assertEqual(ta, t.scripttoaddr(t.addrtoscript(ta)))
 
-            cb = c.privtop2w(random_key())
-            db = t.privtop2w(random_key())
+            cb = c.privtop2sh(random_key())
+            db = t.privtop2sh(random_key())
             self.assertEqual(cb, c.scripttoaddr(c.addrtoscript(cb)))
             self.assertEqual(db, t.scripttoaddr(t.addrtoscript(db)))
 
