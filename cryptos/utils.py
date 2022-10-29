@@ -22,6 +22,7 @@
 # SOFTWARE.
 
 import os
+import re
 from typing import AsyncGenerator, List, Any, Optional
 
 
@@ -39,3 +40,7 @@ def user_dir(appname: str) -> Optional[str]:
 
 async def alist(generator: AsyncGenerator[Any, None]) -> List[Any]:
     return [i async for i in generator]
+
+
+def is_hex(text: str) -> Optional[re.Match[str]]:
+    return re.match('^[0-9a-fA-F]*$', text)

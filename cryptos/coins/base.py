@@ -230,7 +230,7 @@ class BaseSyncCoin:
         return self._async_coin.addrtoscripthash(addr)
 
     def pubtop2w(self, pub: str) -> str:
-        return self._async_coin.pubtop2sh(pub)
+        return self._async_coin.pubtop2wpkh_p2sh(pub)
 
     def hash_to_segwit_addr(self, pub_hash: str) -> str:
         return self._async_coin.hash_to_segwit_addr(pub_hash)

@@ -3,8 +3,10 @@ import copy
 from .main import *
 import binascii
 from copy import deepcopy
+from .opcodes import opcodes
 from . import segwit_addr
 from _functools import reduce
+from .utils import is_hex
 
 from typing import AnyStr, Union
 from .types import Tx
@@ -88,7 +90,7 @@ def is_segwit(tx: bytes) -> bool:
 
 
 def deserialize(tx: AnyStr) -> Tx:
-    if isinstance(tx, str) and re.match('^[0-9a-fA-F]*$', tx):
+    if isinstance(tx, str) and is_hex(tx):
         # tx = bytes(bytearray.fromhex(tx))
         return json_changebase(deserialize(binascii.unhexlify(tx)),
                                lambda x: safe_hexlify(x))
@@ -185,7 +187,7 @@ def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
     return list_to_bytes(o)
 
 
-def uahf_digest(txobj, i):
+def uahf_digest(txobj: Tx, i: int) -> bytes:
     for inp in txobj['ins']:
         inp.pop('address')
     if isinstance(txobj, bytes):
@@ -275,7 +277,7 @@ def is_bip66(sig: str) -> bool:
     """Checks hex DER sig for BIP66 consistency"""
     #https://raw.githubusercontent.com/bitcoin/bips/master/bip-0066.mediawiki
     #0x30  [total-len]  0x02  [R-len]  [R]  0x02  [S-len]  [S]  [sighash]
-    sig = bytearray.fromhex(sig) if re.match('^[0-9a-fA-F]*$', sig) else bytearray(sig)
+    sig = bytearray.fromhex(sig) if is_hex(sig) else bytearray(sig)
     if (sig[0] == 0x30) and (sig[1] == len(sig)-2):     # check if sighash is missing
             sig.extend(b"\1")		                   	# add SIGHASH_ALL for testing
     #assert (sig[-1] & 124 == 0) and (not not sig[-1]), "Bad SIGHASH value"
@@ -344,7 +346,8 @@ def mk_pubkey_script(addr: str) -> str:
     """
     Used in converting p2pkh address to input or output script
     """
-    return '76a914' + b58check_to_hex(addr) + '88ac'
+    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + b58check_to_hex(
+        addr) + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
 
 
 def mk_p2pk_script(pub: str) -> str:
@@ -352,16 +355,17 @@ def mk_p2pk_script(pub: str) -> str:
     Used in converting public key to p2pk script
     """
     length = hex(int(len(pub) / 2)).split('0x')[1]
-    return length + pub + 'ac'
+    return length + pub + opcodes.OP_CHECKSIG.hex()
 
 
 def mk_scripthash_script(addr):
     """
     Used in converting p2sh address to output script
     """
-    return 'a914' + b58check_to_hex(addr) + '87'
+    return opcodes.OP_HASH160.hex() + '14' + b58check_to_hex(addr) + opcodes.OP_EQUAL.hex()
 
-def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp=None):
+
+def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp=None) -> AnyStr:
     if script.startswith('76a914') and script.endswith('88ac'):
         script = script[6:][:-4]
         return bin_to_b58check(safe_from_hex(script), magicbyte=magicbyte)
@@ -374,50 +378,52 @@ def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp
         return binascii.unhexlify("Arbitrary Data: %s" % script[2:].decode('utf-8', 'ignore'))
     raise Exception('Unable to convert script to an address: %s' % script)
 
+
 def decode_p2w_scripthash_script(script, witver, segwit_hrp):
     witprog = safe_from_hex(script[4:])
     return segwit_addr.encode(segwit_hrp, witver, witprog)
 
 
-def mk_p2w_scripthash_script(witver, witprog):
+def mk_p2w_scripthash_script(witver: int, witprog: bytes) -> str:
     """
     Used in converting a decoded pay to witness script hash address to output script
     """
     assert (0 <= witver <= 16)
-    OP_n = witver + 0x50 if witver > 0 else 0
+    OP_n = witver + int(opcodes.OP_RESERVED) if witver > 0 else 0
     return bytes_to_hex_string([OP_n]) + '14' + (bytes_to_hex_string(witprog))
 
 
-def mk_p2wpkh_redeemscript(pubkey):
+def mk_p2wpkh_redeemscript(pubkey: str) -> str:
     """
     Used in converting public key to p2wpkh script
     """
-    return '160014' + pubkey_to_hash_hex(pubkey)
+    return '16' + opcodes.OP_0.hex() + '14' + pubkey_to_hash_hex(pubkey)
 
 
-def mk_p2wpkh_script(pubkey: str, prefix: str = 'a914', suffix: str = '87') -> str:
+def mk_p2wpkh_script(pubkey: str) -> str:
     """
     Used in converting public key to p2wpkh script
     """
     script = mk_p2wpkh_redeemscript(pubkey)[2:]
-    return prefix + hex_to_hash160(script) + suffix
+    return opcodes.OP_HASH160.hex() + '14' + hex_to_hash160(script) + opcodes.OP_EQUAL.hex()
 
 
 def mk_p2wpkh_scriptcode(pubkey):
     """
     Used in signing for tx inputs
     """
-    return '76a914' + pubkey_to_hash_hex(pubkey) + '88ac'
+    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + pubkey_to_hash_hex(
+        pubkey) + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
 
 
 def p2wpkh_nested_script(pubkey):
-    return '0014' + hash160(safe_from_hex(pubkey))
+    return opcodes.OP_0.hex() + '14' + hash160(safe_from_hex(pubkey))
 
 # Output script to address representation
 
 
 def deserialize_script(script):
-    if isinstance(script, str) and re.match('^[0-9a-fA-F]*$', script):
+    if isinstance(script, str) and is_hex(script):
        return json_changebase(deserialize_script(binascii.unhexlify(script)),
                               lambda x: safe_hexlify(x))
     out, pos = [], 0
@@ -484,23 +490,24 @@ def mk_multisig_script(*args):  # [pubs],k or pub1,pub2...pub[n],M
         pubs = list(filter(lambda x: len(str(x)) >= 32, args))
         M = int(args[len(pubs)])
     N = len(pubs)
-    return serialize_script([M]+pubs+[N]+[0xae])
+    return serialize_script([M]+pubs+[N]+[opcodes.OP_CHECKMULTISIG])
 
 
 # Signing and verifying
 
 def verify_tx_input(tx, i, script, sig, pub):
-    if re.match('^[0-9a-fA-F]*$', tx):
+    if is_hex(tx):
         tx = binascii.unhexlify(tx)
-    if re.match('^[0-9a-fA-F]*$', script):
+    if is_hex(script):
         script = binascii.unhexlify(script)
-    if not re.match('^[0-9a-fA-F]*$', sig):
+    if is_hex(script):
         sig = safe_hexlify(sig)
     hashcode = decode(sig[-2:], 16)
     modtx = signature_form(tx, int(i), script, hashcode)
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
-def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
+
+def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL):
     if isinstance(tx, dict):
         tx = serialize(tx)
     if re.match('^[0-9a-fA-F]*$', tx):
@@ -510,7 +517,8 @@ def multisign(tx, i, script, pk, hashcode=SIGHASH_ALL):
     modtx = signature_form(tx, i, script, hashcode)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
-def apply_multisignatures(txobj, i, script, *args):
+
+def apply_multisignatures(txobj: Tx, i: int, script, *args):
     # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
     sigs = args[0] if isinstance(args[0], list) else list(args)
 
@@ -530,7 +538,7 @@ def apply_multisignatures(txobj, i, script, *args):
     return txobj
 
 
-def select(unspents, value):
+def select(unspents, value: int):
     value = int(value)
     high = [u for u in unspents if u["value"] >= value]
     high.sort(key=lambda u: u["value"])

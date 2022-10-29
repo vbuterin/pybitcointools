@@ -1,4 +1,4 @@
-from typing import TypedDict, Dict
+from typing import TypedDict, Dict, Any
 from typing import List, AnyStr, Union, Callable, Awaitable
 from typing_extensions import NotRequired
 from .electrumx_client.types import ElectrumXTx
@@ -83,6 +83,6 @@ PubKeyType = Union[list, tuple, str, bytes]
 
 
 class TXInspectType(TypedDict):
-    ins: List[TxInput]
-    outs: List[TxOut]
+    ins: Dict[str, TxInput]
+    outs: List[Dict[str, Any]]
     fee: int

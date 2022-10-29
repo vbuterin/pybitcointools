@@ -1,6 +1,7 @@
 import asyncio
 import aiorpcx
 from ..transaction import *
+from ..utils import is_hex
 from binascii import unhexlify
 from ..blocks import verify_merkle_proof, deserialize_header
 from .. import segwit_addr
@@ -9,6 +10,7 @@ from ..keystore import *
 from ..wallet import *
 from ..py3specials import *
 from ..constants import SATOSHI_PER_BTC
+from ..opcodes import opcodes
 from functools import partial
 from typing import Dict, Any, Tuple, Optional, Union, Iterable, Type, Callable, Generator, AsyncGenerator
 from ..types import (Tx, Witness, TxInput, TxOut, BlockHeader, MerkleProof, AddressBalance, BlockHeaderCallback,
@@ -25,7 +27,6 @@ class TXInvalidError(BaseException):
 
 class TXRejectedError(TXInvalidError):
     pass
-
 
 
 class BaseCoin:
@@ -61,8 +62,6 @@ class BaseCoin:
         'p2w_p2sh': 46 + (213 / 4),
         'p2wpkh': (214 / 4),
     }
-    p2wpkh_prefix = 'a914'
-    p2wpkh_suffix = '87'
     wif_prefix: int = 0x80
     wif_script_types: Dict[str, int] = {
         'p2pkh': 0,
@@ -422,7 +421,8 @@ class BaseCoin:
             return list(await self._filter_by_proof(*txs))
         return txs
 
-    async def get_histories(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[ElectrumXMultiTxResponse, None]:
+    async def get_histories(self, *args: str, merkle_proof: bool = False) -> AsyncGenerator[
+                           ElectrumXMultiTxResponse, None]:
         async for addr, result in self._tasks_with_inputs(self.history, *args, merkle_proof=merkle_proof):
             for tx in result:
                 tx['address'] = addr
@@ -504,7 +504,7 @@ class BaseCoin:
 
     def is_p2sh(self, addr: str) -> bool:
         """
-        Check if addr is a a pay to script address
+        Check if addr is a pay to script address
         """
         try:
             changebase(addr, 58, 256)
@@ -523,7 +523,7 @@ class BaseCoin:
 
     def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
         script = self.addrtoscript(addr)
-        return script.startswith(self.p2wpkh_prefix) and script.endswith(self.p2wpkh_suffix)
+        return script.startswith(opcodes.OP_HASH160.hex() + '14') and script.endswith(opcodes.OP_EQUAL.hex())
 
     def is_segwit_or_multisig(self, addr: str) -> bool:
         """
@@ -541,9 +541,12 @@ class BaseCoin:
         """
         Convert an input public key hash to an address
         """
-        if re.match('^[0-9a-fA-F]*$', script):
+        if is_hex(script):
             script = binascii.unhexlify(script)
-        if script[:3] == b'\x76\xa9\x14' and script[-2:] == b'\x88\xac' and len(script) == 25:
+        # 0x14 is expected pubkey hash length
+        pubkey_hash_prefix = opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14'
+        pubkey_hash_suffix = opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
+        if script[:3] == pubkey_hash_prefix and script[-2:] == pubkey_hash_suffix and len(script) == 25:
             return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash address
         else:
             # BIP0016 scripthash address
@@ -553,7 +556,7 @@ class BaseCoin:
         """
         Convert an output p2sh script to an address
         """
-        if re.match('^[0-9a-fA-F]*$', script):
+        if is_hex(script):
             script = binascii.unhexlify(script)
         return hex_to_b58check(hash160(script), self.script_magicbyte)
 
@@ -577,21 +580,21 @@ class BaseCoin:
         script = self.addrtoscript(addr)
         return script_to_scripthash(script)
 
-    def pubtop2sh(self, pub: str) -> str:
+    def pubtop2wpkh_p2sh(self, pub: str) -> str:
         """
-        Convert a public key to a pay to witness public key hash address (P2WPKH, required for segwit)
+        Convert a public key to a pay to witness public key hash address (P2WPKH-P2SH, required for segwit)
         """
         if not self.segwit_supported:
             raise Exception("Segwit not supported for this coin")
         if len(pub) > 70:
             pub = compress(pub)
-        return self.scripttoaddr(mk_p2wpkh_script(pub, prefix=self.p2wpkh_prefix, suffix=self.p2wpkh_suffix))
+        return self.scripttoaddr(mk_p2wpkh_script(pub))
 
     def privtop2sh(self, priv: PrivkeyType) -> str:
         """
         Convert a private key to a pay to witness public key hash address
         """
-        return self.pubtop2sh(privtopub(priv))
+        return self.pubtop2wpkh_p2sh(privtopub(priv))
 
     def hash_to_segwit_addr(self, pub_hash: str) -> str:
         """
@@ -743,7 +746,7 @@ class BaseCoin:
                 addr = o[:o.find(':')]
                 val = int(o[o.find(':') + 1:])
                 out = {}
-                if re.match('^[0-9a-fA-F]*$', addr):
+                if is_hex(addr):
                     out["script"] = addr
                 else:
                     out["address"] = addr
