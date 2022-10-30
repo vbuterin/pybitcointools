@@ -1,49 +1,123 @@
-from unittest import skip
 from cryptos import coins_async
-from cryptos.testing.testcases import BaseCoinTestCase
+from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
+from cryptos.types import ElectrumXTx, TxOut
+from cryptos.electrumx_client.types import ElectrumXMultiBalanceResponse
+from typing import List, Type
 
 
-class TestBitcoinCashTestnet(BaseCoinTestCase):
+class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     name = "Bitcoin Cash Testnet"
-    coin = coins_async.BitcoinCash
-    addresses = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu","mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
-    privkeys = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
+    coin: Type[coins_async.BaseCoin] = coins_async.BitcoinCash
+    addresses: List[str] = ["myLktRdRh3dkK3gnShNj5tZsig6J1oaaJW", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu", "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
+    privkeys: List[str] = ["cUdNKzomacP2631fa5Q4yHv2fADc8Ueymr5Z5NUSJjVM13igcVJk",
                    "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
-                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
-    fee = 54400
-    blockcypher_coin_symbol = None
-    testnet = True
+                   "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  # Private keys for above address_derivations in same order
+    multisig_addresses: List[str] = ["", ""]
+    fee: int = 500
+    max_fee: int = 3500
+    testnet: bool = True
 
-    num_merkle_siblings = 2
-    min_latest_height = 1201889
-    unspent_address = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
-    unspent = [{'output': '80700e6d1125deafa22b307f6c7c99e75771f9fc05517fc795a1344eca7c8472:0', 'value': 550000000}]
-    txid = "b4dd5908cca851d861b9d2ca267a901bb6f581f2bb096fbf42a28cc2d98e866a"
-    txinputs = [{'output': "cbd43131ee11bc9e05f36f55088ede26ab5fb160cc3ff11785ce9cc653aa414b:1", 'value': 96190578808}]
-    tx = {'txid': 'b4dd5908cca851d861b9d2ca267a901bb6f581f2bb096fbf42a28cc2d98e866a'}
-    txheight = 1196454
+    min_latest_height: int = 1201889
+    unspent_addresses: List[str] = "ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"
+    unspent: List[ElectrumXTx] = [{'output': '80700e6d1125deafa22b307f6c7c99e75771f9fc05517fc795a1344eca7c8472:0', 'value': 550000000}]
+    balance: ElectrumXMultiBalanceResponse = {'confirmed': 180000000, 'unconfirmed': 0}
+    balances: List[ElectrumXMultiBalanceResponse] = []
+    history: List[ElectrumXTx] = []
+    histories: List[ElectrumXTx] = []
+    txid: str = "b4dd5908cca851d861b9d2ca267a901bb6f581f2bb096fbf42a28cc2d98e866a"
+    txheight: int = 1196454
+    txinputs: List[TxOut] = [{'output': "cbd43131ee11bc9e05f36f55088ede26ab5fb160cc3ff11785ce9cc653aa414b:1", 'value': 96190578808}]
+    raw_tx: str = ""
 
-    def test_block_info(self):
-        self.assertBlockHeadersOK()
+    async def test_balance(self):
+        await self.assertBalanceOK()
 
-    def test_merkle_proof(self):
-        self.assertMerkleProofOK()
+    async def test_balances(self):
+        await self.assertBalancesOK()
 
-    def test_block_height(self):
-        self.assertBlockHeightOK()
-        self.assertLatestBlockHeightOK()
+    async def test_merkle_proof(self):
+        await self.assertMerkleProofOK()
 
-    def test_fetchtx(self):
-        self.assertGetTXOK()
+    async def test_unspent(self):
+        await self.assertUnspentOK()
 
-    def test_txinputs(self):
-        self.assertTXInputsOK()
+    async def test_unspents(self):
+        await self.assertUnspentsOK()
 
-    def test_parse_args(self):
-        self.assertParseArgsOK()
+    async def test_history(self):
+        await self.assertHistoryOK()
 
-    def test_transaction(self):
-        self.assertTransactionOK()
+    async def test_histories(self):
+        await self.assertHistoriesOK()
 
-    def test_unspent(self):
-        self.assertUnspentOK()
+    async def test_balance_merkle_proven(self):
+        await self.assertBalanceMerkleProvenOK()
+
+    async def test_balances_merkle_proven(self):
+        await self.assertBalancesMerkleProvenOK()
+
+    async def test_block_header(self):
+        await self.assertBlockHeaderOK()
+
+    async def test_block_headers(self):
+        await self.assertBlockHeadersOK()
+
+    async def test_gettx(self):
+        await self.assertGetTXOK()
+
+    async def test_getverbosetx(self):
+        await self.assertGetVerboseTXOK()
+
+    async def test_gettxs(self):
+        await self.assertGetTXssK()
+
+    async def test_transaction(self):
+        """
+        Sample transaction:
+        TxID:
+        """
+        await self.assertTransactionOK()
+
+    async def test_transaction_multisig(self):
+        """
+        Sample transaction:
+        TxID:
+        """
+        await self.assertMultiSigTransactionOK()
+
+    async def test_sendmulti_recipient_tx(self):
+        """
+        Sample transaction:
+        TxID:         """
+        await self.assertSendMultiRecipientsTXOK()
+
+    async def test_send(self):
+        """
+        Sample transaction:
+        TxID:
+        """
+        await self.assertSendOK()
+
+    async def test_subscribe_block_headers(self):
+        await self.assertSubscribeBlockHeadersOK()
+
+    async def test_subscribe_block_headers_sync(self):
+        await self.assertSubscribeBlockHeadersSyncCallbackOK()
+
+    async def test_latest_block(self):
+        await self.assertLatestBlockOK()
+
+    async def test_confirmations(self):
+        await self.assertConfirmationsOK()
+
+    async def test_subscribe_address(self):
+        await self.assertSubscribeAddressOK()
+
+    async def test_subscribe_address_sync(self):
+        await self.assertSubscribeAddressSyncCallbackOK()
+
+    async def test_subscribe_address_transactions(self):
+        await self.assertSubscribeAddressTransactionsOK()
+
+    async def test_subscribe_address_transactions_sync(self):
+        await self.assertSubscribeAddressTransactionsSyncOK()

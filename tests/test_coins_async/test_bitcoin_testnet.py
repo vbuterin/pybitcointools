@@ -2,12 +2,12 @@ from cryptos import coins_async
 from cryptos.types import TxOut
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
-from typing import List
+from typing import List, Type
 
 
 class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     name: str = "Bitcoin Testnet"
-    coin = coins_async.Bitcoin
+    coin: Type[coins_async.BaseCoin] = coins_async.Bitcoin
     addresses: List[str] = ["n2DQVQZiA2tVBDu4fNAjKVBS2RArWhfncv", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu",
                             "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses: List[str] = ["2N74sauceDn2qeHFJuNfJ3c1anxPcDRrVtz", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU",

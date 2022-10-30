@@ -8,12 +8,12 @@ from cryptos import coins_async
 from cryptos.utils import alist
 from cryptos.types import Tx, TxOut
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse, ElectrumXUnspentResponse
-from typing import AsyncGenerator, Any, Union, List, Optional
+from typing import AsyncGenerator, Any, Union, List, Optional, Type
 
 
 class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     name: str = ""
-    coin = coins_async.Bitcoin
+    coin: Type[coins_async.BaseCoin] = coins_async.Bitcoin
     addresses: List[str] = []
     segwit_addresses: List[str] = []
     native_segwit_addresses: List[str] = []
@@ -31,8 +31,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     txheight: int = None
     privkeys: List[str] = []     # Private keys for above addresses in same order
     txid: str = None
-    merkle_txhash: int = None
-    merkle_txheight: int = None
     txinputs: List[TxOut] = None
 
     balance: ElectrumXMultiBalanceResponse = {}
