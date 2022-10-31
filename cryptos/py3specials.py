@@ -56,7 +56,7 @@ def bin_to_b58check(inp: bytes, magicbyte: int = 0) -> str:
     return '1' * leadingzbytes + changebase(inp+checksum, 256, 58)
 
 
-def bytes_to_hex_string(b: Union[int, bytes, List[str]]) -> str:
+def bytes_to_hex_string(b: Union[int, bytes, List[str], List[int]]) -> str:
     if isinstance(b, str):
         return b
 

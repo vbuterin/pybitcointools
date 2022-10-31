@@ -395,7 +395,7 @@ def decode_cash_scripthash_script(script, witver, hrp):
     return cashaddr.encode(hrp, witver, witprog)
 
 
-def mk_p2w_scripthash_script(witver: int, witprog: bytes) -> str:
+def mk_p2w_scripthash_script(witver: int, witprog: List[int]) -> str:
     """
     Used in converting a decoded pay to witness script hash address to output script
     """

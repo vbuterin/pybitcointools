@@ -559,8 +559,8 @@ class BaseCoin:
         """
         Convert an output script to an address
         """
-        segwit_hrp = self.segwit_hrp if self.segwit_supported
-        cash_hrp = self.segwit_hrp if self.cash_address_supported
+        segwit_hrp = self.segwit_hrp if self.segwit_supported else None
+        cash_hrp = self.segwit_hrp if self.cash_address_supported else None
         return output_script_to_address(script, self.magicbyte, self.script_magicbyte, segwit_hrp, cash_hrp)
 
     def scripttoaddr(self, script: str) -> str:
@@ -592,6 +592,10 @@ class BaseCoin:
         """
         if self.is_native_segwit(addr):
             witver, witprog = segwit_addr.decode_segwit_address(self.segwit_hrp, addr)
+            if witprog is not None:
+                return mk_p2w_scripthash_script(witver, witprog)
+        elif self.is_cash_address(addr):
+            witver, witprog = cashaddr.decode(addr)
             if witprog is not None:
                 return mk_p2w_scripthash_script(witver, witprog)
         if self.is_p2sh(addr):
@@ -626,13 +630,49 @@ class BaseCoin:
         """
         Convert a hash to the new segwit address format outlined in BIP-0173
         """
+        if not self.segwit_supported:
+            raise NotImplementedError(f"{self.display_name} does not support segwit")
         return segwit_addr.encode_segwit_address(self.segwit_hrp, 0, pub_hash)
+
+    def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
+        """
+        Convert a hash to a cash address
+        """
+        if not self.cash_address_supported:
+            raise NotImplementedError(f"{self.display_name} does not support cash addresses")
+        return cashaddr.encode_full(self.segwit_hrp, 0, pub_hash)
 
     def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
         """
         Convert a private key to the new segwit address format outlined in BIP01743
         """
         return self.pub_to_segwit_address(self.privtopub(privkey))
+
+    def pub_to_cash_address(self, pubkey: str) -> str:
+        """
+        Convert a public key to a cash address
+        """
+        return self.hash_to_cash_addr(pubkey_to_hash(pubkey))
+
+    def privtocashaddress(self, privkey: PrivkeyType) -> str:
+        """
+        Convert a private key to a cash address
+        """
+        return self.pub_to_cash_address(self.privtopub(privkey))
+
+    def legacy_addr_to_cash_address(self, addr: str) -> str:
+        """
+        Convert a legacy Bitcoin Address to a Bitcoin cash address
+        """
+        magicbyte, pubkey_hash = b58check_to_bin(addr)
+        return self.hash_to_cash_addr(pubkey_hash)
+
+    def cash_address_to_legacy_addr(self, addr: str) -> str:
+        """
+        Convert a Bitcoin cash address to a legacy Bitcoin address
+        """
+        prefix, kind, pubkey_hash = cashaddr.decode(addr)
+        return bin_to_b58check(pubkey_hash, self.magicbyte)
 
     def pub_to_segwit_address(self, pubkey: str) -> str:
         """

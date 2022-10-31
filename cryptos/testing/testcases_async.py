@@ -101,6 +101,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             if self._coin.segwit_supported:
                 self.assertFalse(self._coin.is_native_segwit(address))
 
+
     def assertP2WPKH_P2SH_WifOK(self):
         for privkey, expected_wif, address in zip(self.privkeys, self.privkey_segwit_wifs, self.segwit_addresses):
             wif = self._coin.encode_privkey(privkey, formt="wif_compressed", script_type="p2wpkh-p2sh")

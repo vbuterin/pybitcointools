@@ -1,4 +1,6 @@
+from binascii import unhexlify
 from cryptos import coins_async
+from cryptos import cashaddr
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
 from cryptos.types import TxInput
@@ -12,9 +14,9 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     addresses = ["1MhTCMUjM1TEQ7RSwoCMVZy7ARa9aAP82Z",  ""
                  "18DEbpqpdmfNaosxwQhCNHDAChZYCNG836",
                  "175MvCJkNZT3zSdCntXj9vK7L6XKDWjLnD"]  # n2DQVQZiA2tVBDu4fNAjKVBS2RArWhfncv
-    bitcoin_cash_addresses = ["bitcoincash:qr3sjptscfm7kqry6s67skm5dgsudwkmcsfvmsq7c6",
-                              "bitcoincash:qp83jwvlc8clct6vpskr8jhyayr8u7ynhqf8z4glc3",
-                              "bitcoincash:qpp28cg6sze9la3myp6v28ghg5fjhn9m5ynaj2uu6x"]
+    cash_addresses = ["bitcoincash:qr3sjptscfm7kqry6s67skm5dgsudwkmcsfvmsq7c6",
+                      "bitcoincash:qp83jwvlc8clct6vpskr8jhyayr8u7ynhqf8z4glc3",
+                      "bitcoincash:qpp28cg6sze9la3myp6v28ghg5fjhn9m5ynaj2uu6x"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
@@ -42,8 +44,24 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     txid: str = "e3ead2c8e6ad22b38f49abd5ae7a29105f0f64d19865fd8ccb0f8d5b2665f476"
     raw_tx: str = "0200000001ab293b56edcc8d99b665ebe6265132408df132ecf7a1948d68bee425cef7bb63010000006b483045022100fca8f51dc515e85862cd087729136656e4f73f76eb1ce9d4ce90b092e4b9efea02204943929a08bab03e95dad6781e128f49a3d35af055a146a9c8e4aec3a4c90db54121039b190dc5e0bcea42cec072f7aebf097f379691b3dfcc67fd587dddc1d004eaa4feffffff0222ec4377000000001976a9149119c4f8dc64fde6e9d6f59ae9273993b858c03388ac229dd80e000000001976a914ce4a729424645fc09678e1b8327b7c78d1cc3fc288acdac10700"
 
+    def test_cash_addr(self):
+        # https://reference.cash/protocol/blockchain/encoding/cashaddr
+        public_key_hash = unhexlify("211b74ca4686f81efda5641767fc84ef16dafe0b")
+        addr = cashaddr.encode_full(self._coin.segwit_hrp, 0, public_key_hash)
+        self.assertEqual(addr, "bitcoincash:qqs3kax2g6r0s8ha54jpwelusnh3dkh7pvu23rzrru")
+
+    def test_address_conversion(self):
+        for addr, cashaddr in zip(self.addresses, self.cash_addresses):
+            convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
+            self.assertEqual(convert_cashaddr, cashaddr)
+            convert_addr = self._coin.cash_address_to_legacy_addr(cashaddr)
+            self.assertEqual(addr, convert_addr)
+
     def test_standard_wif_ok(self):
         self.assertStandardWifOK()
+        for privkey, addr in zip(self.privkeys, self.cash_addresses):
+            cash_addr = self._coin.privtocashaddress(privkey)
+            self.assertEqual(cash_addr, addr)
 
     async def test_balance(self):
         await self.assertBalanceOK()
