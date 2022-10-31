@@ -8,7 +8,8 @@ class Doge(BaseCoin):
     segwit_supported = False
     magicbyte = 30
     script_magicbyte = 22
-    to_wif = 0x9e
+    wif_prefix: int = 0x9e
+    segwit_hrp = "doge"
     hd_path = 3
     client_kwargs = {
         'server_file': 'doge.json',
@@ -21,6 +22,8 @@ class Doge(BaseCoin):
         'magicbyte': 113,
         'script_magicbyte': 196,
         'hd_path': 1,
+        'wif_prefix': 0xef,
+        'segwit_hrp': 'xdoge',
         'client_kwargs': {
             'server_file': 'doge_testnet.json',
         },

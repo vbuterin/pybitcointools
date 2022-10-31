@@ -39,7 +39,7 @@ def changebase(string, frm, to, minlen=0):
     return encode(decode(string, frm), to, minlen)
 
 
-def bin_to_b58check(inp, magicbyte: int = 0) -> str:
+def bin_to_b58check(inp: bytes, magicbyte: int = 0) -> str:
     if magicbyte == 0:
         inp = from_int_to_byte(0) + inp
     while magicbyte > 0:

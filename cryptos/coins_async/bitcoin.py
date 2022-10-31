@@ -8,8 +8,9 @@ class Bitcoin(BaseCoin):
     segwit_supported = True
     magicbyte = 0
     script_magicbyte = 5
-    minimum_fee = 300
+    minimum_fee = 500
     segwit_hrp = "bc"
+    wif_prefix: int = 0x80
     client_kwargs = {
         'server_file': 'bitcoin.json',
     }
@@ -23,10 +24,11 @@ class Bitcoin(BaseCoin):
         'hd_path': 1,
         'wif_prefix': 0xef,
         'minimum_fee': 300,
-        'explorer_kwargs': {
+        'client_kwargs': {
             'server_file': 'bitcoin_testnet.json',
             'use_ssl': False
         },
+        'electrum_pkey_format': 'wif',
         'xprv_headers': {
             'p2pkh': 0x04358394,
             'p2wpkh-p2sh': 0x044a4e28,

@@ -291,7 +291,6 @@ class ElectrumXClient:
 
     async def _open_session(self, sslc: Optional[ssl.SSLContext] = None) -> None:
         session_factory = lambda *args, **kwargs: NotificationSession(*args, **kwargs)
-        print('Connecting to', self.host)
         async with _RSClient(session_factory=session_factory,
                              host=self.host, port=self.port,
                              ssl=sslc) as session:
@@ -300,7 +299,6 @@ class ElectrumXClient:
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
-            print('Connected to', self.host)
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()

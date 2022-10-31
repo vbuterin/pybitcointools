@@ -5,6 +5,7 @@ import binascii
 from copy import deepcopy
 from .opcodes import opcodes
 from . import segwit_addr
+from . import cashaddr
 from _functools import reduce
 from .utils import is_hex
 
@@ -342,12 +343,13 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 
 # Scripts
 
+
 def mk_pubkey_script(addr: str) -> str:
     """
     Used in converting p2pkh address to input or output script
     """
-    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + b58check_to_hex(
-        addr) + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
+    magicbyte, bin = b58check_to_hex(addr)
+    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + bin + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
 
 
 def mk_p2pk_script(pub: str) -> str:
@@ -362,10 +364,12 @@ def mk_scripthash_script(addr):
     """
     Used in converting p2sh address to output script
     """
-    return opcodes.OP_HASH160.hex() + '14' + b58check_to_hex(addr) + opcodes.OP_EQUAL.hex()
+    magicbyte, bin = b58check_to_hex(addr)
+    return opcodes.OP_HASH160.hex() + '14' + bin + opcodes.OP_EQUAL.hex()
 
 
-def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp=None) -> AnyStr:
+def output_script_to_address(script, magicbyte: int = 0, script_magicbyte: int = 5,
+                             segwit_hrp: str = None, cash_hrp: str = None ) -> AnyStr:
     if script.startswith('76a914') and script.endswith('88ac'):
         script = script[6:][:-4]
         return bin_to_b58check(safe_from_hex(script), magicbyte=magicbyte)
@@ -374,6 +378,8 @@ def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp
         return bin_to_b58check(safe_from_hex(script), magicbyte=script_magicbyte)
     elif script.startswith('0') and segwit_hrp:
         return decode_p2w_scripthash_script(script, 0, segwit_hrp)
+    elif script.startswith('0') and cash_hrp:
+        return decode_cash_scripthash_script(script, 0, cash_hrp)
     elif script.startswith('6a'):
         return binascii.unhexlify("Arbitrary Data: %s" % script[2:].decode('utf-8', 'ignore'))
     raise Exception('Unable to convert script to an address: %s' % script)
@@ -381,7 +387,12 @@ def output_script_to_address(script, magicbyte=0, script_magicbyte=5, segwit_hrp
 
 def decode_p2w_scripthash_script(script, witver, segwit_hrp):
     witprog = safe_from_hex(script[4:])
-    return segwit_addr.encode(segwit_hrp, witver, witprog)
+    return segwit_addr.encode_segwit_address(segwit_hrp, witver, witprog)
+
+
+def decode_cash_scripthash_script(script, witver, hrp):
+    witprog = safe_from_hex(script[4:])
+    return cashaddr.encode(hrp, witver, witprog)
 
 
 def mk_p2w_scripthash_script(witver: int, witprog: bytes) -> str:

@@ -30,8 +30,12 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     txheight: int = None
     privkeys: List[str] = []     # Private keys for above addresses in same order
+    privkey_standard_wifs: List[str] = []
+    privkey_segwit_wifs: List[str] = []
+    privkey_native_segwit_wifs: List[str] = []
     txid: str = None
     txinputs: List[TxOut] = None
+    block_hash: str = None
 
     balance: ElectrumXMultiBalanceResponse = {}
     balances: List[ElectrumXMultiBalanceResponse] = []
@@ -78,6 +82,52 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     @property
     def tx(self) -> Tx:
         return deserialize(self.raw_tx)
+
+    def assertStandardWifOK(self):
+        for privkey, expected_wif, address in zip(self.privkeys, self.privkey_standard_wifs, self.addresses):
+            frmt = get_privkey_format(privkey)
+            wif_format = "wif_compressed" if "compressed" in frmt else "wif"
+            wif = self._coin.encode_privkey(privkey, formt=wif_format)
+            self.assertEqual(wif, expected_wif)
+            self.assertEqual(self._coin.privtop2pkh(privkey), address)
+            self.assertEqual(self._coin.privtop2pkh(wif), address)
+            self.assertEqual(self._coin.privtoaddr(privkey), address)
+            self.assertEqual(self._coin.privtoaddr(wif), address)
+            self.assertEqual(self._coin.pubtoaddr(privtopub(privkey)), address)
+            self.assertEqual(self._coin.pubtoaddr(privtopub(wif)), address)
+            self.assertTrue(self._coin.is_p2pkh(address))
+            self.assertTrue(self._coin.is_address(address))
+            self.assertFalse(self._coin.is_p2sh(address))
+            if self._coin.segwit_supported:
+                self.assertFalse(self._coin.is_native_segwit(address))
+
+    def assertP2WPKH_P2SH_WifOK(self):
+        for privkey, expected_wif, address in zip(self.privkeys, self.privkey_segwit_wifs, self.segwit_addresses):
+            wif = self._coin.encode_privkey(privkey, formt="wif_compressed", script_type="p2wpkh-p2sh")
+            self.assertEqual(wif, expected_wif)
+            self.assertEqual(self._coin.privtop2wpkh_p2sh(privkey), address)
+            self.assertEqual(self._coin.privtop2wpkh_p2sh(wif), address)
+            self.assertEqual(self._coin.privtoaddr(wif), address)
+            self.assertEqual(self._coin.pubtop2wpkh_p2sh(privtopub(privkey)), address)
+            self.assertEqual(self._coin.pubtop2wpkh_p2sh(privtopub(wif)), address)
+            self.assertTrue(self._coin.is_p2sh(address))
+            self.assertTrue(self._coin.is_address(address))
+            self.assertFalse(self._coin.is_p2pkh(address))
+            self.assertFalse(self._coin.is_native_segwit(address))
+
+    def assertP2WPKH_WIFOK(self):
+        for privkey, expected_wif, address in zip(self.privkeys, self.privkey_native_segwit_wifs, self.native_segwit_addresses):
+            wif = self._coin.encode_privkey(privkey, formt="wif_compressed", script_type="p2wpkh")
+            self.assertEqual(wif, expected_wif)
+            self.assertEqual(self._coin.privtosegwitaddress(privkey), address)
+            self.assertEqual(self._coin.privtosegwitaddress(wif), address)
+            self.assertEqual(self._coin.privtoaddr(wif), address)
+            self.assertEqual(self._coin.pub_to_segwit_address(privtopub(privkey)), address)
+            self.assertEqual(self._coin.pub_to_segwit_address(privtopub(wif)), address)
+            self.assertTrue(self._coin.is_native_segwit(address))
+            self.assertTrue(self._coin.is_address(address))
+            self.assertFalse(self._coin.is_p2sh(address))
+            self.assertFalse(self._coin.is_p2pkh(address))
 
     async def assertBalanceOK(self):
         result = await self._coin.get_balance(self.unspent_addresses[0])
@@ -180,13 +230,13 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         regular_privkey = self.privkeys[regular_from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(segwit_sender, self._coin.privtop2sh(segwit_privkey),
+        self.assertEqual(segwit_sender, self._coin.privtop2wpkh_p2sh(segwit_privkey),
                          msg=f"Private key does not belong to address {segwit_sender} on {self._coin.display_name}")
         self.assertEqual(regular_sender, self._coin.privtoaddr(regular_privkey),
                          msg=f"Private key does not belong to address {regular_sender} on {self._coin.display_name}")
 
-        self.assertTrue(self._coin.is_segwit_or_multisig(segwit_sender))
-        self.assertFalse(self._coin.is_segwit_or_multisig(regular_sender))
+        self.assertTrue(self._coin.is_segwit_or_p2sh(segwit_sender))
+        self.assertFalse(self._coin.is_segwit_or_p2sh(regular_sender))
 
         # Sign each input with the given private keys
         # Try signing one at a time and also with signall and make sure they give the same result
@@ -289,7 +339,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, self._coin.privtop2sh(privkey),
+        self.assertEqual(sender, self._coin.privtop2wpkh_p2sh(privkey),
                          msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
@@ -539,6 +589,11 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'locktime'])
         self.assertEqual(tx, self.tx)
 
+    async def assertGetTxsOK(self):
+        txs = await alist(self._coin.get_txs(self.txid))
+        self.assertListEqual(list(txs[0].keys()),
+                             ['ins', 'outs', 'version',  'locktime'])
+
     async def assertGetSegwitTXOK(self):
         tx = await self._coin.get_tx(self.txid)
         self.assertListEqual(list(tx.keys()), ['ins', 'outs', 'version', 'marker', 'flag', 'witness', 'locktime'])
@@ -546,9 +601,13 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertGetVerboseTXOK(self):
         tx = await self._coin.get_verbose_tx(self.txid)
-        self.assertListEqual(sorted(tx.keys()),
-                             ['blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime', 'size', 'time',
-                              'txid', 'version', 'vin', 'vout', 'vsize', 'weight'])
+        expected_keys = ['blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime', 'size', 'time',
+                        'txid', 'version', 'vin', 'vout']
+        if 'height' in tx:
+            expected_keys.insert(5, 'height')
+        if self._coin.segwit_supported:
+            expected_keys += ['vsize', 'weight']
+        self.assertListEqual(sorted(tx.keys()), expected_keys)
 
     async def assertTxsOK(self):
         txs = await alist(self._coin.get_txs(self.txid))
@@ -579,6 +638,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 max_value = value
                 sender = addr
 
+        self.assertGreater(max_value, 0)
         # Arbitrarily set send value, receiver and change address
         send_value = int(max_value * 0.1)
 
@@ -633,16 +693,20 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertBlockHeaderOK(self):
         blockinfo = await self._coin.block_header(self.txheight)
+        block_hash = hexlify(blockinfo['hash']).decode()
         self.assertListEqual(sorted(blockinfo.keys()),
                              ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
                              )
+        self.assertEqual(block_hash, self.block_hash)
 
     async def assertBlockHeadersOK(self):
         blockinfos = await alist(self._coin.block_headers(self.txheight))
         for blockinfo in blockinfos:
             self.assertListEqual(sorted(blockinfo.keys()),
-            ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
-        )
+                ['bits', 'hash', 'merkle_root', 'nonce', 'prevhash', 'timestamp', 'version']
+            )
+            block_hash = hexlify(blockinfo['hash']).decode()
+            self.assertEqual(block_hash, self.block_hash)
 
     async def assertMerkleProofOK(self):
         tx = self.unspent[0]
@@ -714,7 +778,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 from_addr_i = i
                 break
 
-        privkey = self.privkeys[from_addr_i]
+        privkey = self.privkey_standard_wifs[from_addr_i]
 
         self.assertEqual(sender, self._coin.privtoaddr(privkey),
                          msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")

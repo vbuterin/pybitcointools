@@ -8,7 +8,8 @@ from typing import List, Type
 class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     name: str = "Bitcoin Testnet"
     coin: Type[coins_async.BaseCoin] = coins_async.Bitcoin
-    addresses: List[str] = ["n2DQVQZiA2tVBDu4fNAjKVBS2RArWhfncv", "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu",
+    addresses: List[str] = ["n2DQVQZiA2tVBDu4fNAjKVBS2RArWhfncv",
+                            "mnjBtsvoSo6dMvMaeyfaCCRV4hAF8WA2cu",
                             "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses: List[str] = ["2N74sauceDn2qeHFJuNfJ3c1anxPcDRrVtz", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU",
                                    "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
@@ -17,8 +18,17 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
                                           "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
-                           "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                           "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
+    privkey_standard_wifs: List[str] = ['91f8DFTsmhtawuLjR8CiHNkgZGPkUqfJ45LxmENPf3k6fuX1m4N',
+                                       'cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f',
+                                       "9354Dkk67pJCfmRfMedJPhGPfZCXv2uWd9ZoVNMUtDxjUBbCVZK"]
+    privkey_segwit_wifs: List[str] = ['cf4XyPZRSdJxnN3dKdaUodCn6HLiaiKUbTRNF8hbytcebJFytuLg',
+                                       'cf2FrZgQT2Bm5xwhTUvC7VtEiFYJ3YAKeUshG6Y3QXX1dSAZ9s9h',
+                                       "cmJAMcnywPbCT97PQHs1MWuuY3XD7uxE5S43K7wb43iR1Axqeupz"]
+    privkey_native_segwit_wifs: List[str] = ["cWUuQECXGUPpor2rmZBb1T7Hqr94kJ3kS1oEggMWVQrwJy3wWMF4",
+                                             "cWSdHQKWGsGd7SvvuQXJKKnkTpLeD7tbV3FZheBwv3mJM6yc95xc",
+                                             "cciXnTS5mEg4Ud6crDU7ZLpRHcKZHVgVuzRukfbVZZxhiqfSyfBH"]
     fee: int = 500
     max_fee: int = 3500
     testnet: bool = True
@@ -54,9 +64,19 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
          'address': 'tb1qjap2aae2tsky3ctlh48yltev0sjdmx92yk76wq'}]
     txid: str = "1d69dd7a23f18d86f514ff7d8ef85894ad00c61fb29f3f7597e9834ac2569c8c"
     txheight: int = 1238008
+    block_hash: str = "00000000000ac694c157a56de45e2f985adefda11d3e2d7375905a03950852df"
     txinputs: List[TxOut] = [
         {'output': '1b8ae7a7a9629bbcbc13339bc29b258122c8d8670c54e6883d35c6a699e23a33:1', 'value': 190453372316}]
     raw_tx: str = "01000000000101333ae299a6c6353d88e6540c67d8c82281259bc29b3313bcbc9b62a9a7e78a1b0100000017160014ffe21a1b058e7f8dedfcc3f1526f82303cff4fc7ffffffff020095ba0a000000001976a9147e585aa1913cf12e9948e90f67188ee9250d555688acfcb92b4d2c00000017a914e223701f10c2a5e7782ef6e10a2560f4c6e968a2870247304402207f2aa4118eee2ef231eab3afcbf6b01b4c1ca3672bd87a3864cf405741bd2c1d02202ab7502cbc50126f68cb2b366e5b3799d3ec0a3359c6a895a730a6891c7bcae10121023c13734016f27089393f9fc79736e4dca1f27725c68e720e1855202f3fbf037e00000000"
+
+    def test_standard_wif_ok(self):
+        self.assertStandardWifOK()
+
+    def test_p2wpkh_p2sh_wif_ok(self):
+        self.assertP2WPKH_P2SH_WifOK()
+
+    def test_p2wpkh_wif_ok(self):
+        self.assertP2WPKH_WIFOK()
 
     async def test_balance(self):
         await self.assertBalanceOK()
@@ -64,14 +84,14 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_balances(self):
         await self.assertBalancesOK()
 
-    async def test_merkle_proof(self):
-        await self.assertMerkleProofOK()
-
     async def test_unspent(self):
         await self.assertUnspentOK()
 
     async def test_unspents(self):
         await self.assertUnspentsOK()
+
+    async def test_merkle_proof(self):
+        await self.assertMerkleProofOK()
 
     async def test_history(self):
         await self.assertHistoryOK()

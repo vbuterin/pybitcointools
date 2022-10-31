@@ -1,6 +1,17 @@
 {
-    "electrum.darkcointalk.org": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
-    "drk1.electrum-servers.us": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
-    "electrum.dash.siampm.com": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"},
-    "electrum-drk.club": {"t":"50001", "s":"50002", "h":"8081", "g":"8082"}
+    "electrumx-mainnet.dash.org": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+    },
+    "drk.p2pay.com": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+     },
+    "hbhux3mfytxeywes5qesx7nzoesukihwseqkw7qa7oprc5nqqxj3jiid.onion": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+    }
 }

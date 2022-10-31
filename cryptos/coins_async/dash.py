@@ -18,6 +18,7 @@ class Dash(BaseCoin):
         'coin_symbol': "DASHTEST",
         'magicbyte': 140,
         'script_magicbyte': 19,
+        'wif_prefix': 0xef,
         'hd_path': 1,
         'client_kwargs': {
             'server_file': 'dash_testnet.json'

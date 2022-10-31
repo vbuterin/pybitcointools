@@ -1,4 +1,6 @@
 from .base import BaseCoin
+from .. import cashaddr
+from typing import Dict
 from ..transaction import SIGHASH_ALL, SIGHASH_FORKID
 
 
@@ -6,10 +8,16 @@ class BitcoinCash(BaseCoin):
     coin_symbol = "BCH"
     display_name = "Bitcoin Cash"
     segwit_supported = False
+    cash_address_supported = True
     magicbyte = 0
     script_magicbyte = 5
     wif_prefix = 0x80
+    wif_script_types: Dict[str, int] = {
+        'p2pkh': 0,
+        'p2sh': 5,
+    }
     hd_path = 145
+    segwit_hrp = "bitcoincash:q"
     hashcode = SIGHASH_ALL | SIGHASH_FORKID
     client_kwargs = {
         'server_file': 'bitcoin_cash.json',
@@ -20,6 +28,7 @@ class BitcoinCash(BaseCoin):
         'magicbyte': 111,
         'script_magicbyte': 196,
         'wif_prefix': 0xef,
+        'segwit_hrp': "bchtest:q",
         'xprv_headers': {
             'p2pkh': 0x04358394,
         },

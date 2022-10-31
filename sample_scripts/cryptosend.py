@@ -3,15 +3,11 @@ import aiorpcx
 import asyncio
 import sys
 from getpass import getpass
-from cryptos.coins_async import Bitcoin
 from cryptos.main import privtopub, compress
 from cryptos.transaction import serialize
 from cryptos.constants import SATOSHI_PER_BTC
 from typing import Callable, Any, Optional
-
-
-def get_coin(testnet: bool = False):
-    return Bitcoin(testnet=testnet)
+from cryptos.script_utils import get_coin, coin_list
 
 
 async def run_in_executor(func: Callable, *args) -> Any:
@@ -23,12 +19,11 @@ async def get_confirmation() -> bool:
     return any(r == result.lower() for r in ("y", "yes"))
 
 
-async def send(testnet: bool, addr: str, to: str, amount: float,
+async def send(coin: str, testnet: bool, addr: str, to: str, amount: float,
                fee: float = None, change_addr: Optional[str] = None, privkey: Optional[str] = None):
-
     value = int(amount * SATOSHI_PER_BTC)
     fee = int(fee * SATOSHI_PER_BTC) if fee else None
-    coin = get_coin(testnet=testnet)
+    coin = get_coin(coin, testnet=testnet)
     tx = await coin.preparetx(addr, to, value, fee=fee, change_addr=change_addr)
     print(serialize(tx))
     print(tx)
@@ -36,7 +31,7 @@ async def send(testnet: bool, addr: str, to: str, amount: float,
     if coin.is_native_segwit(addr):
         expected_addr = coin.privtosegwitaddress(privkey)
     elif coin.is_p2sh(addr):
-        expected_addr = coin.privtop2sh(privkey)
+        expected_addr = coin.privtop2wpkh_p2sh(privkey)
     elif coin.is_p2pkh(addr):
         expected_addr = coin.privtoaddr(privkey)
     elif len(addr) == 66:
@@ -67,8 +62,10 @@ if __name__ == "__main__":
     parser.add_argument("amount", help="Amount to send", type=float)
     parser.add_argument("-c", "--change", help="Address for change, otherwise from address")
     parser.add_argument("-f", "--fee", help="Fee", type=float)
+    parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
     parser.add_argument("-t", "--testnet", help="For testnet", action="store_true")
     parser.add_argument("-p", "--privkey", help="Private Key")
     parser.add_argument("-y", "--yes", help="Confirm", action="store_true")
     args = parser.parse_args()
-    asyncio.run(send(args.testnet, args.addr, args.to, args.amount, args.fee, args.change, args.privkey))
+    asyncio.run(send(args.coin, args.testnet, args.addr, args.to, args.amount,
+                     args.fee, args.change, args.privkey))

@@ -9,7 +9,7 @@ import random
 import hmac
 from .ripemd import *
 
-from typing import List
+from typing import List, Tuple
 from .types import PrivkeyType
 
 # Elliptic curve parameters (secp256k1)
@@ -209,7 +209,7 @@ def get_privkey_format(priv):
     elif len(priv) == 64: return 'hex'
     elif len(priv) == 66: return 'hex_compressed'
     else:
-        bin_p = b58check_to_bin(priv)
+        magicbyte, bin_p = b58check_to_bin(priv)
         if len(bin_p) == 32: return 'wif'
         elif len(bin_p) == 33: return 'wif_compressed'
         else: raise Exception("WIF does not represent privkey")
@@ -237,9 +237,9 @@ def decode_privkey(priv: PrivkeyType, formt: str = None) -> PrivkeyType:
     elif formt == 'bin_compressed': return decode(priv[:32], 256)
     elif formt == 'hex': return decode(priv, 16)
     elif formt == 'hex_compressed': return decode(priv[:64], 16)
-    elif formt == 'wif': return decode(b58check_to_bin(priv),256)
+    elif formt == 'wif': return decode(b58check_to_bin(priv)[1], 256)
     elif formt == 'wif_compressed':
-        return decode(b58check_to_bin(priv)[:32],256)
+        return decode(b58check_to_bin(priv)[1][:32],256)
     else: raise Exception("WIF does not represent privkey")
 
 
@@ -287,22 +287,23 @@ def decompress(pubkey: str) -> str:
         return encode_pubkey(decode_pubkey(pubkey, f), 'hex')
 
 
-def privkey_to_pubkey(privkey: Union[int, str]):
+def privkey_to_pubkey(privkey: Union[int, str]) -> str:
     f = get_privkey_format(privkey)
     privkey = decode_privkey(privkey, f)
     if privkey >= N:
         raise Exception("Invalid privkey")
     if f in ['bin', 'bin_compressed', 'hex', 'hex_compressed', 'decimal']:
         return encode_pubkey(fast_multiply(G, privkey), f)
-    else:
-        return encode_pubkey(fast_multiply(G, privkey), f.replace('wif', 'hex'))
+    return encode_pubkey(fast_multiply(G, privkey), f.replace('wif', 'hex'))
 
 
 privtopub = privkey_to_pubkey
 
 
-def privkey_to_address(priv, magicbyte=0):
+def privkey_to_address(priv, magicbyte: int = 0) -> str:
     return pubkey_to_address(privkey_to_pubkey(priv), magicbyte)
+
+
 privtoaddr = privkey_to_address
 
 
@@ -426,11 +427,13 @@ def random_electrum_seed():
 
 # Encodings
 
-def b58check_to_bin(inp):
+
+def b58check_to_bin(inp: str) -> Tuple[int, bytes]:
     leadingzbytes = len(re.match('^1*', inp).group(0))
     data = b'\x00' * leadingzbytes + changebase(inp, 58, 256)
     assert bin_dbl_sha256(data[:-4])[:4] == data[-4:]
-    return data[1:-4]
+    magicbyte = data[0]
+    return magicbyte, data[1:-4]
 
 
 def get_version_byte(inp):
@@ -444,8 +447,10 @@ def hex_to_b58check(inp, magicbyte=0):
     return bin_to_b58check(binascii.unhexlify(inp), magicbyte)
 
 
-def b58check_to_hex(inp):
-    return safe_hexlify(b58check_to_bin(inp))
+def b58check_to_hex(inp) -> Tuple[int, str]:
+    magicbyte, bin = b58check_to_bin(inp)
+    return magicbyte, safe_hexlify(bin)
+
 
 def pubkey_to_hash(pubkey):
     if isinstance(pubkey, (list, tuple)):
@@ -455,11 +460,11 @@ def pubkey_to_hash(pubkey):
     return bin_hash160(pubkey)
 
 
-def pubkey_to_hash_hex(pubkey):
+def pubkey_to_hash_hex(pubkey: str) -> str:
     return safe_hexlify(pubkey_to_hash(pubkey))
 
 
-def pubkey_to_address(pubkey, magicbyte=0):
+def pubkey_to_address(pubkey: str, magicbyte: int = 0) -> str:
     pubkey_hash = pubkey_to_hash(pubkey)
     return bin_to_b58check(pubkey_hash, magicbyte)
 

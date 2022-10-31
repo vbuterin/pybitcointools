@@ -9,17 +9,28 @@ from unittest import mock
 class TestBitcoin(BaseAsyncCoinTestCase):
     name: str = "Bitcoin"
     coin: Type[coins_async.BaseCoin] = coins_async.Bitcoin
-    addresses: List[str] = ["1MhTCMUjM1TEQ7RSwoCMVZy7ARa9aAP82Z", "18DEbpqpdmfNaosxwQhCNHDAChZYCNG836",
+    addresses: List[str] = ["1MhTCMUjM1TEQ7RSwoCMVZy7ARa9aAP82Z",
+                            "18DEbpqpdmfNaosxwQhCNHDAChZYCNG836",
                             "175MvCJkNZT3zSdCntXj9vK7L6XKDWjLnD"]
-    segwit_addresses: List[str] = ["3FWfXAgccKXVSVcmEF3RRf2KacBSQ6rcix", "3NFyu5P3C9PvWUB5ekvmRgYgniNEE1n5za",
+    segwit_addresses: List[str] = ["3FWfXAgccKXVSVcmEF3RRf2KacBSQ6rcix",
+                                   "3NFyu5P3C9PvWUB5ekvmRgYgniNEE1n5za",
                                    "32UT11rEHGqDnMZxM1VGfz4dLMxNrJWnu3"]
     native_segwit_addresses: List[str] = ["bc1q95cgql39zvtc57g4vn8ytzmlvtt43sknztmu82",
                                           "bc1qfuvnn87p787z7nqv9seu4e8fqel83yaczcl63s",
                                           "bc1qst3pkm860tjt9y70ugnaluqyqnfa7h54nslppf"]
     multisig_addresses: List[str] = ["35D72hVBzYXqNkyN63z28FHmSyPKuJh9Q2", "32tuh24PcKWQWfWitfp9NVhRuYjDKG7vCH"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
-                           "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                           "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
+    privkey_standard_wifs: List[str] = ['5HtVdWeLBUpSyqqSnnJoQnCiuc33Kg86i8V1gc1tKK13tw1Cqrg',
+                                        "KwW1FKxkfefDyVStxvKH9qCCb9qaiFXBFZUy2mPLvTMap2f5YaXR",
+                                        "5KJRe1vYXbE4hhvNjJjPX6iS1tqpksNKHChrQjzyYVDgh9Z8H5o"]
+    privkey_segwit_wifs: List[str] = ["LEhYWUZa1ZchcvaMwDmMSJhiU43JvGDnXRGu8iF6UmxeLZ9MvbRp",
+                                      "LEfGPegZ1xVVvXUS5574kBPB62EtP64daSjE9g5XuQs1Nh2hh3u3",
+                                      "LLwAtho8WKtwHhe81t3szCQqupDoTTrY1PuaChV5Yw4QkRnUhx4Y"]
+    privkey_native_segwit_wifs: List[str] = ["L67uwKCfqQhZeQZbP9NTe8cEDcqf5qx4MyemaFtzzJCw4DvrFkVK",
+                                             "L65dpVKeqoaMx1TfWziAx1Hgqb3EYfnuR176bDjSQw7J6MrvP2GZ",
+                                             "LCMYKYSELAyoKBdMToezC2KMfP29d3aoqxHSeF8z4TJhU6gYDEQV"]
     fee: int = 54400
     max_fee: int = fee
     testnet: bool = False
@@ -83,6 +94,7 @@ class TestBitcoin(BaseAsyncCoinTestCase):
     min_latest_height: int = 503351
     txid: str = "fd3c66b9c981a3ccc40ae0f631f45286e7b31cf6d9afa1acaf8be1261f133690"
     txheight: int = 509045
+    block_hash: str = "000000000000000000103a149fa9a449e5b4840fb18d22d5458eb650e1098ea9"
     txinputs: List[TxInput] = [{"output": "7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583:1", 'value': 1000000},
                                {"output": "da1ad82b777c51105d3a24cef253e0301dd08153115013a49e0edf69fd7cdadf:1", 'value': 100000}]
     tx: Tx = {'ins': [{'tx_hash': '7a905da948f1e174c43c6f41b0a0ee338119191de7b92bd1ca3c79f899e5d583', 'tx_pos': 1,
@@ -93,6 +105,15 @@ class TestBitcoin(BaseAsyncCoinTestCase):
                     'sequence': 4294967295}],
               'outs': [{'value': 100000, 'script': '76a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac'}], 'version': 1,
               'locktime': 0}
+
+    def test_standard_wif_ok(self):
+        self.assertStandardWifOK()
+
+    def test_p2wpkh_p2sh_wif_ok(self):
+        self.assertP2WPKH_P2SH_WifOK()
+
+    def test_p2wpkh_wif_ok(self):
+        self.assertP2WPKH_WIFOK()
 
     async def test_balance(self):
         await self.assertBalanceOK()
@@ -105,6 +126,9 @@ class TestBitcoin(BaseAsyncCoinTestCase):
 
     async def test_unspents(self):
         await self.assertUnspentsOK()
+
+    async def test_merkle_proof(self):
+        await self.assertMerkleProofOK()
 
     async def test_history(self):
         await self.assertHistoryOK()
@@ -120,9 +144,6 @@ class TestBitcoin(BaseAsyncCoinTestCase):
 
     async def test_gettx(self):
         await self.assertGetTXOK()
-
-    async def test_merkle_proof(self):
-        await self.assertMerkleProofOK()
 
     async def test_balance_merkle_proven(self):
         await self.assertBalanceMerkleProvenOK()
@@ -159,7 +180,7 @@ class TestBitcoin(BaseAsyncCoinTestCase):
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("")
+            await self.assertMultiSigTransactionOK("adb10a2b21a2b764ec4904127d0e47d5f1923eb05e6b0a258ffc2ad17b7dd4be")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',

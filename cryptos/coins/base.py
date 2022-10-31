@@ -209,10 +209,10 @@ class BaseSyncCoin:
         return self._async_coin.is_address(addr)
 
     def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
-        return self._async_coin.is_legacy_segwit_or_multisig(addr)
+        return self._async_coin.maybe_legacy_segwit(addr)
 
     def is_segwit_or_multisig(self, addr: str) -> bool:
-        return self._async_coin.is_segwit_or_multisig(addr)
+        return self._async_coin.is_segwit_or_p2sh(addr)
 
     def output_script_to_address(self, script: str) -> str:
         return self._async_coin.output_script_to_address(script)

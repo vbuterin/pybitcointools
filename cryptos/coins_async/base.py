@@ -39,11 +39,12 @@ class BaseCoin:
     display_name: str = None
     enabled: bool = True
     segwit_supported: bool = None
+    cash_address_supported: bool = False
     magicbyte: int = None
     script_magicbyte: int = None
     segwit_hrp: str = None
     explorer: Type[ElectrumXClient] = ElectrumXClient
-    explorer_kwargs: Dict[str, Any] = {
+    client_kwargs: Dict[str, Any] = {
         'server_file': 'bitcoin.json',
         'use_ssl': True
     }
@@ -118,7 +119,7 @@ class BaseCoin:
         Connect to remote server
         """
         if not self._client:
-            self._client = self.explorer(**self.explorer_kwargs)
+            self._client = self.explorer(**self.client_kwargs)
         return self._client
 
     async def close(self) -> None:
@@ -141,7 +142,7 @@ class BaseCoin:
             address = inp.get('address')
             if address and self.is_native_segwit(address):
                 pass        # Segwit signatures not included in tx size for fee purposes?
-            elif address and self.is_legacy_segwit_or_multisig(address):
+            elif address and self.maybe_legacy_segwit(address):
                 size += self.signature_sizes['p2w_p2sh']    # Not sure if segwit or not
             else:
                 size += self.signature_sizes['p2pkh']
@@ -479,11 +480,29 @@ class BaseCoin:
         """
         return pubtoaddr(pubkey, magicbyte=self.magicbyte)
 
+    def wiftoaddr(self, privkey: PrivkeyType) -> str:
+        magicbyte, priv = b58check_to_bin(privkey)
+        wif_magicbyte = magicbyte - self.wif_prefix
+        if self.wif_script_types['p2pkh'] == wif_magicbyte:
+            return self.privtop2pkh(privkey)
+        if self.wif_script_types['p2wpkh-p2sh'] == wif_magicbyte:
+            return self.privtop2wpkh_p2sh(privkey)
+        if self.wif_script_types['p2wpkh'] == wif_magicbyte:
+            return self.privtosegwitaddress(privkey)
+        else:
+            raise Exception("Address type for this wif-encoded private key not supported yet")
+
+    def privtop2pkh(self, privkey: PrivkeyType) -> str:
+        return privtoaddr(privkey, magicbyte=self.magicbyte)
+
     def privtoaddr(self, privkey: PrivkeyType) -> str:
         """
         Get address from a private key
         """
-        return privtoaddr(privkey, magicbyte=self.magicbyte)
+        privkey_format = get_privkey_format(privkey)
+        if "wif" in privkey_format:
+            return self.wiftoaddr(privkey)
+        return self.privtop2pkh(privkey)
 
     def electrum_address(self, masterkey: AnyStr, n: int, for_change: int = 0) -> str:
         """
@@ -497,8 +516,8 @@ class BaseCoin:
 
     def is_p2pkh(self, addr: str) -> bool:
         try:
-            changebase(addr, 58, 256)
-            return any(str(i) == addr[0] for i in self.address_prefixes)
+            magicbyte, bin = b58check_to_bin(addr)
+            return magicbyte == self.magicbyte
         except Exception:
             return False
 
@@ -507,35 +526,42 @@ class BaseCoin:
         Check if addr is a pay to script address
         """
         try:
-            changebase(addr, 58, 256)
-            return any(str(i) == addr[0] for i in self.script_prefixes)
+            magicbyte, bin = b58check_to_bin(addr)
+            return magicbyte == self.script_magicbyte
         except Exception:
             return False
 
     def is_native_segwit(self, addr: str) -> bool:
-        return self.segwit_hrp and addr.startswith(self.segwit_hrp)
+        return self.segwit_supported and self.segwit_hrp and addr.startswith(self.segwit_hrp)
+
+    def is_cash_address(self, addr: str) -> bool:
+        return self.cash_address_supported and self.segwit_hrp and addr.startswith(self.segwit_hrp)
 
     def is_address(self, addr: str) -> bool:
         """
         Check if addr is a valid address for this chain
         """
-        return self.is_p2pkh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr)
+        return self.is_p2pkh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr) or self.is_cash_address(addr)
 
-    def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
-        script = self.addrtoscript(addr)
-        return script.startswith(opcodes.OP_HASH160.hex() + '14') and script.endswith(opcodes.OP_EQUAL.hex())
+    def maybe_legacy_segwit(self, addr: str) -> bool:
+        if self.segwit_supported:
+            script = self.addrtoscript(addr)
+            return script.startswith(opcodes.OP_HASH160.hex() + '14') and script.endswith(opcodes.OP_EQUAL.hex())
+        return False
 
-    def is_segwit_or_multisig(self, addr: str) -> bool:
+    def is_segwit_or_p2sh(self, addr: str) -> bool:
         """
-        Check if addr was generated from priv using segwit script
+        Check if addr is a p2wpkh or p2sh script
         """
-        return self.segwit_supported and (self.is_native_segwit(addr) or self.is_legacy_segwit_or_multisig(addr))
+        return self.is_native_segwit(addr) or self.maybe_legacy_segwit(addr)
 
     def output_script_to_address(self, script: str) -> str:
         """
         Convert an output script to an address
         """
-        return output_script_to_address(script, self.magicbyte, self.script_magicbyte, self.segwit_hrp)
+        segwit_hrp = self.segwit_hrp if self.segwit_supported
+        cash_hrp = self.segwit_hrp if self.cash_address_supported
+        return output_script_to_address(script, self.magicbyte, self.script_magicbyte, segwit_hrp, cash_hrp)
 
     def scripttoaddr(self, script: str) -> str:
         """
@@ -565,7 +591,7 @@ class BaseCoin:
         Convert an output address to a script
         """
         if self.is_native_segwit(addr):
-            witver, witprog = segwit_addr.decode(self.segwit_hrp, addr)
+            witver, witprog = segwit_addr.decode_segwit_address(self.segwit_hrp, addr)
             if witprog is not None:
                 return mk_p2w_scripthash_script(witver, witprog)
         if self.is_p2sh(addr):
@@ -590,17 +616,17 @@ class BaseCoin:
             pub = compress(pub)
         return self.scripttoaddr(mk_p2wpkh_script(pub))
 
-    def privtop2sh(self, priv: PrivkeyType) -> str:
+    def privtop2wpkh_p2sh(self, priv: PrivkeyType) -> str:
         """
         Convert a private key to a pay to witness public key hash address
         """
         return self.pubtop2wpkh_p2sh(privtopub(priv))
 
-    def hash_to_segwit_addr(self, pub_hash: str) -> str:
+    def hash_to_segwit_addr(self, pub_hash: AnyStr) -> str:
         """
         Convert a hash to the new segwit address format outlined in BIP-0173
         """
-        return segwit_addr.encode(self.segwit_hrp, 0, pub_hash)
+        return segwit_addr.encode_segwit_address(self.segwit_hrp, 0, pub_hash)
 
     def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
         """
@@ -649,7 +675,7 @@ class BaseCoin:
         try:
             if address := inp['address']:
                 segwit = native_segwit = self.is_native_segwit(address)
-                segwit = segwit or self.is_legacy_segwit_or_multisig(address)
+                segwit = segwit or self.maybe_legacy_segwit(address)
                 if segwit:
                     pub = compress(pub)
                 elif len(address) in [66, 130]:

@@ -7,10 +7,7 @@ from cryptos.main import safe_hexlify
 from cryptos.transaction import json_changebase
 from pprint import pprint
 from typing import Callable, Any, Union, Optional
-
-
-def get_coin(testnet: bool = False):
-    return Bitcoin(testnet=testnet)
+from cryptos.script_utils import get_coin, coin_list
 
 
 async def run_in_executor(func: Callable, *args) -> Any:
@@ -38,8 +35,8 @@ def is_address(coin: BaseCoin, obj_id: str) -> Optional[str]:
     return obj_id if coin.is_address(obj_id) else None
 
 
-async def print_item(obj_id: str, testnet: bool = False) -> None:
-    coin = get_coin(testnet=testnet)
+async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = False) -> None:
+    coin = get_coin(coin_symbol, testnet=testnet)
     try:
         if address := is_address(coin, obj_id):
             history, unspent, balances = await asyncio.gather(coin.history(address), coin.unspent(address), coin.get_balance(address))
@@ -65,16 +62,20 @@ async def print_item(obj_id: str, testnet: bool = False) -> None:
             header = await coin.block_header(block_height)
             header = json_changebase(header, lambda x: safe_hexlify(x))
             pprint(header)
-        coin_other_net = get_coin(testnet=not testnet)
-        try:
-            if coin_other_net.is_address(obj_id):
-                if testnet:
-                    sys.stderr.write(f"{obj_id} is a mainnet address. Try again without --testnet")
+        else:
+            coin_other_net = get_coin(coin_symbol, testnet=not testnet)
+            try:
+                if coin_other_net.is_address(obj_id):
+                    if testnet:
+                        message = f"{obj_id} is a mainnet address. Try again without --testnet"
+                    else:
+                        message = f"{obj_id} is a testnet address. Try again with --testnet"
                 else:
-                    sys.stderr.write(f"{obj_id} is a testnet address. Try again with --testnet")
-        finally:
-            await coin_other_net.close()
-            sys.exit(1)
+                    message = f"{obj_id} is not a block, transaction or address for {coin.display_name}"
+                print(message, file=sys.stderr)
+            finally:
+                await coin_other_net.close()
+                sys.exit(1)
     finally:
         await coin.close()
 
@@ -82,6 +83,7 @@ async def print_item(obj_id: str, testnet: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("obj", help="Object to search for, either a transaction ID, block height or address")
+    parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
     parser.add_argument("-t", "--testnet", help="For testnet", action="store_true")
     args = parser.parse_args()
-    asyncio.run(print_item(args.obj, testnet=args.testnet))
+    asyncio.run(print_item(args.obj, coin_symbol=args.coin, testnet=args.testnet))
