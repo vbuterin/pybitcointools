@@ -21,13 +21,14 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     privkey_standard_wifs: List[str] = ['91f8DFTsmhtawuLjR8CiHNkgZGPkUqfJ45LxmENPf3k6fuX1m4N',
                                        'cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f',
                                        "9354Dkk67pJCfmRfMedJPhGPfZCXv2uWd9ZoVNMUtDxjUBbCVZK"]
-    multisig_addresses: List[str] = ["", ""]
+    multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     fee: int = 500
     max_fee: int = 3500
     testnet: bool = True
 
     min_latest_height: int = 1524427
     unspent_addresses: List[str] = ["ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA"]
+    unspent_cash_addresses: List[str] = ['bchtest:qpl9sk4pjy70zt5efr5s7ecc3m5j2r242c4czjmhfy']
     unspent: List[ElectrumXTx] = [{'address': 'ms31HApa3jvv3crqvZ3sJj7tC5TCs61GSA',
                                    'height': 1196454,
                                    'tx_hash': '80700e6d1125deafa22b307f6c7c99e75771f9fc05517fc795a1344eca7c8472',
@@ -44,7 +45,6 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     txinputs: List[TxOut] = [{'output': "cbd43131ee11bc9e05f36f55088ede26ab5fb160cc3ff11785ce9cc653aa414b:1", 'value': 96190578808}]
     raw_tx: str = "01000000014b41aa53c69cce8517f13fcc60b15fab26de8e08556ff3059ebc11ee3131d4cb010000006b483045022100b9050a1d58f36a771c4e0869900fb0474b809b134fdad566742e5b3a0ed7580d022065b80e9cc2bc9b921a9b0aad12228d9967345959b021214dbe60b3ffa44dbf0e412102ae83c12f8e2a686fb6ebb25a9ebe39fcd71d981cc6c172fedcdd042536a328f2ffffffff0200ab9041000000001976a914c384950342cb6f8df55175b48586838b03130fad88acd88ed523160000001976a9143479daa7de5c6d8dad24535e648861d4e7e3f7e688ac00000000"
 
-
     def test_address_conversion(self):
         for addr, cashaddr in zip(self.addresses, self.cash_addresses):
             convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
@@ -60,6 +60,10 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
 
     async def test_balance(self):
         await self.assertBalanceOK()
+
+    async def test_balance_cash_address(self):
+        result = await self._coin.get_balance(self.unspent_cash_addresses[0])
+        self.assertEqual(self.balance, result)
 
     async def test_balances(self):
         await self.assertBalancesOK()
@@ -103,7 +107,7 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         """
         Sample transaction:
-        TxID:
+        TxID: d4e8e93ba458c675270a5e6ac6772e35356ec95c37f8de6eb4a7a74103ecac8a
         """
         await self.assertTransactionOK()
 

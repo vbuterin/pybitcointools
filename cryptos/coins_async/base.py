@@ -1,4 +1,6 @@
 import asyncio
+import binascii
+
 import aiorpcx
 from ..transaction import *
 from ..utils import is_hex
@@ -586,6 +588,14 @@ class BaseCoin:
             script = binascii.unhexlify(script)
         return hex_to_b58check(hash160(script), self.script_magicbyte)
 
+    def p2sh_cash_addr(self, script: str) -> str:
+        """
+          Convert an output p2sh script to a Bitcoin Cash address
+        """
+        if is_hex(script):
+            script = binascii.unhexlify(script)
+        return cashaddr.encode_full(self.segwit_hrp, cashaddr.SCRIPT_TYPE, bin_hash160(script))
+
     def addrtoscript(self, addr: str) -> str:
         """
         Convert an output address to a script
@@ -595,13 +605,12 @@ class BaseCoin:
             if witprog is not None:
                 return mk_p2w_scripthash_script(witver, witprog)
         elif self.is_cash_address(addr):
-            witver, witprog = cashaddr.decode(addr)
-            if witprog is not None:
-                return mk_p2w_scripthash_script(witver, witprog)
+            prefix, kind, pubkey_hash = cashaddr.decode(addr)
+            return mk_pubkey_script(safe_hexlify(pubkey_hash))
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
         else:
-            return mk_pubkey_script(addr)
+            return addr_to_pubkey_script(addr)
 
     def addrtoscripthash(self, addr: str) -> str:
         """
@@ -640,7 +649,7 @@ class BaseCoin:
         """
         if not self.cash_address_supported:
             raise NotImplementedError(f"{self.display_name} does not support cash addresses")
-        return cashaddr.encode_full(self.segwit_hrp, 0, pub_hash)
+        return cashaddr.encode_full(self.segwit_hrp, cashaddr.PUBKEY_TYPE, pub_hash)
 
     def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
         """
@@ -697,6 +706,12 @@ class BaseCoin:
         address = self.p2sh_scriptaddr(script)
         return script, address
 
+    def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        num_required = num_required or len(args)
+        script = mk_multisig_script(*args, num_required)
+        address = self.p2sh_cash_addr(script)
+        return script, address
+
     def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
         """
         Sign a transaction input with index using a private key
@@ -747,7 +762,7 @@ class BaseCoin:
                 script = mk_p2pk_script(pub)
             else:
                 address = self.pubtoaddr(pub)
-                script = mk_pubkey_script(address)
+                script = addr_to_pubkey_script(address)
             signing_tx = signature_form(txobj, i, script, self.hashcode)
             sig = ecdsa_tx_sign(signing_tx, priv, self.hashcode)
             # Pycharm IDE gives a type error for the following line, no idea why...

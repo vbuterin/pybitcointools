@@ -617,8 +617,12 @@ def magicbyte_to_prefix(magicbyte) -> List[str]:
     return [first, last]
 
 
+def script_to_scripthash_bytes(script) -> bytes:
+    return bin_sha256(safe_from_hex(script))
+
+
 def script_to_scripthash(script):
-    return safe_hexlify(bin_sha256(safe_from_hex(script))[::-1])
+    return safe_hexlify(script_to_scripthash_bytes(script)[::-1])
 
 
 def generate_private_key() -> str:

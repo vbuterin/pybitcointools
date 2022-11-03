@@ -72,8 +72,12 @@ def encode_8_bytes(val):
     return encode(val, 256, 8)[::-1]
 
 
-def list_to_bytes(vals: List[str]) -> bytes:
-    return reduce(lambda x, y: x + y, vals, bytes())
+def list_to_bytes(vals: List[bytes]) -> bytes:
+    try:
+        return reduce(lambda x, y: x + y, vals, bytes())
+    except Exception as e:
+        print(e)
+        pass
 
 
 def dbl_sha256_list(vals):
@@ -344,12 +348,19 @@ def ecdsa_tx_recover(tx, sig, hashcode=SIGHASH_ALL):
 # Scripts
 
 
-def mk_pubkey_script(addr: str) -> str:
+def mk_pubkey_script(pubkey_hash: str) -> str:
     """
-    Used in converting p2pkh address to input or output script
+    Used in converting public key hash to input or output script
+    """
+    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + pubkey_hash + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
+
+
+def addr_to_pubkey_script(addr: str) -> str:
+    """
+    Used in converting public key hash address to input or output script
     """
     magicbyte, bin = b58check_to_hex(addr)
-    return opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14' + bin + opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
+    return mk_pubkey_script(bin)
 
 
 def mk_p2pk_script(pub: str) -> str:

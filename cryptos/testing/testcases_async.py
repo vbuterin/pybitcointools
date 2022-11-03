@@ -18,6 +18,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     segwit_addresses: List[str] = []
     native_segwit_addresses: List[str] = []
     multisig_addresses: List[str] = []
+    cash_addresses: List[str] = []
 
     fee: int = 500
     max_fee: int = 3500
@@ -48,7 +49,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         print('Starting %s tests' % cls.name)
 
     def setUp(self) -> None:
-        self._coin = self.coin(testnet=self.testnet)
+        self._coin = self.coin(testnet=self.testnet, connection_timeout=100)
 
     async def asyncTearDown(self) -> None:
         await self._coin.close()
@@ -62,8 +63,12 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                                           **kwargs) -> Optional[Union[float, ElectrumXUnspentResponse, str, List[str]]]:
         if method == "blockchain.scripthash.listunspent":
             scripthash = args[0]
-            if any(scripthash == self._coin.addrtoscripthash(addresses[0]) for addresses in
-                   (self.addresses, self.segwit_addresses, self.native_segwit_addresses, self.multisig_addresses)):
+            available_addresses = [addresses[0] for addresses in (
+                self.addresses, self.segwit_addresses, self.native_segwit_addresses,
+                self.multisig_addresses, self.cash_addresses
+            ) if addresses]
+            if any(scripthash == self._coin.addrtoscripthash(address) for address in
+                   available_addresses):
                 return deepcopy(self.unspent)
             return []
         if method == "blockchain.transaction.broadcast":

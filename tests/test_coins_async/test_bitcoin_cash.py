@@ -27,6 +27,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     max_fee: int = fee
     testnet: bool = False
     unspent_addresses: List[str] = ["1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS"]
+    unspent_cash_addresses: List[str] = ["bitcoincash:qr8y5u55y3j9lsyk0rsmsvnm03udrnplcg6jpj24wk"]
     balance: ElectrumXMultiBalanceResponse = {'confirmed': 249077026, 'unconfirmed': 0}
     balances: List[ElectrumXMultiBalanceResponse] = [{'address': unspent_addresses[0]} | dict(balance)]
     unspent: List[ElectrumXTx] = [{'address': '1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS',
@@ -65,6 +66,10 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
 
     async def test_balance(self):
         await self.assertBalanceOK()
+
+    async def test_balance_cash_address(self):
+        result = await self._coin.get_balance(self.unspent_cash_addresses[0])
+        self.assertEqual(self.balance, result)
 
     async def test_balances(self):
         await self.assertBalancesOK()
@@ -108,7 +113,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("687f014010fbc1d46cf6e9d5588aa7b676b5a9eff12babec576bb75bcb53558d")
+            await self.assertTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
