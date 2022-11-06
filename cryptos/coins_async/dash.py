@@ -21,7 +21,8 @@ class Dash(BaseCoin):
         'wif_prefix': 0xef,
         'hd_path': 1,
         'client_kwargs': {
-            'server_file': 'dash_testnet.json'
+            'server_file': 'dash_testnet.json',
+            'use_ssl': True
         },
         'xpriv_prefix': 0x04358394,
         'xpub_prefix': 0x043587cf

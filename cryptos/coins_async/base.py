@@ -364,7 +364,7 @@ class BaseCoin:
 
         merkle, block_header = await asyncio.gather(self.get_merkle(tx), self.block_header(tx['height']))
         if not merkle:
-            # Can happen if request if run immediately after pushing a transaction
+            # Can happen if request is run immediately after pushing a transaction
             return {
                 "tx_hash": tx['tx_hash'],
                 'proven': False

@@ -43,6 +43,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     history: List[ElectrumXTx] = {}
     histories: List[ElectrumXTx] = []
     raw_tx: str = ''
+    expected_tx_verbose_keys: List[str] = [
+        'blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime', 'size', 'time', 'txid',
+        'version', 'vin', 'vout']
 
     @classmethod
     def setUpClass(cls):
@@ -687,13 +690,11 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertGetVerboseTXOK(self):
         tx = await self._coin.get_verbose_tx(self.txid)
-        expected_keys = ['blockhash', 'blocktime', 'confirmations', 'hash', 'hex', 'locktime', 'size', 'time',
-                        'txid', 'version', 'vin', 'vout']
         if 'height' in tx:
-            expected_keys.insert(5, 'height')
+            self.expected_tx_verbose_keys.insert(5, 'height')
         if self._coin.segwit_supported:
-            expected_keys += ['vsize', 'weight']
-        self.assertListEqual(sorted(tx.keys()), expected_keys)
+            self.expected_tx_verbose_keys += ['vsize', 'weight']
+        self.assertListEqual(sorted(tx.keys()), sorted(self.expected_tx_verbose_keys))
 
     async def assertTxsOK(self):
         txs = await alist(self._coin.get_txs(self.txid))
@@ -957,7 +958,11 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         try:
             address = self.segwit_addresses[0]
         except IndexError:
-            address = self.cash_addresses[0]
+            try:
+                address = self.cash_addresses[0]
+            except IndexError:
+                address = self.addresses[0]
+
 
         def add_to_queue(addr: str, status: str) -> None:
             queue.put((addr, status))
@@ -967,8 +972,10 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(addr, address)
         if self.segwit_addresses:
             await self.assertSegwitTransactionOK()
-        else:
+        elif self.cash_addresses:
             await self.assertCashAddressTransactionOK()
+        else:
+            await self.assertTransactionOK()
         addr, status = await asyncio.get_event_loop().run_in_executor(None, queue.get)
         self.assertEqual(addr, address)
         self.assertNotEqual(initial_status, status)

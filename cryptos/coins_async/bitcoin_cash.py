@@ -37,6 +37,7 @@ class BitcoinCash(BaseCoin):
         'hd_path': 1,
         'client_kwargs': {
             'server_file': 'bitcoin_cash_testnet.json',
+            'use_ssl': False
         },
     }
 
