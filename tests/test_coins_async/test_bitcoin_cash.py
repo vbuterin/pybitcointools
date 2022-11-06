@@ -3,6 +3,7 @@ from cryptos import coins_async
 from cryptos import cashaddr
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
+from cryptos.main import privtopub
 from cryptos.types import TxInput
 from typing import List, Type
 from unittest import mock
@@ -17,6 +18,9 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     cash_addresses = ["bitcoincash:qr3sjptscfm7kqry6s67skm5dgsudwkmcsfvmsq7c6",
                       "bitcoincash:qp83jwvlc8clct6vpskr8jhyayr8u7ynhqf8z4glc3",
                       "bitcoincash:qpp28cg6sze9la3myp6v28ghg5fjhn9m5ynaj2uu6x"]
+    multisig_addresses = ["35D72hVBzYXqNkyN63z28FHmSyPKuJh9Q2", "32tuh24PcKWQWfWitfp9NVhRuYjDKG7vCH"]
+    cash_multisig_addresses = ["bitcoincash:pqnfj8jmtpj30fnjgc2gy0gs4l6sptdyhc84ukmr52",
+                               "bitcoincash:pqxn06syr9twx9ecx892alre33yuuwn2gu7z0p7lzz"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
@@ -53,6 +57,21 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
 
     def test_address_conversion(self):
         for addr, cashaddr in zip(self.addresses, self.cash_addresses):
+            convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
+            self.assertEqual(convert_cashaddr, cashaddr)
+            convert_addr = self._coin.cash_address_to_legacy_addr(cashaddr)
+            self.assertEqual(addr, convert_addr)
+
+    def test_cash_address_multisig_ok(self):
+        pubs = [privtopub(priv) for priv in self.privkeys]
+        script1, address1 = self._coin.mk_multsig_cash_address(*pubs, num_required=2)
+        self.assertEqual(address1, self.cash_multisig_addresses[0])
+        pubs2 = pubs[0:2]
+        script2, address2 = self._coin.mk_multsig_cash_address(*pubs2)
+        self.assertEqual(address2, self.cash_multisig_addresses[1])
+
+    def test_address_conversion_multisig(self):
+        for addr, cashaddr in zip(self.multisig_addresses, self.cash_multisig_addresses):
             convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
             self.assertEqual(convert_cashaddr, cashaddr)
             convert_addr = self._coin.cash_address_to_legacy_addr(cashaddr)
@@ -115,20 +134,25 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
                         side_effect=self.mock_electrumx_send_request):
             await self.assertTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
 
+    async def test_transaction_cash_address(self):
+        with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
+                        side_effect=self.mock_electrumx_send_request):
+            await self.assertCashAddressTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
+
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("")
+            await self.assertMultiSigTransactionOK("9dd45bc16e46a6b07586048b3c4afc68bd40c900a9625e6f5f135055e7cbedbd")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendMultiRecipientsTXOK("29ce6ce80bf5f381eae1b27049e6b15d2a6316664b1f8ffc3404293b2a4b56e2")
+            await self.assertSendMultiRecipientsTXOK("5db3a2c3047b22f34f5e64c92032e0d4a7f29a1650880d5480448f2565232c9d")
 
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendOK("00648605d4e84b9d9f07d6766eb63a45ab47d1cfd84ea282e54f1c009fa320d3")
+            await self.assertSendOK("0c14765c384f0b345d4a8689b8e97a71be5f66d78049112d1e0abbb1675f7431")
 
     async def test_subscribe_block_headers(self):
         await self.assertSubscribeBlockHeadersOK()

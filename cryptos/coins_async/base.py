@@ -588,13 +588,16 @@ class BaseCoin:
             script = binascii.unhexlify(script)
         return hex_to_b58check(hash160(script), self.script_magicbyte)
 
+    def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
+        return cashaddr.encode_full(self.segwit_hrp, cashaddr.SCRIPT_TYPE, scripthash)
+
     def p2sh_cash_addr(self, script: str) -> str:
         """
           Convert an output p2sh script to a Bitcoin Cash address
         """
         if is_hex(script):
             script = binascii.unhexlify(script)
-        return cashaddr.encode_full(self.segwit_hrp, cashaddr.SCRIPT_TYPE, bin_hash160(script))
+        return self.scripthash_to_cash_addr(bin_hash160(script))
 
     def addrtoscript(self, addr: str) -> str:
         """
@@ -674,14 +677,21 @@ class BaseCoin:
         Convert a legacy Bitcoin Address to a Bitcoin cash address
         """
         magicbyte, pubkey_hash = b58check_to_bin(addr)
-        return self.hash_to_cash_addr(pubkey_hash)
+        if magicbyte == self.magicbyte:
+            return self.hash_to_cash_addr(pubkey_hash)
+        elif magicbyte == self.script_magicbyte:
+            return self.scripthash_to_cash_addr(pubkey_hash)
+        else:
+            raise Exception(f"Magic Byte {magicbyte} not recognised")
 
     def cash_address_to_legacy_addr(self, addr: str) -> str:
         """
         Convert a Bitcoin cash address to a legacy Bitcoin address
         """
         prefix, kind, pubkey_hash = cashaddr.decode(addr)
-        return bin_to_b58check(pubkey_hash, self.magicbyte)
+        if kind == 0:
+            return bin_to_b58check(pubkey_hash, self.magicbyte)
+        return bin_to_b58check(pubkey_hash, self.script_magicbyte)
 
     def pub_to_segwit_address(self, pubkey: str) -> str:
         """

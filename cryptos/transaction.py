@@ -194,7 +194,7 @@ def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
 
 def uahf_digest(txobj: Tx, i: int) -> bytes:
     for inp in txobj['ins']:
-        inp.pop('address')
+        inp.pop('address', None)
     if isinstance(txobj, bytes):
         txobj = bytes_to_hex_string(txobj)
     o = []
@@ -371,12 +371,16 @@ def mk_p2pk_script(pub: str) -> str:
     return length + pub + opcodes.OP_CHECKSIG.hex()
 
 
-def mk_scripthash_script(addr):
+def hash_to_scripthash_script(hashbin: str) -> str:
+    return opcodes.OP_HASH160.hex() + '14' + hashbin + opcodes.OP_EQUAL.hex()
+
+
+def mk_scripthash_script(addr: str):
     """
     Used in converting p2sh address to output script
     """
-    magicbyte, bin = b58check_to_hex(addr)
-    return opcodes.OP_HASH160.hex() + '14' + bin + opcodes.OP_EQUAL.hex()
+    magicbyte, hashbin = b58check_to_hex(addr)
+    return hash_to_scripthash_script(hashbin)
 
 
 def output_script_to_address(script, magicbyte: int = 0, script_magicbyte: int = 5,
@@ -530,12 +534,13 @@ def verify_tx_input(tx, i, script, sig, pub):
 
 
 def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL):
-    if isinstance(tx, dict):
+    """if isinstance(tx, dict):
         tx = serialize(tx)
     if re.match('^[0-9a-fA-F]*$', tx):
         tx = binascii.unhexlify(tx)
     if re.match('^[0-9a-fA-F]*$', script):
-        script = binascii.unhexlify(script)
+        script = binascii.unhexlify(script)"""
+
     modtx = signature_form(tx, i, script, hashcode)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 

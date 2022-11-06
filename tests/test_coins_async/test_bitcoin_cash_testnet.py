@@ -1,4 +1,5 @@
 from cryptos import coins_async
+from cryptos.main import privtopub
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.types import ElectrumXTx, TxOut
 from cryptos.electrumx_client.types import ElectrumXMultiBalanceResponse
@@ -22,6 +23,8 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
                                        'cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f',
                                        "9354Dkk67pJCfmRfMedJPhGPfZCXv2uWd9ZoVNMUtDxjUBbCVZK"]
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
+    cash_multisig_addresses: List[str] = ["bchtest:pqnfj8jmtpj30fnjgc2gy0gs4l6sptdyhcr8c3e5nk",
+                                          "bchtest:pqxn06syr9twx9ecx892alre33yuuwn2gu6stxug97"]
     fee: int = 500
     max_fee: int = 3500
     testnet: bool = True
@@ -47,6 +50,21 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
 
     def test_address_conversion(self):
         for addr, cashaddr in zip(self.addresses, self.cash_addresses):
+            convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
+            self.assertEqual(convert_cashaddr, cashaddr)
+            convert_addr = self._coin.cash_address_to_legacy_addr(cashaddr)
+            self.assertEqual(addr, convert_addr)
+
+    def test_cash_address_multisig_ok(self):
+        pubs = [privtopub(priv) for priv in self.privkeys]
+        script1, address1 = self._coin.mk_multsig_cash_address(*pubs, num_required=2)
+        self.assertEqual(address1, self.cash_multisig_addresses[0])
+        pubs2 = pubs[0:2]
+        script2, address2 = self._coin.mk_multsig_cash_address(*pubs2)
+        self.assertEqual(address2, self.cash_multisig_addresses[1])
+
+    def test_address_conversion_multisig(self):
+        for addr, cashaddr in zip(self.multisig_addresses, self.cash_multisig_addresses):
             convert_cashaddr = self._coin.legacy_addr_to_cash_address(addr)
             self.assertEqual(convert_cashaddr, cashaddr)
             convert_addr = self._coin.cash_address_to_legacy_addr(cashaddr)
@@ -111,23 +129,31 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertTransactionOK()
 
+    async def test_transaction_cash_address(self):
+        """
+        Sample transaction:
+        TxID: 1ec96ce25a0104cda556f16d0d630768308a6b14dd35363dabe62fa96aa3237a
+        """
+        await self.assertCashAddressTransactionOK()
+
     async def test_transaction_multisig(self):
         """
         Sample transaction:
-        TxID:
+        TxID: c8987d59357f108fff46837b9309b28a1dc91d0fa4daa2c2f515107f61943a05
         """
         await self.assertMultiSigTransactionOK()
 
     async def test_sendmulti_recipient_tx(self):
         """
         Sample transaction:
-        TxID:         """
+        TxID: 49a731c4eaae1c6570590cd3eb5f4af4d4f6b282186b368b574169e9a7d576ab
+        """
         await self.assertSendMultiRecipientsTXOK()
 
     async def test_send(self):
         """
         Sample transaction:
-        TxID:
+        TxID: ae9dd16e61521791659080c58299937a5d0ac2d20608e8bc1f494a08f6d9f5fb
         """
         await self.assertSendOK()
 
