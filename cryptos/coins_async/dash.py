@@ -6,8 +6,8 @@ class Dash(BaseCoin):
     coin_symbol = "DASH"
     display_name = "Dash"
     segwit_supported = False
-    magicbyte = 76
-    script_magicbyte = 16
+    magicbyte = 0x4c
+    script_magicbyte = 0x10
     wif_prefix = 0xcc
     hd_path = 5
     client_kwargs = {

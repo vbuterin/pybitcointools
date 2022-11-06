@@ -2,7 +2,7 @@ import argparse
 import binascii
 import asyncio
 import sys
-from cryptos.coins_async import Bitcoin, BaseCoin
+from cryptos.coins_async import BaseCoin
 from cryptos.main import safe_hexlify
 from cryptos.transaction import json_changebase
 from pprint import pprint

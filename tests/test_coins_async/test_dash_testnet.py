@@ -10,7 +10,7 @@ class TestDashTestnet(BaseAsyncCoinTestCase):
     addresses = ["yh1u3ZD4kGKttnwaNXpyP85FH3eD8E99vP",
                  "yTXgT2aA32Y35VQ6N9KpFqKJKKdbidgKeZ",
                  "ySPomQ35mpKiV89LDdAM3URFSibNiXEC4J"]
-    multisig_addresses: List[str] = ["", ""]
+    multisig_addresses: List[str] = ["8hwYpDfDw526ppvaRveUv16nG2zXwp1Z7X", "8fdMUYERYqzfxjTwEYUcAFWSicLRBA7rxn"]
     privkeys = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                 "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                 "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]  #Private keys for above address_derivations in same order
@@ -84,12 +84,12 @@ class TestDashTestnet(BaseAsyncCoinTestCase):
         await self.assertGetVerboseTXOK()
 
     async def test_gettxs(self):
-        await self.assertGetSegwitTxsOK()
+        await self.assertGetTXOK()
 
     async def test_transaction(self):
         """
         Sample transaction:
-        TxID:
+        TxID: 23ebe2519c10803ff4d3cab0013d80b63e2ba90103c98084aacbc79c78dd736f
         """
         await self.assertTransactionOK()
 
@@ -103,14 +103,14 @@ class TestDashTestnet(BaseAsyncCoinTestCase):
     async def test_sendmulti_recipient_tx(self):
         """
         Sample transaction:
-        TxID:
+        TxID: 6fb0071bd94dff8de1f9784fd30aadeebd2d8ca27f5451b7725e05c868e98593
         """
         await self.assertSendMultiRecipientsTXOK()
 
     async def test_send(self):
         """
         Sample transaction:
-        TxID:
+        TxID: 81a22353f6dc45ae9b32a8fdea26b74fa71050c6993959cb07ce7092b26b1287
         """
         await self.assertSendOK()
 

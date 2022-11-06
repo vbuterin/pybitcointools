@@ -1,7 +1,7 @@
-from cryptos.coins_async import BaseCoin, Bitcoin, BitcoinCash, Litecoin
+from cryptos.coins_async import BaseCoin, Bitcoin, BitcoinCash, Dash, Litecoin
 
 
-coins = {c.coin_symbol: c for c in (Bitcoin, Litecoin, BitcoinCash)}
+coins = {c.coin_symbol: c for c in (Bitcoin, Litecoin, BitcoinCash, Dash)}
 
 
 def get_coin(coin_symbol: str, testnet: bool) -> BaseCoin:
