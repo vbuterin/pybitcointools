@@ -326,3 +326,27 @@ class BaseSyncCoin:
 
     def watch_electrum_p2wpkh_wallet(self, xpub: str, **kwargs) -> HDWallet:
         return self._async_coin.watch_electrum_p2wpkh_wallet(xpub, **kwargs)
+
+    def is_cash_address(self, addr: str) -> bool:
+        return self._async_coin.is_cash_address(addr)
+
+    def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
+        return self._async_coin.scripthash_to_cash_addr(scripthash)
+
+    def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
+        return self._async_coin.hash_to_cash_addr(pub_hash)
+
+    def pub_to_cash_address(self, pubkey: str) -> str:
+        return self._async_coin.pub_to_cash_address(pubkey)
+
+    def privtocashaddress(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtocashaddress(privkey)
+
+    def legacy_addr_to_cash_address(self, addr: str) -> str:
+        return self._async_coin.legacy_addr_to_cash_address(addr)
+
+    def cash_address_to_legacy_addr(self, addr: str) -> str:
+        return self._async_coin.cash_address_to_legacy_addr(addr)
+
+    def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multsig_cash_address(*args, num_required=num_required)
