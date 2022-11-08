@@ -1,5 +1,4 @@
 from cryptos import coins_async
-from cryptos.types import TxOut
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
 from typing import List, Type

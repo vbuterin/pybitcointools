@@ -1,5 +1,4 @@
 from .bitcoin import BaseCoin
-from ..explorers import sochain
 
 
 class Doge(BaseCoin):
@@ -22,7 +21,7 @@ class Doge(BaseCoin):
         'magicbyte': 113,
         'script_magicbyte': 196,
         'hd_path': 1,
-        'wif_prefix': 0xef,
+        'wif_prefix': 0xf1,
         'segwit_hrp': 'xdoge',
         'client_kwargs': {
             'server_file': 'doge_testnet.json',
