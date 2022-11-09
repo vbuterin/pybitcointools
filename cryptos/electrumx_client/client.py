@@ -301,7 +301,7 @@ class ElectrumXClient:
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
             print('Connected to', self.host, self.port)
             print(self.server_version)
-            features = await self._send_request("server.features", self.client_name, self.version, timeout=10)
+            features = await self._send_request("server.features", timeout=10)
             print(features)
             async with self.restart_condition:
                 self.restart_condition.notify_all()

@@ -19,12 +19,10 @@ async def get_confirmation() -> bool:
     return any(r == result.lower() for r in ("y", "yes"))
 
 
-async def send(coin: str, testnet: bool, addr: str, to: str, amount: float,
+async def send(coin: str, testnet: bool, addr: str, to: str, amount: int,
                fee: float = None, change_addr: Optional[str] = None, privkey: Optional[str] = None):
-    value = int(amount * SATOSHI_PER_BTC)
-    fee = int(fee * SATOSHI_PER_BTC) if fee else None
     coin = get_coin(coin, testnet=testnet)
-    tx = await coin.preparetx(addr, to, value, fee=fee, change_addr=change_addr)
+    tx = await coin.preparetx(addr, to, amount, fee=fee, change_addr=change_addr)
     print(serialize(tx))
     print(tx)
     privkey = privkey or await run_in_executor(getpass, "Enter private key to sign this transaction")
@@ -59,7 +57,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("addr", help="Send from this address")
     parser.add_argument("to", help="Send to this address")
-    parser.add_argument("amount", help="Amount to send", type=float)
+    parser.add_argument("amount", help="Amount to send", type=int)
     parser.add_argument("-c", "--change", help="Address for change, otherwise from address")
     parser.add_argument("-f", "--fee", help="Fee", type=float)
     parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")

@@ -658,7 +658,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         if expected_tx_id:
             self.assertEqual(result, expected_tx_id)        # mainnet
         else:
-            self.assertTXResultOK(tx_serialized, result)       #testnet
+            self.assertTXResultOK(tx_serialized, result)       # testnet
 
     def delete_key_by_name(self, obj, key):
         if isinstance(obj, dict):
@@ -690,10 +690,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def assertGetVerboseTXOK(self):
         tx = await self._coin.get_verbose_tx(self.txid)
-        if 'height' in tx:
-            self.expected_tx_verbose_keys.insert(5, 'height')
-        if self._coin.segwit_supported:
-            self.expected_tx_verbose_keys += ['vsize', 'weight']
+        for key in ('height', 'vsize', 'weight'):
+            if key in tx:
+                self.expected_tx_verbose_keys.append(key)
         self.assertListEqual(sorted(tx.keys()), sorted(self.expected_tx_verbose_keys))
 
     async def assertTxsOK(self):

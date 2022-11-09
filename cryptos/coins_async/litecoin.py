@@ -26,7 +26,8 @@ class Litecoin(BaseCoin):
         'minimum_fee': 1000,
         'hd_path': 1,
         'client_kwargs': {
-            'server_file': 'litecoin_testnet.json'
+            'server_file': 'litecoin_testnet.json',
+            'use_ssl': False
         },
         'xpriv_prefix': 0x04358394,
         'xpub_prefix': 0x043587cf
