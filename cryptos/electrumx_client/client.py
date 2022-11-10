@@ -301,8 +301,6 @@ class ElectrumXClient:
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
             print('Connected to', self.host, self.port)
             print(self.server_version)
-            features = await self._send_request("server.features", timeout=10)
-            print(features)
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()
@@ -327,7 +325,9 @@ class ElectrumXClient:
     async def connect_to_any_server(self) -> None:
         self._set_new_server()
         try:
-            await asyncio.wait_for(self._connect(), timeout=5)
+            connect_task = asyncio.create_task(self._connect())
+            await asyncio.wait_for(self.wait_new_start(), timeout=5)
+            await connect_task
         except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
                 ProtocolNotSupportedError, ssl.SSLError) as e:
             await self._on_connection_failure()

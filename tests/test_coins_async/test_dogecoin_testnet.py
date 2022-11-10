@@ -9,29 +9,18 @@ class TestDogeTestnet(BaseAsyncCoinTestCase):
     addresses = ['nptcTdAHaPpEp6BEiCqNHjj1HRgjtFELjM',
                  'nbQPs6XNsA2NzndkhpLDASy4Khg8ZfhUfj',
                  'naGXBTzJbwp4QRNzZJAjx651T6duZy2kgV']
-    segwit_addresses: List[str] = ["2N74sauceDn2qeHFJuNfJ3c1anxPcDRrVtz",
-                                   "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU",
-                                   "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
-    native_segwit_addresses: List[str] = ["xdoge1q95cgql39zvtc57g4vn8ytzmlvtt43sknve7v79",
-                                          "xdoge1qfuvnn87p787z7nqv9seu4e8fqel83yacv262gl",
-                                          "xdoge1qst3pkm860tjt9y70ugnaluqyqnfa7h54az63cx"]
-    multisig_addresses: List[str] = ["", ""]
+    multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv",
+                                     "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
     privkey_standard_wifs: List[str] = ['95YcZiMwUZF3DYW9EHSiC1xEPVdBnFM3dMVBFXkBeMksf8k8F53',
                                        'cf2FrZgQT2Bm5xwhTUvC7VtEiFYJ3YAKeUshG6Y3QXX1dSAZ9s9h',
                                        '96xYaDe9pfeewQb5AosJJLTwVnRyDSbGCRi1yfjGsXyWTNCJpxv']
-    privkey_segwit_wifs: List[str] = ['cxDo7iHDnw9EjQ5ARnNGPyPkb9k2FYrvvLfdN3Pnxr859xatviCr',
-                                       'cxBWztQCoL232zyEZdhyhr5DD7wbiNhmyN7xP1EEPV2SC6V1jfpB',
-                                       "d4TRVwWnHhRUQB8vWSenws6t2uvWnkVgQKJJS2dn31DqZqLQZwUJ"]
-    privkey_native_segwit_wifs: List[str] = ["coeAYYvKcnE6kt4PshyNboJGLiYNR8bCku3Vob3hUNNMsdQwypTn",
-                                             "cobtRj3JdB6u4UxU1ZK5ufyixgjwsxS3ovVppYt8u1GiumHQzqhP",
-                                             "cusnvn9t7YWLRf89xNFu9h1PnUirxLDxEsgAsaHgYXU8HW8WNGax"]
-    fee: int = 10000
-    max_fee: int = 15000
+    fee: int = 300000
+    max_fee: int = 1000000
     testnet = True
-    min_latest_height = 4464505
+    min_latest_height = 4109697
 
     unspent_addresses = ["ncst7MzasMBQFwx2LuCwj8Z6F4pCRppzBP"]
     unspent = [{'address': 'ncst7MzasMBQFwx2LuCwj8Z6F4pCRppzBP',
@@ -52,12 +41,6 @@ class TestDogeTestnet(BaseAsyncCoinTestCase):
 
     def test_standard_wif_ok(self):
         self.assertStandardWifOK()
-
-    def test_p2wpkh_p2sh_wif_ok(self):
-        self.assertP2WPKH_P2SH_WifOK()
-
-    def test_p2wpkh_wif_ok(self):
-        self.assertP2WPKH_WIFOK()
 
     async def test_balance(self):
         await self.assertBalanceOK()
@@ -104,13 +87,52 @@ class TestDogeTestnet(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         """
         Sample transaction:
-        TxID: c57f54e09fb68a729881bcc682da51a606511eed35221c5013b65b6fb78c0fdf
+        TxID: 4d859f797f678f0cbe608490e0ba5bc7f1fa670b34192bbbf6f468fb2ed00fe4
         """
         await self.assertTransactionOK()
 
-    async def test_transaction_segwit(self):
+    async def test_transaction_multisig(self):
         """
         Sample transaction:
-        TxID:
+        TxID: 092df25d3bb39bb82e1d00faf08a0aec2255a3214bab2a1a7c6437dd77b6281b
         """
-        await self.assertSegwitTransactionOK()
+        await self.assertMultiSigTransactionOK()
+
+    async def test_sendmulti_recipient_tx(self):
+        """
+        Sample transaction:
+        TxID: 5723b84848f00d2b315086ce564e535bd6d75fa13225ff75fce0d9ed7cd306a9
+        """
+        await self.assertSendMultiRecipientsTXOK()
+
+    async def test_send(self):
+        """
+        Sample transaction:
+        TxID: 21fdea144f28d0cb1da99c5fe7c96268aaa98ddef3a14fd627b44ea31ce0be3e
+        """
+        await self.assertSendOK()
+
+    async def test_subscribe_block_headers(self):
+        await self.assertSubscribeBlockHeadersOK()
+
+    async def test_subscribe_block_headers_sync(self):
+        await self.assertSubscribeBlockHeadersSyncCallbackOK()
+
+    async def test_latest_block(self):
+        await self.assertLatestBlockOK()
+
+    async def test_confirmations(self):
+        await self.assertConfirmationsOK()
+
+    async def test_subscribe_address(self):
+        await self.assertSubscribeAddressOK()
+
+    async def test_subscribe_address_sync(self):
+        await self.assertSubscribeAddressSyncCallbackOK()
+
+    async def test_subscribe_address_transactions(self):
+        await self.assertSubscribeAddressTransactionsOK()
+
+    async def test_subscribe_address_transactions_sync(self):
+        await self.assertSubscribeAddressTransactionsSyncOK()
+

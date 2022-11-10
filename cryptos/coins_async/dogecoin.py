@@ -4,8 +4,9 @@ from .bitcoin import BaseCoin
 class Doge(BaseCoin):
     coin_symbol = "DOGE"
     display_name = "Dogecoin"
-    segwit_supported = True
+    segwit_supported = False
     magicbyte = 0x1e
+    minimum_fee = 300000
     script_magicbyte = 0x16
     wif_prefix: int = 0x9e
     segwit_hrp = "doge"
@@ -23,6 +24,7 @@ class Doge(BaseCoin):
         'hd_path': 1,
         'wif_prefix': 0xf1,
         'segwit_hrp': 'xdoge',
+        'minimum_fee': 300000,
         'client_kwargs': {
             'server_file': 'doge_testnet.json',
             'use_ssl': False

@@ -998,7 +998,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(addr, address)
         self.assertGreaterEqual(len(new_txs), 1)
         self.assertEqual(len(newly_confirmed), 0)
-        self.assertGreaterEqual(len(history), 9)
+        self.assertGreaterEqual(len(history), 1)
         self.assertEqual(len(start_history), len(history))
         self.assertNotEqual(unconfirmed, start_unconfirmed)
         await self._coin.unsubscribe_from_address(address)

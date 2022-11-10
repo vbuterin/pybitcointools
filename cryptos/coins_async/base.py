@@ -157,9 +157,11 @@ class BaseCoin:
         """
         num_bytes = self.tx_size(txobj)
         btc_fee_per_kb = await self.estimate_fee_per_kb(numblocks=numblocks)
-        btc_fee_per_byte = btc_fee_per_kb / 1024
-        satoshi_fee_per_byte = btc_fee_per_byte * SATOSHI_PER_BTC
-        return int(num_bytes * satoshi_fee_per_byte)
+        if btc_fee_per_kb > 0:
+            btc_fee_per_byte = btc_fee_per_kb / 1024
+            satoshi_fee_per_byte = btc_fee_per_byte * SATOSHI_PER_BTC
+            return int(num_bytes * satoshi_fee_per_byte)
+        return 0
 
     @staticmethod
     async def _tasks_with_inputs(coro: Callable, *args: Any, **kwargs) -> Generator[Tuple[str, Any], None, None]:

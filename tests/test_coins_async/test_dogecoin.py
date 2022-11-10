@@ -18,14 +18,8 @@ class TestDoge(BaseAsyncCoinTestCase):
     privkey_standard_wifs: List[str] = ['6JCpvU7HkF7F2TGbzAvn2QBxP2WapoQNKJcF16en8yCghYr1m7W',
                                        'QNtvQAmjvG9MD1qwZCA5342p4Bs9koez8pAspPnBeoxwFxbqYcre',
                                        '6KckvyPW6MWrkKMXvhMN8ihfVKKNFzeatNq5jEdsN9RKVnJrynQ']
-    native_segwit_addresses: List[str] = ["doge1q95cgql39zvtc57g4vn8ytzmlvtt43sknp354v0",
-                                          "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r",
-                                          "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
-    privkey_native_segwit_wifs: List[str] = ["QXWq6A1f62BgsvxdyRDFXMSqgesE8Q5sFELgMtHqiepHW9vBUBfE",
-                                             "cWSdHQKWGsGd7SvvuQXJKKnkTpLeD7tbV3FZheBwv3mJM6yc95xc",
-                                             "cciXnTS5mEg4Ud6crDU7ZLpRHcKZHVgVuzRukfbVZZxhiqfSyfBH"]
-    fee: int = 250
-    max_fee: int = 1500
+    fee: int = 300000
+    max_fee: int = 600000
     testnet = False
 
     min_latest_height = 4464523
