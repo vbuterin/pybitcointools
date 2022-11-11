@@ -511,6 +511,7 @@ class ElectrumXClient:
         await self.unsubscribe("blockchain.scripthash.subscribe", scripthash)
 
     async def broadcast_tx(self, raw_tx: str) -> str:
+        print(raw_tx)
         return await self.send_request("blockchain.transaction.broadcast", raw_tx)
 
     async def get_tx(self, tx_hash: str, verbose: bool = False) -> ElectrumXGetTxResponse:

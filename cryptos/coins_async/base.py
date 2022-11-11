@@ -545,7 +545,7 @@ class BaseCoin:
         """
         Check if addr is a valid address for this chain
         """
-        return self.is_p2pkh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr) or self.is_cash_address(addr)
+        return self.is_p2pkh(addr) or self.is_p2sh(addr) or self.is_native_segwit(addr) or self.is_cash_address(addr) or is_public_key(addr)
 
     def maybe_legacy_segwit(self, addr: str) -> bool:
         if self.segwit_supported:
@@ -614,8 +614,11 @@ class BaseCoin:
             return mk_pubkey_script(safe_hexlify(pubkey_hash))
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
-        else:
+        elif self.is_p2pkh(addr):
             return addr_to_pubkey_script(addr)
+        elif is_public_key(addr):
+            return mk_p2pk_script(addr)
+        raise Exception(f'Unrecognised address: {addr}')
 
     def addrtoscripthash(self, addr: str) -> str:
         """

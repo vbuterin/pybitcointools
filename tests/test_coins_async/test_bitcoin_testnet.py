@@ -20,6 +20,11 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
+    public_keys: List[str] = [
+        "04de476e251a827e58199ed4d6d7c2177f0a97a2dda150d7a9e59fc5682519eb94d37bc387edff66e7b0f16e92dd045fe968d63e1f203613b76ad733e5cdf8e818",
+        "0391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0",
+        "0415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb"
+    ]
     privkey_standard_wifs: List[str] = ['91f8DFTsmhtawuLjR8CiHNkgZGPkUqfJ45LxmENPf3k6fuX1m4N',
                                        'cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f',
                                        "9354Dkk67pJCfmRfMedJPhGPfZCXv2uWd9ZoVNMUtDxjUBbCVZK"]
@@ -124,6 +129,13 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         TxID: ef60508ebe9f684fa881ad41ba278365f238a5fca36af78f3f106c30f7020eca
         """
         await self.assertTransactionOK()
+
+    async def test_transaction_p2pk(self):
+        """
+        Sample transaction:
+        TxID:
+        """
+        await self.assertTransactionToPKOK()
 
     async def test_transaction_segwit(self):
         """

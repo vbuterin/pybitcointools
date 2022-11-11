@@ -371,6 +371,14 @@ def mk_p2pk_script(pub: str) -> str:
     return length + pub + opcodes.OP_CHECKSIG.hex()
 
 
+def script_to_pk(script: str) -> str:
+    """
+    Used in converting p2pk script to public key
+    """
+    length = int(script[0:2], 16)
+    return script[2: (length + 1) * 2]
+
+
 def hash_to_scripthash_script(hashbin: str) -> str:
     return opcodes.OP_HASH160.hex() + '14' + hashbin + opcodes.OP_EQUAL.hex()
 

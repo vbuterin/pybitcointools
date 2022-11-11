@@ -13,7 +13,7 @@ class Doge(BaseCoin):
     hd_path = 3
     client_kwargs = {
         'server_file': 'doge.json',
-        'use_ssl': False
+        'use_ssl': True
     }
     xpriv_prefix = 0x02facafd
     xpub_prefix = 0x02fac398

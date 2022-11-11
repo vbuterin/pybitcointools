@@ -68,7 +68,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             scripthash = args[0]
             available_addresses = [addresses[0] for addresses in (
                 self.addresses, self.segwit_addresses, self.native_segwit_addresses,
-                self.multisig_addresses, self.cash_addresses
+                self.multisig_addresses, self.cash_addresses,
+                [privtopub(p) for p in self.privkeys]
             ) if addresses]
             if any(scripthash == self._coin.addrtoscripthash(address) for address in
                    available_addresses):
@@ -659,6 +660,85 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)        # mainnet
         else:
             self.assertTXResultOK(tx_serialized, result)       # testnet
+
+    async def assertTransactionToPKOK(self, expected_tx_id: str = None):
+
+        # Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        pub_keys = [privtopub(priv) for priv in self.privkeys]
+        sender = pub_keys[0]
+        from_addr_i = 0
+        unspents = []
+
+        for i, pub in enumerate(pub_keys):
+            addr_unspents = await self._coin.unspent(pub)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = pub
+                from_addr_i = i
+                unspents = addr_unspents
+
+        # Arbitrarily set send value, receiver and change address
+        send_value = int(max_value * 0.1)
+
+        if sender == pub_keys[0]:
+            receiver = pub_keys[1]
+            change_address = pub_keys[2]
+        elif sender == pub_keys[1]:
+            receiver = pub_keys[2]
+            change_address = pub_keys[0]
+        else:
+            receiver = pub_keys[0]
+            change_address = pub_keys[1]
+
+        outs = [{'value': send_value, 'address': receiver}]
+
+        # Create the transaction using all available unspents as inputs
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+
+        privkey = self.privkeys[from_addr_i]
+
+        # Sign each input with the given private key
+        tx = self._coin.signall(tx, privkey)
+
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertGreater(fee, 0)
+        self.assertLessEqual(fee, self.max_fee)
+        self.assertEqual(len(tx['ins']), len(unspents))
+        self.assertEqual(len(tx['outs']), 2)
+        self.assertNotIn('witness', tx)
+        self.assertNotIn('marker', tx)
+        self.assertNotIn('flag', tx)
+
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
+            prev_script = script
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertTrue(any(val == len(script) for val in (70, 134)))
+            prev_script = script
+
+        # Serialize and push the transaction to the network
+        tx_serialized = serialize(tx)
+        result = await self._coin.pushtx(tx)
+        if expected_tx_id:
+            self.assertEqual(result, expected_tx_id)        # mainnet
+        else:
+            self.assertTXResultOK(tx_serialized, result)       # testnet
+
 
     def delete_key_by_name(self, obj, key):
         if isinstance(obj, dict):

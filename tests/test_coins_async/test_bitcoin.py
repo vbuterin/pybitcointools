@@ -162,6 +162,11 @@ class TestBitcoin(BaseAsyncCoinTestCase):
                         side_effect=self.mock_electrumx_send_request):
             await self.assertTransactionOK("687f014010fbc1d46cf6e9d5588aa7b676b5a9eff12babec576bb75bcb53558d")
 
+    async def test_transaction_p2pk(self):
+        with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
+                        side_effect=self.mock_electrumx_send_request):
+            await self.assertTransactionToPKOK("9627672d628c0ae307bcae1b0da6adf37eee3c38584d7a5de950e7ce2e9e77df")
+
     async def test_transaction_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):

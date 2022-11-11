@@ -154,6 +154,10 @@ def fast_add(a, b):
 # Functions for handling pubkey and privkey formats
 
 
+class UnrecognisedPublicKeyFormat(BaseException):
+    pass
+
+
 def get_pubkey_format(pub) -> str:
     two = 2
     three = 3
@@ -166,8 +170,15 @@ def get_pubkey_format(pub) -> str:
     elif len(pub) == 66 and pub[0:2] in ['02', '03']: return 'hex_compressed'
     elif len(pub) == 64: return 'bin_electrum'
     elif len(pub) == 128: return 'hex_electrum'
-    else: raise Exception("Pubkey not in recognized format")
+    else: raise UnrecognisedPublicKeyFormat("Pubkey not in recognized format")
 
+
+def is_public_key(pub: str) -> bool:
+    try:
+        fmt = get_pubkey_format(pub)
+        return True
+    except UnrecognisedPublicKeyFormat:
+        return False
 
 def encode_pubkey(pub, formt):
     if not isinstance(pub, (tuple, list)):

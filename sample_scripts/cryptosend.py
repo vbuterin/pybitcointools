@@ -5,7 +5,6 @@ import sys
 from getpass import getpass
 from cryptos.main import privtopub, compress
 from cryptos.transaction import serialize
-from cryptos.constants import SATOSHI_PER_BTC
 from typing import Callable, Any, Optional
 from cryptos.script_utils import get_coin, coin_list
 
