@@ -1,5 +1,4 @@
 import asyncio
-import binascii
 
 import aiorpcx
 from ..transaction import *
@@ -45,6 +44,7 @@ class BaseCoin:
     magicbyte: int = None
     script_magicbyte: int = None
     segwit_hrp: str = None
+    cash_hrp: str = None
     explorer: Type[ElectrumXClient] = ElectrumXClient
     client_kwargs: Dict[str, Any] = {
         'server_file': 'bitcoin.json',
@@ -539,7 +539,7 @@ class BaseCoin:
         return self.segwit_supported and self.segwit_hrp and addr.startswith(self.segwit_hrp)
 
     def is_cash_address(self, addr: str) -> bool:
-        return self.cash_address_supported and self.segwit_hrp and addr.startswith(self.segwit_hrp)
+        return self.cash_address_supported and self.cash_hrp and addr.startswith(self.cash_hrp)
 
     def is_address(self, addr: str) -> bool:
         """
@@ -564,7 +564,7 @@ class BaseCoin:
         Convert an output script to an address
         """
         segwit_hrp = self.segwit_hrp if self.segwit_supported else None
-        cash_hrp = self.segwit_hrp if self.cash_address_supported else None
+        cash_hrp = self.cash_hrp if self.cash_address_supported else None
         return output_script_to_address(script, self.magicbyte, self.script_magicbyte, segwit_hrp, cash_hrp)
 
     def scripttoaddr(self, script: str) -> str:
@@ -590,8 +590,16 @@ class BaseCoin:
             script = binascii.unhexlify(script)
         return hex_to_b58check(hash160(script), self.script_magicbyte)
 
+    def p2sh_segwit_addr(self, script: str) -> str:
+        """
+        Convert an output p2sh script to a Native Segwit P2WSH address
+        """
+        if is_hex(script):
+            script = binascii.unhexlify(script)
+        return self.scripthash_to_segwit_addr(bin_hash160(script))
+
     def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
-        return cashaddr.encode_full(self.segwit_hrp, cashaddr.SCRIPT_TYPE, scripthash)
+        return cashaddr.encode_full(self.cash_hrp, cashaddr.SCRIPT_TYPE, scripthash)
 
     def p2sh_cash_addr(self, script: str) -> str:
         """
@@ -645,11 +653,19 @@ class BaseCoin:
 
     def hash_to_segwit_addr(self, pub_hash: AnyStr) -> str:
         """
-        Convert a hash to the new segwit address format outlined in BIP-0173
+        Convert a hash to the native segwit address format outlined in BIP-0173
         """
         if not self.segwit_supported:
             raise NotImplementedError(f"{self.display_name} does not support segwit")
         return segwit_addr.encode_segwit_address(self.segwit_hrp, 0, pub_hash)
+
+    def scripthash_to_segwit_addr(self, script_hash: AnyStr) -> str:
+        """
+        Convert a script hash to the native segwit address format
+        """
+        if not self.segwit_supported:
+            raise NotImplementedError(f"{self.display_name} does not support segwit")
+        return segwit_addr.encode_segwit_address(self.segwit_hrp, 1, script_hash)
 
     def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
         """
@@ -657,7 +673,7 @@ class BaseCoin:
         """
         if not self.cash_address_supported:
             raise NotImplementedError(f"{self.display_name} does not support cash addresses")
-        return cashaddr.encode_full(self.segwit_hrp, cashaddr.PUBKEY_TYPE, pub_hash)
+        return cashaddr.encode_full(self.cash_hrp, cashaddr.PUBKEY_TYPE, pub_hash)
 
     def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
         """
@@ -704,12 +720,6 @@ class BaseCoin:
         """
         return self.hash_to_segwit_addr(pubkey_to_hash(compress(pubkey)))
 
-    def script_to_p2wsh(self, script) -> str:
-        """
-        Convert a script to the new segwit address format outlined in BIP01743
-        """
-        return self.hash_to_segwit_addr(sha256(safe_from_hex(script)))
-
     def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         """
         :param args: List of public keys to used to create multisig
@@ -719,6 +729,13 @@ class BaseCoin:
         num_required = num_required or len(args)
         script = mk_multisig_script(*args, num_required)
         address = self.p2sh_scriptaddr(script)
+        return script, address
+
+    def mk_multsig_segwit_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        num_required = num_required or len(args)
+        pubs = [compress(pub) for pub in args]
+        script = mk_multisig_script(*pubs, num_required)
+        address = self.p2sh_segwit_addr(script)
         return script, address
 
     def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
@@ -808,8 +825,20 @@ class BaseCoin:
                 txobj = self.sign(txobj, i, priv)
         return txobj
 
-    def multisign(self, tx: Union[str, Tx], i: int, script: str, pk) -> Tx:
-        return multisign(tx, i, script, pk, self.hashcode)
+    def multisign(self, txobj: Union[str, Tx], i: int, script: str, priv) -> Tx:
+        i = int(i)
+        if not isinstance(tx, dict):
+            txobj = deserialize(txobj)
+        if len(priv) <= 33:
+            priv = safe_hexlify(priv)
+        inp = txobj['ins'][i]
+        segwit = False
+        try:
+            if address := inp['address']:
+                segwit = self.is_native_segwit(address)
+        except (IndexError, KeyError):
+            pass
+        return multisign(tx, i, script, pk, self.hashcode, segwit=segwit)
 
     def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int = 0,
              sequence: int = 0xFFFFFFFF) -> Tx:

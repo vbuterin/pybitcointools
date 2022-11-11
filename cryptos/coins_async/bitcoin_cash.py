@@ -16,7 +16,7 @@ class BitcoinCash(BaseCoin):
         'p2sh': 5,
     }
     hd_path = 145
-    segwit_hrp = "bitcoincash"
+    cash_hrp = "bitcoincash"
     hashcode = SIGHASH_ALL | SIGHASH_FORKID
     client_kwargs = {
         'server_file': 'bitcoin_cash.json',
@@ -27,7 +27,7 @@ class BitcoinCash(BaseCoin):
         'magicbyte': 111,
         'script_magicbyte': 196,
         'wif_prefix': 0xef,
-        'segwit_hrp': "bchtest",
+        'cash_hrp': "bchtest",
         'xprv_headers': {
             'p2pkh': 0x04358394,
         },

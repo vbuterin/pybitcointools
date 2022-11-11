@@ -502,7 +502,7 @@ def serialize_script_unit(unit):
             return from_int_to_byte(78)+encode(len(unit), 256, 4)[::-1]+unit
 
 
-def serialize_script(script) -> bytes:
+def serialize_script(script) -> AnyStr:
     if json_is_base(script, 16):
         return safe_hexlify(serialize_script(json_changebase(script,
                             lambda x: binascii.unhexlify(x))))
