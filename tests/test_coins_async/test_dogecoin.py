@@ -123,22 +123,22 @@ class TestDoge(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("b264a42895f556491f2d51622478305e7c25d97ed799b9dfa2bdd592125f75ff")
+            await self.assertTransactionOK("812f055cc55515c2e1aa7a6aa38adc890d3c5d39781d38fb2e5f647b84b6b3fa")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("02e026224aff90708cffa2938cd2e7cdec44e06f82ba4ea6966ac24ccbd4aca6")
+            await self.assertMultiSigTransactionOK("d6ce1777e365a1fbde27cc4ad5edfd7cda00bda3eb3f7c547461c07333f519e0")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendMultiRecipientsTXOK("73962dba75d3581f069bcfc63b0697008347d6b272c6bb421e1a58d5b84dcb16")
+            await self.assertSendMultiRecipientsTXOK("4646a5b2f143d98f474e3a60f745627a5ddbbccc7c1fceeeeeaa391c4c0b263d")
 
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendOK("e3a160d1ee8b521c48a36e3215e0912202685dc18ce985208320f76139b837cb")
+            await self.assertSendOK("01d0cb59eaaeaafc6d8e09d18bcd2b7beaf856936b41570819c4475d2dcdcd0e")
 
     async def test_subscribe_block_headers(self):
         await self.assertSubscribeBlockHeadersOK()
