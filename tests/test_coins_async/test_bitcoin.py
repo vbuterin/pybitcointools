@@ -1,4 +1,5 @@
 from cryptos import coins_async
+from cryptos.main import script_to_scripthash
 from cryptos.types import TxInput, Tx
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
@@ -114,6 +115,23 @@ class TestBitcoin(BaseAsyncCoinTestCase):
 
     def test_p2wpkh_wif_ok(self):
         self.assertP2WPKH_WIFOK()
+
+    def test_p2pw_p2sh_address_ok(self):
+        pubs = ["02ba64c5ace172273914d2964e1c97bf46bfadc3efa122e19f06bfd04a9dd290dd",
+                "02e1dff2d67d6f35d8c8e1983cad52649aa1355793202d948e5015da49ac848481",
+                "03bd517db94bce99d6f61f4439ad3c8671a5dc6504615aa101142be2d30a41c01e"]
+        expected_witness_script = "522102ba64c5ace172273914d2964e1c97bf46bfadc3efa122e19f06bfd04a9dd290dd2102e1dff2d67d6f35d8c8e1983cad52649aa1355793202d948e5015da49ac8484812103bd517db94bce99d6f61f4439ad3c8671a5dc6504615aa101142be2d30a41c01e53ae"
+        expected_address = "bc1qvyh0kyxxtv02z4uwej509df6mvgspvfe0u4ekkwkxxpt2rz6t8dqfxljp2"
+        num_required = 2
+        script, address = self._coin.mk_multsig_segwit_address(*pubs, num_required=num_required)
+        self.assertEqual(script, expected_witness_script)
+        self.assertEqual(address, expected_address)
+        expected_script_for_scripthash = "0020612efb10c65b1ea1578ecca8f2b53adb1100b1397f2b9b59d63182b50c5a59da"
+        expected_scripthash = "fc1546b5baf99c4eb4d04c66475a5560130165ceb0ac24a516065b535fd3dcbb"
+        script = self._coin.addrtoscript(address)
+        scripthash = script_to_scripthash(script)
+        self.assertEqual(expected_script_for_scripthash, script)
+        self.assertEqual(expected_scripthash, scripthash)
 
     async def test_balance(self):
         await self.assertBalanceOK()

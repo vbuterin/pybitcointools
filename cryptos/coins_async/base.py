@@ -596,7 +596,7 @@ class BaseCoin:
         """
         if is_hex(script):
             script = binascii.unhexlify(script)
-        return self.scripthash_to_segwit_addr(bin_hash160(script))
+        return self.scripthash_to_segwit_addr(bin_sha256(script))
 
     def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
         return cashaddr.encode_full(self.cash_hrp, cashaddr.SCRIPT_TYPE, scripthash)
@@ -665,7 +665,7 @@ class BaseCoin:
         """
         if not self.segwit_supported:
             raise NotImplementedError(f"{self.display_name} does not support segwit")
-        return segwit_addr.encode_segwit_address(self.segwit_hrp, 1, script_hash)
+        return segwit_addr.encode_segwit_address(self.segwit_hrp, 0, script_hash)
 
     def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
         """
@@ -827,7 +827,7 @@ class BaseCoin:
 
     def multisign(self, txobj: Union[str, Tx], i: int, script: str, priv) -> Tx:
         i = int(i)
-        if not isinstance(tx, dict):
+        if not isinstance(txobj, dict):
             txobj = deserialize(txobj)
         if len(priv) <= 33:
             priv = safe_hexlify(priv)
@@ -838,7 +838,7 @@ class BaseCoin:
                 segwit = self.is_native_segwit(address)
         except (IndexError, KeyError):
             pass
-        return multisign(tx, i, script, pk, self.hashcode, segwit=segwit)
+        return multisign(txobj, i, script, priv, self.hashcode, segwit=segwit)
 
     def mktx(self, ins: List[Union[TxInput, AnyStr]], outs: List[Union[TxOut, AnyStr]], locktime: int = 0,
              sequence: int = 0xFFFFFFFF) -> Tx:

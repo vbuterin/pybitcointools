@@ -18,12 +18,9 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
                                           "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     native_segwit_multisig_addresses: List[str] = [
-        "tb1pks06y325vxg8m7yw9c3w9nrvv8zcf033xpkwe5",
-        "tb1p66zsqjlk3lqs5yy5k83qjsrs9eteul4h2zu5dh"
+        "tb1q7e42a8gmgp5d7kw8myrruj5qnxp8edp7v5y0y95hrjz6t530uehqkj0tl2",
+        "tb1qu7fz4uku8kh6tg7qghj7rnf88g858lal258gzfu85kx7vc5h0qpsyxrfnp"
     ]
-    """native_segwit_multisig_addresses2: List[str] = [
-        "tb1py6v3uk6cv5t6vujxzjpr6y9075q2mf97e7fj4w",
-        "tb1pp5m75pqe2m33wwp3e2h0c7vvf88r56j8cy64uq"]"""
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]

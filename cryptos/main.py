@@ -345,14 +345,19 @@ def subtract_privkeys(p1, p2):
 # Hashes
 
 
+def bin_sha256(string: str) -> bytes:
+    return hashlib.sha256(string).digest()
+
+
 def bin_hash160(string):
-    intermed = hashlib.sha256(string).digest()
+    intermed = bin_sha256(string)
     digest = ''
     try:
         digest = hashlib.new('ripemd160', intermed).digest()
     except:
         digest = RIPEMD160(intermed).digest()
     return digest
+
 
 def hash160(string):
     return safe_hexlify(bin_hash160(string))

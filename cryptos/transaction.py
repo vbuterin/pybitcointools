@@ -424,7 +424,9 @@ def mk_p2w_scripthash_script(witver: int, witprog: List[int]) -> str:
     """
     assert (0 <= witver <= 16)
     OP_n = witver + int(opcodes.OP_RESERVED) if witver > 0 else 0
-    return bytes_to_hex_string([OP_n]) + '14' + (bytes_to_hex_string(witprog))
+    length = len(witprog)
+    len_hex = hex(length).split('0x')[1]
+    return bytes_to_hex_string([OP_n]) + len_hex + (bytes_to_hex_string(witprog))
 
 
 def mk_p2wpkh_redeemscript(pubkey: str) -> str:
@@ -541,15 +543,8 @@ def verify_tx_input(tx, i, script, sig, pub):
     return ecdsa_tx_verify(modtx, sig, pub, hashcode)
 
 
-def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL):
-    """if isinstance(tx, dict):
-        tx = serialize(tx)
-    if re.match('^[0-9a-fA-F]*$', tx):
-        tx = binascii.unhexlify(tx)
-    if re.match('^[0-9a-fA-F]*$', script):
-        script = binascii.unhexlify(script)"""
-
-    modtx = signature_form(tx, i, script, hashcode)
+def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL, segwit: bool = False):
+    modtx = signature_form(tx, i, script, hashcode, segwit=segwit)
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
 
