@@ -16,7 +16,8 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     native_segwit_addresses: List[str] = ["tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue",
                                           "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r",
                                           "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
-    multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
+    multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv",
+                                     "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     native_segwit_multisig_addresses: List[str] = [
         "tb1q7e42a8gmgp5d7kw8myrruj5qnxp8edp7v5y0y95hrjz6t530uehqkj0tl2",
         "tb1qu7fz4uku8kh6tg7qghj7rnf88g858lal258gzfu85kx7vc5h0qpsyxrfnp"

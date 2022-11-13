@@ -10,7 +10,7 @@ from _functools import reduce
 from .utils import is_hex
 
 from typing import AnyStr, Union
-from .types import Tx
+from .types import Tx, Witness
 
 
 ### Hex to bin converter and vice versa for objects
@@ -123,7 +123,7 @@ def deserialize(tx: AnyStr) -> Tx:
         size = read_var_int()
         return read_bytes(size)
 
-    def read_segwit_string() -> str:
+    def read_witness_script_code() -> str:
         size = read_var_int()
         return num_to_var_int(size)+read_bytes(size)
 
@@ -133,7 +133,7 @@ def deserialize(tx: AnyStr) -> Tx:
         obj['marker'] = read_as_int(1)
         obj['flag'] = read_as_int(1)
     ins = read_var_int()
-    for i in range(ins):
+    for _ in range(ins):
         obj["ins"].append({
             "tx_hash": read_bytes(32)[::-1],
             "tx_pos": read_as_int(4),
@@ -148,9 +148,9 @@ def deserialize(tx: AnyStr) -> Tx:
         })
     if has_witness:
         obj['witness'] = []
-        for i in range(ins):
+        for _ in range(ins):
             number = read_var_int()
-            script_code = [read_segwit_string() for _ in range(number)]
+            script_code = [read_witness_script_code() for _ in range(number)]
             obj['witness'].append({
                 'number': number,
                 'scriptCode': list_to_bytes(script_code)
@@ -548,7 +548,7 @@ def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL, segwit: bool 
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
 
-def apply_multisignatures(txobj: Tx, i: int, script, *args):
+def apply_multisignatures(txobj: Tx, i: int, script, *args, segwit: bool = False):
     # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
     sigs = args[0] if isinstance(args[0], list) else list(args)
 
@@ -564,7 +564,34 @@ def apply_multisignatures(txobj: Tx, i: int, script, *args):
     # script (in case of bare multisig inputs there is no script)
     script_blob = [] if script.__len__() == 0 else [script]
 
-    txobj["ins"][i]["script"] = safe_hexlify(serialize_script([None]+sigs+script_blob))
+    if not isinstance(txobj, dict):
+        txobj = deserialize(txobj)
+
+    script = safe_hexlify(serialize_script([None]+sigs+script_blob))
+
+    if segwit:
+        if 'witness' not in txobj.keys():
+            txobj.update({"marker": 0, "flag": 1, "witness": []})
+            for _ in range(0, i):
+                witness: Witness = {"number": 0, "scriptCode": ''}
+                # Pycharm IDE gives a type error for the following line, no idea why...
+                # noinspection PyTypeChecker
+                txobj["witness"].append(witness)
+        txobj["ins"][i]["script"] = ''
+        number = len(sigs) + 2
+        witness: Witness = {"number": number, "scriptCode": script}
+        # Pycharm IDE gives a type error for the following line, no idea why...
+        # noinspection PyTypeChecker
+        txobj["witness"].append(witness)
+    else:
+        # Pycharm IDE gives a type error for the following line, no idea why...
+        # noinspection PyTypeChecker
+        txobj["ins"][i]["script"] = script
+        if "witness" in txobj.keys():
+            witness: Witness = {"number": 0, "scriptCode": ''}
+            # Pycharm IDE gives a type error for the following line, no idea why...
+            # noinspection PyTypeChecker
+            txobj["witness"].append(witness)
     return txobj
 
 

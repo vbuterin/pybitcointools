@@ -1,12 +1,14 @@
 import argparse
 import binascii
+import datetime
 import asyncio
 import sys
 from cryptos.coins_async import BaseCoin
-from cryptos.main import safe_hexlify
-from cryptos.transaction import json_changebase
+from cryptos.constants import SATOSHI_PER_BTC
+from cryptos.main import safe_hexlify, is_pubkey
+from cryptos.transaction import json_changebase, deserialize_script
 from pprint import pprint
-from typing import Callable, Any, Union, Optional
+from typing import Callable, Any, Union, Optional, Dict
 from cryptos.script_utils import get_coin, coin_list
 
 
@@ -35,14 +37,101 @@ def is_address(coin: BaseCoin, obj_id: str) -> Optional[str]:
     return obj_id if coin.is_address(obj_id) else None
 
 
+def script_pubkey_is_pubkey(scriptPubKey: Dict[str, Any], pubkey: str) -> bool:
+    return scriptPubKey['type'] == "pubkey" and deserialize_script(scriptPubKey['hex'])[-1] == pubkey
+
+
+def output_belongs_to_address(out: Dict[str, Any], address: str) -> bool:
+    scriptPubKey = out['scriptPubKey']
+    return scriptPubKey.get('address') == address or script_pubkey_is_pubkey(scriptPubKey, address)
+
+
+def script_sig_pubkey_or_script(scriptSig: str) -> str:
+    return deserialize_script(scriptSig)[-1]
+
+
+async def input_belongs_to_address(coin: BaseCoin, inp: Dict[str, Any], address: str, received: Dict[str, int]) -> bool:
+    if witness := inp.get('txinwitness'):
+        if coin.is_segwit_or_p2sh(address):
+            pubkey_or_script = witness[1]
+            return any(addr == address for addr in (                                    # P2W
+                coin.pub_to_segwit_address(pubkey_or_script),
+                coin.pubtop2wpkh_p2sh(pubkey_or_script),
+                coin.p2sh_segwit_addr(pubkey_or_script)
+            ))
+        return False
+    elif scriptSig := inp['scriptSig']['hex']:
+        if scriptSig.startswith('00'):
+            if coin.is_p2sh(address):
+                script = script_sig_pubkey_or_script(scriptSig)
+                return coin.p2sh_scriptaddr(script) == address
+            return False
+        elif pubkey := script_sig_pubkey_or_script(scriptSig):
+            return coin.is_p2pkh(address) and coin.pubtoaddr(pubkey) == address         # P2PKH
+        elif is_pubkey(address):
+            txid = inp['txid']                                           # P2PK
+            outno = inp['vout']
+            outpoint = f'{txid}:{outno}'
+            if outpoint in received:
+                return True
+            prev = await coin.get_verbose_tx(txid)
+            out = prev['vout'][outno]
+            script_pub_key = out['scriptPubKey']
+            if script_pub_key['type'] == 'pubkey' and script_pubkey_is_pubkey(script_pub_key, address):
+                received[outpoint] = out['value']
+                return True
+        return False
+
+
 async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = False) -> None:
     coin = get_coin(coin_symbol, testnet=testnet)
     try:
-        if address := is_address(coin, obj_id):
-            history, unspent, balances = await asyncio.gather(coin.history(address), coin.unspent(address), coin.get_balance(address))
+        if tx_id := is_tx(coin, obj_id):
+            tx = await coin.get_verbose_tx(tx_id)
+            pprint(tx)
+        elif address := is_address(coin, obj_id):
+            history, unspent, balances = await asyncio.gather(coin.history(address),
+                                                              coin.unspent(address),
+                                                              coin.get_balance(address))
             print('HISTORY:')
-            for h in history:
-                print(' '.join([f"{k}: {v}" for k, v in h.items()]))
+            if len(history) > 20:
+                print('Last 20 transactions only')
+            verbose_history = await asyncio.gather(*[coin.get_verbose_tx(h['tx_hash']) for h in history[0: 20]])
+            received = {}
+            for h in verbose_history:
+                timestamp = datetime.datetime.fromtimestamp(h['time'])
+                spent_value = 0
+                for inp in h['vin']:
+                    if await input_belongs_to_address(coin, inp, address, received):
+                        in_txid = inp["txid"]
+                        outno = inp["vout"]
+                        try:
+                            outpoint = f'{in_txid}:{inp["vout"]}'
+                            value = received[outpoint]
+                            spent_value += value
+                        except KeyError:
+                            tx = await coin.get_verbose_tx(in_txid)
+                            for out in tx['vout']:
+                                if output_belongs_to_address(out, address):
+                                    value = out['value']
+                                    current_outno = out["n"]
+                                    outpoint = f'{in_txid}:{current_outno}'
+                                    received[outpoint] = value
+                                    if outno == current_outno:
+                                        spent_value += value
+                out_value = 0
+                for out in h['vout']:
+                    if output_belongs_to_address(out, address):
+                        value = out['value']
+                        outpoint = f'{h["txid"]}:{out["n"]}'
+                        received[outpoint] = value
+                        out_value += value
+                total = int((out_value - spent_value) * SATOSHI_PER_BTC)
+                if total > 0:
+                    desc = f"Received {total}"
+                else:
+                    desc = f"Spent { 0 - total }"
+                print(timestamp, h['txid'], desc)
             print(f'\nUNSPENTS')
             for u in unspent:
                 u['confirmations'] = await coin.confirmations(u['height'])
@@ -55,9 +144,6 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
             plural_history = '' if len_history == 1 else 's'
             plural_unspent = '' if len_unspent == 1 else 's'
             print(f'\nThis address was found in {len_history} transaction{plural_history} and has {len_unspent} unspent{plural_unspent}.')
-        elif tx_id := is_tx(coin, obj_id):
-            tx = await coin.get_verbose_tx(tx_id)
-            pprint(tx)
         elif block_height := is_block_height(coin, obj_id):
             header = await coin.block_header(block_height)
             header = json_changebase(header, lambda x: safe_hexlify(x))

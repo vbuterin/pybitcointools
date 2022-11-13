@@ -11,12 +11,6 @@
         "t": "143",
         "version": "1.4"
     },
-    "electrum.blockstream.info": {
-        "pruning": "-",
-        "s": "60002",
-        "t": "60001",
-        "version": "1.4"
-    },
     "explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion": {
         "pruning": "-",
         "t": "143",

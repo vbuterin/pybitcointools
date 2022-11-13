@@ -744,12 +744,20 @@ class BaseCoin:
         address = self.p2sh_cash_addr(script)
         return script, address
 
+    def apply_multisignatures(self, txobj: Tx, i: int, script, *args):
+        inp = txobj['ins'][i]
+        segwit = False
+        try:
+            if address := inp['address']:
+                segwit = self.is_native_segwit(address)
+        except (IndexError, KeyError):
+            pass
+        return apply_multisignatures(txobj, i, script, *args, segwit=segwit)
+
     def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
         """
         Sign a transaction input with index using a private key
         """
-
-        i = int(i)
         if not isinstance(txobj, dict):
             txobj = deserialize(txobj)
         if len(priv) <= 33:
