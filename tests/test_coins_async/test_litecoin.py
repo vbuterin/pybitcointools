@@ -19,6 +19,10 @@ class TestLitecoin(BaseAsyncCoinTestCase):
                                           "ltc1qfuvnn87p787z7nqv9seu4e8fqel83yacxy97fq",
                                           "ltc1qst3pkm860tjt9y70ugnaluqyqnfa7h54hv99ee"]
     multisig_addresses: List[str] = ["MBRFLau9wfPGBGFGBvyMwtYAmfymspELC4", "M973zuUMZSMqKAnczYoVC8wqEFKfHMjANu"]
+    native_segwit_multisig_addresses: List[str] = [
+        "ltc1q7e42a8gmgp5d7kw8myrruj5qnxp8edp7v5y0y95hrjz6t530uehqz7h5lq",
+        "ltc1qu7fz4uku8kh6tg7qghj7rnf88g858lal258gzfu85kx7vc5h0qpss2mknt"
+    ]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                            "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
@@ -194,6 +198,11 @@ class TestLitecoin(BaseAsyncCoinTestCase):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertMultiSigTransactionOK("7873cb465392cb3de209d295bbcf86bd259b861aea21f660d7733405ef9cd5df")
+
+    async def test_transaction_native_segwit_multisig(self):
+        with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
+                        side_effect=self.mock_electrumx_send_request):
+            await self.assertNativeSegwitMultiSigTransactionOK("37d3c7f0ff6846a34bbd69a472cadb83ee631b5ea1bc7695cfe52a3442ed7397")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',

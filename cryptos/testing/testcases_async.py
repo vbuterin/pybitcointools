@@ -69,7 +69,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             scripthash = args[0]
             available_addresses = [addresses[0] for addresses in (
                 self.addresses, self.segwit_addresses, self.native_segwit_addresses,
-                self.multisig_addresses, self.cash_addresses,
+                self.multisig_addresses, self.cash_addresses, self.native_segwit_multisig_addresses,
                 [privtopub(p) for p in self.privkeys]
             ) if addresses]
             if any(scripthash == self._coin.addrtoscripthash(address) for address in
@@ -950,7 +950,6 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             prev_script = script
 
         # Push the transaction to the network
-        #deserialize(tx)
         result = await self._coin.pushtx(tx)
         if expected_tx_id:
             self.assertEqual(result, expected_tx_id)    # mainnet

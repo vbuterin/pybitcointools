@@ -38,7 +38,7 @@ async def send(coin: str, testnet: bool, addr: str, to: str, amount: int,
     try:
         assert expected_addr == addr
     except AssertionError:
-        raise AssertionError(f'Private key is for address {expected_addr}, not addr')
+        raise AssertionError(f'Private key is for address {expected_addr}, not {addr}')
     tx = coin.signall(tx, privkey)
     print(serialize(tx))
     print(tx)

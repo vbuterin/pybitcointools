@@ -553,9 +553,12 @@ class BaseCoin:
             return script.startswith(opcodes.OP_HASH160.hex() + '14') and script.endswith(opcodes.OP_EQUAL.hex())
         return False
 
+    def is_p2wsh(self, addr: str) -> bool:
+        return self.is_native_segwit(addr) and len(addr) == 62
+
     def is_segwit_or_p2sh(self, addr: str) -> bool:
         """
-        Check if addr is a p2wpkh or p2sh script
+        Check if addr is a p2wpkh, p2wsh or p2sh script
         """
         return self.is_native_segwit(addr) or self.maybe_legacy_segwit(addr)
 

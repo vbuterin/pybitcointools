@@ -38,29 +38,34 @@ def is_address(coin: BaseCoin, obj_id: str) -> Optional[str]:
 
 
 def script_pubkey_is_pubkey(scriptPubKey: Dict[str, Any], pubkey: str) -> bool:
-    return scriptPubKey['type'] == "pubkey" and deserialize_script(scriptPubKey['hex'])[-1] == pubkey
+    return scriptPubKey['type'] == "pubkey" and deserialize_script(scriptPubKey['hex'])[0] == pubkey
 
 
 def output_belongs_to_address(out: Dict[str, Any], address: str) -> bool:
     scriptPubKey = out['scriptPubKey']
-    return scriptPubKey.get('address') == address or script_pubkey_is_pubkey(scriptPubKey, address)
+    return scriptPubKey.get('address') == address or script_pubkey_is_pubkey(scriptPubKey, address) or address in scriptPubKey.get('addresses', [])
 
 
-def script_sig_pubkey_or_script(scriptSig: str) -> str:
-    return deserialize_script(scriptSig)[-1]
+def script_sig_pubkey_or_script(scriptSig: str) -> Optional[str]:
+    try:
+        return deserialize_script(scriptSig)[1]
+    except IndexError:
+        return None
 
 
 async def input_belongs_to_address(coin: BaseCoin, inp: Dict[str, Any], address: str, received: Dict[str, int]) -> bool:
     if witness := inp.get('txinwitness'):
-        if coin.is_segwit_or_p2sh(address):
-            pubkey_or_script = witness[1]
-            return any(addr == address for addr in (                                    # P2W
-                coin.pub_to_segwit_address(pubkey_or_script),
-                coin.pubtop2wpkh_p2sh(pubkey_or_script),
-                coin.p2sh_segwit_addr(pubkey_or_script)
-            ))
+        pubkey_or_script = witness[-1]
+        if coin.is_p2wsh(address):
+            return coin.p2sh_segwit_addr(pubkey_or_script) == address
+        elif coin.is_segwit_or_p2sh(address):
+            if is_pubkey(pubkey_or_script):
+                return any(addr == address for addr in (                                    # P2W
+                    coin.pub_to_segwit_address(pubkey_or_script),
+                    coin.pubtop2wpkh_p2sh(pubkey_or_script),
+                ))
         return False
-    elif scriptSig := inp['scriptSig']['hex']:
+    elif scriptSig := inp.get('scriptSig', {}).get('hex'):
         if scriptSig.startswith('00'):
             if coin.is_p2sh(address):
                 script = script_sig_pubkey_or_script(scriptSig)
@@ -77,7 +82,7 @@ async def input_belongs_to_address(coin: BaseCoin, inp: Dict[str, Any], address:
             prev = await coin.get_verbose_tx(txid)
             out = prev['vout'][outno]
             script_pub_key = out['scriptPubKey']
-            if script_pub_key['type'] == 'pubkey' and script_pubkey_is_pubkey(script_pub_key, address):
+            if script_pubkey_is_pubkey(script_pub_key, address):
                 received[outpoint] = out['value']
                 return True
         return False
@@ -96,13 +101,18 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
             print('HISTORY:')
             if len(history) > 20:
                 print('Last 20 transactions only')
-            verbose_history = await asyncio.gather(*[coin.get_verbose_tx(h['tx_hash']) for h in history[0: 20]])
+            verbose_history = await asyncio.gather(*[coin.get_verbose_tx(h['tx_hash']) for h in history[-21:-1]])
             received = {}
+            coinbase = False
             for h in verbose_history:
-                timestamp = datetime.datetime.fromtimestamp(h['time'])
+                if _time := h.get('time'):
+                    timestamp = datetime.datetime.fromtimestamp(_time)
+                else:
+                    timestamp = ''
                 spent_value = 0
                 for inp in h['vin']:
-                    if await input_belongs_to_address(coin, inp, address, received):
+                    coinbase = inp.get('coinbase')
+                    if not coinbase and await input_belongs_to_address(coin, inp, address, received):
                         in_txid = inp["txid"]
                         outno = inp["vout"]
                         try:
@@ -128,10 +138,10 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
                         out_value += value
                 total = int((out_value - spent_value) * SATOSHI_PER_BTC)
                 if total > 0:
-                    desc = f"Received {total}"
+                    desc = f"Received {total}{' COINBASE' if coinbase else ''}"
                 else:
                     desc = f"Spent { 0 - total }"
-                print(timestamp, h['txid'], desc)
+                print(f'{timestamp}{" " if timestamp else ""}{h["txid"]} {desc}')
             print(f'\nUNSPENTS')
             for u in unspent:
                 u['confirmations'] = await coin.confirmations(u['height'])

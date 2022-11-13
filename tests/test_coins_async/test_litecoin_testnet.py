@@ -21,6 +21,10 @@ class TestLitecoinTestnet(BaseAsyncCoinTestCase):
         "tltc1qst3pkm860tjt9y70ugnaluqyqnfa7h54q7xv2n"]
     multisig_addresses: List[str] = ["QQ85DTHTd76GijMxPHduptiToi3KbZFpcw",
                                      "QMossmrfEt4qrduKBuU35988GHPCtUY4ZQ"]
+    native_segwit_multisig_addresses: List[str] = [
+        "tltc1q7e42a8gmgp5d7kw8myrruj5qnxp8edp7v5y0y95hrjz6t530uehqf3n2q4",
+        "tltc1qu7fz4uku8kh6tg7qghj7rnf88g858lal258gzfu85kx7vc5h0qpsm9lgv7"
+    ]
     # Private keys for above addresses in same order
     privkeys = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
                 "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
@@ -141,6 +145,13 @@ class TestLitecoinTestnet(BaseAsyncCoinTestCase):
         TxID: 6d68cdc662fc92164b371aba385aec9afc99058a6ce6dfaa5c5766705e099f85
         """
         await self.assertMultiSigTransactionOK()
+
+    async def test_transaction_native_segwit_multisig(self):
+        """
+        Sample transaction:
+        TxID: 4076340f359668b325808ec98888863402c0fb829f0f1d15e2e8ab816841d749
+        """
+        await self.assertNativeSegwitMultiSigTransactionOK()
 
     async def test_sendmulti_recipient_tx(self):
         """

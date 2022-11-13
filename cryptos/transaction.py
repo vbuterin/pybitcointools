@@ -548,7 +548,7 @@ def multisign(tx, i: int, script, pk, hashcode: int = SIGHASH_ALL, segwit: bool 
     return ecdsa_tx_sign(modtx, pk, hashcode)
 
 
-def apply_multisignatures(txobj: Tx, i: int, script, *args, segwit: bool = False):
+def apply_multisignatures(txobj: Union[Tx, str], i: int, script, *args, segwit: bool = False):
     # tx,i,script,sigs OR tx,i,script,sig1,sig2...,sig[n]
     sigs = args[0] if isinstance(args[0], list) else list(args)
 
@@ -560,14 +560,8 @@ def apply_multisignatures(txobj: Tx, i: int, script, *args, segwit: bool = False
     if isinstance(txobj, str) and re.match('^[0-9a-fA-F]*$', txobj):
         return safe_hexlify(serialize(apply_multisignatures(binascii.unhexlify(txobj), i, script, sigs)))
 
-    # Not pushing empty elements on the top of the stack if passing no
-    # script (in case of bare multisig inputs there is no script)
-    script_blob = [] if script.__len__() == 0 else [script]
-
     if not isinstance(txobj, dict):
         txobj = deserialize(txobj)
-
-    script = safe_hexlify(serialize_script([None]+sigs+script_blob))
 
     if segwit:
         if 'witness' not in txobj.keys():
@@ -579,14 +573,17 @@ def apply_multisignatures(txobj: Tx, i: int, script, *args, segwit: bool = False
                 txobj["witness"].append(witness)
         txobj["ins"][i]["script"] = ''
         number = len(sigs) + 2
-        witness: Witness = {"number": number, "scriptCode": script}
+        scriptSig = safe_hexlify(serialize_script([None] + sigs + [len(script)] + deserialize_script(script)))
+        witness: Witness = {"number": number, "scriptCode": scriptSig}
         # Pycharm IDE gives a type error for the following line, no idea why...
         # noinspection PyTypeChecker
         txobj["witness"].append(witness)
     else:
-        # Pycharm IDE gives a type error for the following line, no idea why...
-        # noinspection PyTypeChecker
-        txobj["ins"][i]["script"] = script
+        # Not pushing empty elements on the top of the stack if passing no
+        # script (in case of bare multisig inputs there is no script)
+        script_blob = [] if script.__len__() == 0 else [script]
+        scriptSig = safe_hexlify(serialize_script([None] + sigs + script_blob))
+        txobj["ins"][i]["script"] = scriptSig
         if "witness" in txobj.keys():
             witness: Witness = {"number": 0, "scriptCode": ''}
             # Pycharm IDE gives a type error for the following line, no idea why...

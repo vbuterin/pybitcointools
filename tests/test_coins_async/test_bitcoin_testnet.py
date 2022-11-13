@@ -173,7 +173,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_transaction_native_segwit_multisig(self):
         """
         Sample transaction:
-        TxID:
+        TxID: b710704a7939e3e0c82e643faaa3a602549c416a2004feba13e2ef7a9e95dddb
         """
         await self.assertNativeSegwitMultiSigTransactionOK()
 
