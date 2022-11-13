@@ -8,7 +8,7 @@ from cryptos.constants import SATOSHI_PER_BTC
 from cryptos.main import safe_hexlify, is_pubkey
 from cryptos.transaction import json_changebase, deserialize_script
 from pprint import pprint
-from typing import Callable, Any, Union, Optional, Dict
+from typing import Callable, Any, Union, Optional, Dict, Tuple
 from cryptos.script_utils import get_coin, coin_list
 
 
@@ -41,14 +41,25 @@ def script_pubkey_is_pubkey(scriptPubKey: Dict[str, Any], pubkey: str) -> bool:
     return scriptPubKey['type'] == "pubkey" and deserialize_script(scriptPubKey['hex'])[0] == pubkey
 
 
-def output_belongs_to_address(out: Dict[str, Any], address: str) -> bool:
+def output_belongs_to_address(coin: BaseCoin, out: Dict[str, Any], address: str) -> bool:
+    address_variations = coin.get_address_variations(address)
     scriptPubKey = out['scriptPubKey']
-    return scriptPubKey.get('address') == address or script_pubkey_is_pubkey(scriptPubKey, address) or address in scriptPubKey.get('addresses', [])
+    return any(
+        scriptPubKey.get('address') == address or script_pubkey_is_pubkey(scriptPubKey, address) or address in scriptPubKey.get('addresses', [])
+        for address in address_variations
+    )
 
 
-def script_sig_pubkey_or_script(scriptSig: str) -> Optional[str]:
+def script_sig_pubkey(scriptSig: str) -> Optional[str]:
     try:
         return deserialize_script(scriptSig)[1]
+    except IndexError:
+        return None
+
+
+def script_sig_script(scriptSig: str) -> Optional[str]:
+    try:
+        return deserialize_script(scriptSig)[-1]
     except IndexError:
         return None
 
@@ -67,12 +78,14 @@ async def input_belongs_to_address(coin: BaseCoin, inp: Dict[str, Any], address:
         return False
     elif scriptSig := inp.get('scriptSig', {}).get('hex'):
         if scriptSig.startswith('00'):
+            script = script_sig_script(scriptSig)
             if coin.is_p2sh(address):
-                script = script_sig_pubkey_or_script(scriptSig)
                 return coin.p2sh_scriptaddr(script) == address
+            if coin.is_cash_address(address):
+                return coin.p2sh_cash_addr(script) == address
             return False
-        elif pubkey := script_sig_pubkey_or_script(scriptSig):
-            return coin.is_p2pkh(address) and coin.pubtoaddr(pubkey) == address         # P2PKH
+        elif pubkey := script_sig_pubkey(scriptSig):
+            return coin.pub_is_for_p2pkh_addr(pubkey, address)      # P2PKH
         elif is_pubkey(address):
             txid = inp['txid']                                           # P2PK
             outno = inp['vout']
@@ -122,7 +135,7 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
                         except KeyError:
                             tx = await coin.get_verbose_tx(in_txid)
                             for out in tx['vout']:
-                                if output_belongs_to_address(out, address):
+                                if output_belongs_to_address(coin, out, address):
                                     value = out['value']
                                     current_outno = out["n"]
                                     outpoint = f'{in_txid}:{current_outno}'
@@ -131,7 +144,7 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
                                         spent_value += value
                 out_value = 0
                 for out in h['vout']:
-                    if output_belongs_to_address(out, address):
+                    if output_belongs_to_address(coin, out, address):
                         value = out['value']
                         outpoint = f'{h["txid"]}:{out["n"]}'
                         received[outpoint] = value
@@ -174,6 +187,7 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
                 sys.exit(1)
     finally:
         await coin.close()
+        await asyncio.sleep(1)
 
 
 if __name__ == "__main__":

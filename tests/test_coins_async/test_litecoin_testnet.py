@@ -38,8 +38,8 @@ class TestLitecoinTestnet(BaseAsyncCoinTestCase):
     privkey_native_segwit_wifs: List[str] = ["VQedxUuLs6RE31PzDvEio6ZutzVkgD2rcotypsixvSgmo5QjrRhM",
                                              "VQcMqf2KsVJ2LcJ4MmaS6yFNWxhL92shfqMJqqZQM5b8qDNnGqBj",
                                              "VWtGLi8uMrhThnTkJaXFLzH3LkgFDQfc6nXetrxwzbnYCxAXw4MK"]
-    fee: int = 500
-    max_fee: int = 3500
+    fee: int = 2000
+    max_fee: int = 4000
     testnet: bool = True
 
     min_latest_height: int = 2391524

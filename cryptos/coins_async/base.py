@@ -484,6 +484,19 @@ class BaseCoin:
         """
         return pubtoaddr(pubkey, magicbyte=self.magicbyte)
 
+    def get_address_variations(self, address: str) -> List[str]:
+        if self.cash_address_supported:
+            if self.is_cash_address(address):
+                return [address, self.cash_address_to_legacy_addr(address)]
+            else:
+                return [self.legacy_addr_to_cash_address(address), address]
+        else:
+            return [address]
+
+    def pub_is_for_p2pkh_addr(self, pubkey: PubKeyType, address: str) -> bool:
+        return self.pubtoaddr(pubkey) == address or (
+                self.cash_address_supported and self.pub_to_cash_address(pubkey) == address)
+
     def wiftoaddr(self, privkey: PrivkeyType) -> str:
         magicbyte, priv = b58check_to_bin(privkey)
         wif_magicbyte = magicbyte - self.wif_prefix
@@ -519,11 +532,17 @@ class BaseCoin:
         return encode_privkey(privkey, formt=formt, vbyte=self.wif_prefix + self.wif_script_types[script_type])
 
     def is_p2pkh(self, addr: str) -> bool:
+        """
+        Legacy addresses only doesn't include Cash P2PKH Address
+        """
         try:
             magicbyte, bin = b58check_to_bin(addr)
             return magicbyte == self.magicbyte
         except Exception:
             return False
+
+    def is_cash_or_legacy_p2pkh_address(self, addr: str)-> bool:
+        return self.is_p2pkh(addr) or self.is_cash_address(addr)
 
     def is_p2sh(self, addr: str) -> bool:
         """
@@ -606,7 +625,7 @@ class BaseCoin:
 
     def p2sh_cash_addr(self, script: str) -> str:
         """
-          Convert an output p2sh script to a Bitcoin Cash address
+        Convert an output p2sh script to a Bitcoin Cash address
         """
         if is_hex(script):
             script = binascii.unhexlify(script)
@@ -621,8 +640,11 @@ class BaseCoin:
             if witprog is not None:
                 return mk_p2w_scripthash_script(witver, witprog)
         elif self.is_cash_address(addr):
-            prefix, kind, pubkey_hash = cashaddr.decode(addr)
-            return mk_pubkey_script(safe_hexlify(pubkey_hash))
+            prefix, kind, hash_bin = cashaddr.decode(addr)
+            hash_hex = safe_hexlify(hash_bin)
+            if kind == 0:
+                return mk_pubkey_script(hash_hex)
+            return hash_to_scripthash_script(hash_hex)
         if self.is_p2sh(addr):
             return mk_scripthash_script(addr)
         elif self.is_p2pkh(addr):

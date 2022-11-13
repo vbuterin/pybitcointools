@@ -324,12 +324,17 @@ class ElectrumXClient:
 
     async def connect_to_any_server(self) -> None:
         self._set_new_server()
+        connect_task = asyncio.create_task(self._connect())
+
         try:
-            connect_task = asyncio.create_task(self._connect())
             await asyncio.wait_for(self.wait_new_start(), timeout=5)
+        except asyncio.TimeoutError:
+            if not connect_task.done():
+                connect_task.cancel()
+        try:
             await connect_task
-        except (asyncio.TimeoutError, aiorpcx.jsonrpc.RPCError, OSError, GracefulDisconnect, ConnectError,
-                ProtocolNotSupportedError, ssl.SSLError) as e:
+        except (asyncio.TimeoutError, asyncio.CancelledError, aiorpcx.jsonrpc.RPCError, OSError,
+                GracefulDisconnect, ConnectError, ProtocolNotSupportedError, ssl.SSLError) as e:
             await self._on_connection_failure()
 
     async def wait_new_start(self):
@@ -374,10 +379,10 @@ class ElectrumXClient:
         if self._connection_task:
             try:
                 await asyncio.wait_for(self._connection_task, timeout=self.connection_timeout)
-            except TimeoutError:
-                self._connection_task.cancel()
-            except asyncio.CancelledError:
-                pass
+            except (TimeoutError, OSError, ConnectError) as e:
+                if not self._connection_task.done():
+                    self._connection_task.cancel()
+            await self._connection_task
 
     async def _send_request(self, method: str, *args, timeout: int = 30, **kwargs) -> Any:
         return await self.session.send_request(method, args, timeout=timeout, **kwargs)

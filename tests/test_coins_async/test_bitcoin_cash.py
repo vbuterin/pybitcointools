@@ -27,7 +27,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     privkey_standard_wifs: List[str] = ['5HtVdWeLBUpSyqqSnnJoQnCiuc33Kg86i8V1gc1tKK13tw1Cqrg',
                                         "KwW1FKxkfefDyVStxvKH9qCCb9qaiFXBFZUy2mPLvTMap2f5YaXR",
                                         "5KJRe1vYXbE4hhvNjJjPX6iS1tqpksNKHChrQjzyYVDgh9Z8H5o"]
-    fee: int = 54400
+    fee: int = 300
     max_fee: int = fee
     testnet: bool = False
     unspent_addresses: List[str] = ["1KomPE4JdF7P4tBzb12cyqbBfrVp4WYxNS"]
@@ -140,9 +140,17 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
             await self.assertCashAddressTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
 
     async def test_transaction_multisig(self):
+        # 010000000176f465265b8d0fcb8cfd6598d1640f5f10297aaed5ab498fb322ade6c8d2eae301000000fd3d01004830450221009a556d396ad8ceec4cbb1cacda67933818deac5210a96a445ac13e97fe8c476102202682d3d25c62e23865b00e1c3ea36c53a2691c64dd43b04de76a35ecd64e5364414730440220045fd2daec62375ffe538c8758ab1461b4d7cc430ec24c57883a6048006daa1a022025d1dec4c9a36000539c283fb1be428b317b66e71ca29fa964efa4d287032f1b414ca9524104de476e251a827e58199ed4d6d7c2177f0a97a2dda150d7a9e59fc5682519eb94d37bc387edff66e7b0f16e92dd045fe968d63e1f203613b76ad733e5cdf8e818210391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0410415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb53aeffffffff02914e6c070000000017a9140d37ea041956e3173831caaefc798c49ce3a6a4787514d6c070000000017a91426991e5b586517a6724614823d10aff500ada4be8700000000
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("9dd45bc16e46a6b07586048b3c4afc68bd40c900a9625e6f5f135055e7cbedbd")
+            await self.assertMultiSigTransactionOK("cb74538ff41b619e9a0c32639013c5f821e46bab5ec4862c0cf8bbed5881f5d6")
+
+    async def test_transaction_multisig_cash(self):
+        # 010000000176f465265b8d0fcb8cfd6598d1640f5f10297aaed5ab498fb322ade6c8d2eae301000000fd3d0100473044022055dc9295816ce57fc78cd5e5b2e49d7811073e31532508a887e5acc562752e3a0220304788647824903c9fe0d10df3e0379391c85f572e15e966eac6744f3623473f41483045022100fa2a6222842a8102ab944cf9e0e282e907c3699921487f7da350a8879b45064c02202ab2a4eca7adb31c40b4210b8ff42171fad87370a8f84adbae5ceb694607f62e414ca9524104de476e251a827e58199ed4d6d7c2177f0a97a2dda150d7a9e59fc5682519eb94d37bc387edff66e7b0f16e92dd045fe968d63e1f203613b76ad733e5cdf8e818210391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0410415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb53aeffffffff02914e6c070000000017a9140d37ea041956e3173831caaefc798c49ce3a6a4787117a6b070000000017a91426991e5b586517a6724614823d10aff500ada4be8700000000
+        with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
+                        side_effect=self.mock_electrumx_send_request):
+            await self.assertCashAddressMultiSigTransactionOK("cb74538ff41b619e9a0c32639013c5f821e46bab5ec4862c0cf8bbed5881f5d6")
+
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',

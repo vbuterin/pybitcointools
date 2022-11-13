@@ -18,6 +18,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
     segwit_addresses: List[str] = []
     native_segwit_addresses: List[str] = []
     multisig_addresses: List[str] = []
+    cash_multisig_addresses: List[str] = []
     native_segwit_multisig_addresses: List[str] = []
     cash_addresses: List[str] = []
 
@@ -808,7 +809,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertGreater(max_value, 0)
         # Arbitrarily set send value, receiver and change address
-        send_value = int(max_value * 0.1)
+        send_value = int(max_value * 0.5)
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
@@ -884,7 +885,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
+        tx = await self._coin.preparetx(sender, receiver, send_value)
 
         for i in range(0, len(tx['ins'])):
             if sender == address1:
@@ -939,6 +940,78 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 self.assertNotEqual(script, prev_script)
             self.assertIsInstance(script, str)
             # self.assertEqual(script, '')
+            prev_script = script
+
+        for o in tx['outs']:
+            script = o['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertNotEqual(script, '')
+            prev_script = script
+
+        # Push the transaction to the network
+        result = await self._coin.pushtx(tx)
+        if expected_tx_id:
+            self.assertEqual(result, expected_tx_id)    # mainnet
+        else:
+            self.assertTXResultOK(tx, result)           # testnet
+
+    async def assertCashAddressMultiSigTransactionOK(self, expected_tx_id: str = None):
+        pubs = [privtopub(priv) for priv in self.privkeys]
+        script1, address1 = self._coin.mk_multsig_cash_address(*pubs, num_required=2)
+        self.assertEqual(address1, self.cash_multisig_addresses[0])
+        pubs2 = pubs[0:2]
+        script2, address2 = self._coin.mk_multsig_cash_address(*pubs2)
+        self.assertEqual(address2, self.cash_multisig_addresses[1])
+
+        # Find which of the three addresses currently has the most coins and choose that as the sender
+        max_value = 0
+        sender = None
+
+        for i, addr in enumerate(self.cash_multisig_addresses):
+            addr_unspents = await self._coin.unspent(addr)
+            value = sum(o['value'] for o in addr_unspents)
+            if value > max_value:
+                max_value = value
+                sender = addr
+
+        self.assertGreater(max_value, 0)
+        # Arbitrarily set send value, receiver and change address
+        send_value = int(max_value * 0.5)
+
+        receiver, script = (address2, script1) if sender == address1 else (address1, script2)
+
+        tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
+
+        for i in range(0, len(tx['ins'])):
+            if sender == address1:
+                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
+                sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
+                tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig3)
+            else:
+                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
+                sig2 = self._coin.multisign(tx, i, script, self.privkeys[1])
+                tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig2)
+
+        self.assertEqual(tx['locktime'], 0)
+        self.assertEqual(tx['version'], 1)
+        fee = calculate_fee(tx)
+        self.assertEqual(fee, self.fee)
+        self.assertGreaterEqual(len(tx['ins']), 1)
+        self.assertEqual(len(tx['outs']), 2)
+        self.assertNotIn('witness', tx)
+        self.assertNotIn('marker', tx)
+        self.assertNotIn('flag', tx)
+
+        prev_script = None
+
+        for inp in tx['ins']:
+            script = inp['script']
+            if prev_script:
+                self.assertNotEqual(script, prev_script)
+            self.assertIsInstance(script, str)
+            self.assertIsNot(script, '')
             prev_script = script
 
         for o in tx['outs']:

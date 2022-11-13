@@ -143,6 +143,13 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertMultiSigTransactionOK()
 
+    async def test_transaction_multisig_cash_address(self):
+        """
+        Sample transaction:
+        TxID: eb8a0ad9434786bfe69c992f286cbe391c4845058ae130f8a35e205e3280c6d4
+        """
+        await self.assertCashAddressMultiSigTransactionOK()
+
     async def test_sendmulti_recipient_tx(self):
         """
         Sample transaction:
