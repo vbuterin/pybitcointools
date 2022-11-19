@@ -235,7 +235,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         segwit_privkey = self.privkeys[segwit_from_addr_i]
         regular_privkey = self.privkeys[regular_from_addr_i]
@@ -345,7 +346,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -439,7 +441,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Create the transaction using all available unspents as inputs
         unspents = select(unspents, outs[0]['value'] + self.max_fee)
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -527,7 +530,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Create the transaction using all available unspents as inputs
         unspents = select(unspents, outs[0]['value'] + self.max_fee)
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -616,7 +620,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         privkey = self.privkeys[from_addr_i]
 
@@ -698,7 +704,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         outs = [{'value': send_value, 'address': receiver}]
 
         # Create the transaction using all available unspents as inputs
-        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address)
+        fee = self.fee if expected_tx_id else None
+        tx = await self._coin.mktx_with_change(unspents, outs, change_addr=change_address, fee=fee)
 
         privkey = self.privkeys[from_addr_i]
 
