@@ -596,8 +596,8 @@ class BaseCoin:
         if is_hex(script):
             script = binascii.unhexlify(script)
         # 0x14 is expected pubkey hash length
-        pubkey_hash_prefix = opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14'
-        pubkey_hash_suffix = opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex()
+        pubkey_hash_prefix = binascii.unhexlify(opcodes.OP_DUP.hex() + opcodes.OP_HASH160.hex() + '14')
+        pubkey_hash_suffix = binascii.unhexlify(opcodes.OP_EQUALVERIFY.hex() + opcodes.OP_CHECKSIG.hex())
         if script[:3] == pubkey_hash_prefix and script[-2:] == pubkey_hash_suffix and len(script) == 25:
             return bin_to_b58check(script[3:-2], self.magicbyte)  # pubkey hash address
         else:
@@ -937,7 +937,10 @@ class BaseCoin:
         if isum < osum + fee:
             raise Exception(f"Not enough money. You have {isum} but need {osum+fee} ({osum} + fee of {fee}).")
 
-        change_out['value'] = isum - osum - fee
+        if change_out['value'] > fee:
+            change_out['value'] = isum - osum - fee
+        else:
+            outs.remove(change_out)
 
         return txobj
 
@@ -1048,6 +1051,18 @@ class BaseCoin:
             'outs': outs,
             'ins': ins
         }
+
+    async def wait_unspents_changed(self, addr: str, start_unspents: ElectrumXUnspentResponse):
+        unspents = start_unspents
+        print("Start unspents:")
+        print(start_unspents)
+        while unspents == start_unspents:
+            print('Checking:')
+            unspents = await self.unspent(addr)
+            print(unspents)
+            if start_unspents == unspents:
+                await asyncio.sleep(1)
+
 
     def wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         if not bip39_is_checksum_valid(seed) == (True, True):

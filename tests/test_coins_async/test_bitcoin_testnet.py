@@ -39,7 +39,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     privkey_native_segwit_wifs: List[str] = ["cWUuQECXGUPpor2rmZBb1T7Hqr94kJ3kS1oEggMWVQrwJy3wWMF4",
                                              "cWSdHQKWGsGd7SvvuQXJKKnkTpLeD7tbV3FZheBwv3mJM6yc95xc",
                                              "cciXnTS5mEg4Ud6crDU7ZLpRHcKZHVgVuzRukfbVZZxhiqfSyfBH"]
-    fee: int = 500
+    fee: int = 1500
     max_fee: int = 3500
     testnet: bool = True
     min_latest_height: int = 1258030
@@ -166,7 +166,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_transaction_multisig(self):
         """
         Sample transaction:
-        TxID: df0f97e9a4c5c8ac18181a0b184e884b1770c0b8256cb396794973131b66f933
+        TxID: a555123e8e49e32e8d462705f278c5cd5a3d08ea5e7e738ecc286dae1a1eac38
         """
         await self.assertMultiSigTransactionOK()
 

@@ -536,7 +536,7 @@ def verify_tx_input(tx, i, script, sig, pub):
         tx = binascii.unhexlify(tx)
     if is_hex(script):
         script = binascii.unhexlify(script)
-    if is_hex(script):
+    if isinstance(script, string_types) and is_hex(script):
         sig = safe_hexlify(sig)
     hashcode = decode(sig[-2:], 16)
     modtx = signature_form(tx, int(i), script, hashcode)

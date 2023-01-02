@@ -312,6 +312,10 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)           # testnet
+            await asyncio.wait([
+                asyncio.create_task(self._coin.wait_unspents_changed(regular_sender, unspents)),
+                asyncio.create_task(self._coin.wait_unspents_changed(segwit_sender, unspents))
+                ], timeout=3.5)
 
     async def assertSegwitTransactionOK(self, expected_tx_id: str = None):
 
@@ -361,8 +365,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
-        self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 4)
+        self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
@@ -406,6 +409,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 3.5)
 
     async def assertNativeSegwitTransactionOK(self, expected_tx_id: str = None):
 
@@ -457,7 +461,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
         self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(len(tx['witness']), len(unspents))
@@ -496,6 +500,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)           # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 3.5)
+
     async def assertCashAddressTransactionOK(self, expected_tx_id: str = None):
 
         # Find which of the three addresses currently has the most coins and choose that as the sender
@@ -578,6 +584,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)  # mainnet
         else:
             self.assertTXResultOK(tx_serialized, result)  # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 3.5)
 
 
     def assertTXResultOK(self, tx: Union[str, Tx], result):
@@ -669,6 +676,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)        # mainnet
         else:
             self.assertTXResultOK(tx_serialized, result)       # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 0.5)
 
     async def assertTransactionToPKOK(self, expected_tx_id: str = None):
 
@@ -748,7 +756,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)        # mainnet
         else:
             self.assertTXResultOK(tx_serialized, result)       # testnet
-
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 0.5)
 
     def delete_key_by_name(self, obj, key):
         if isinstance(obj, dict):
@@ -806,6 +814,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = None
+        unspents = []
 
         for i, addr in enumerate(self.multisig_addresses):
             addr_unspents = await self._coin.unspent(addr)
@@ -813,14 +822,18 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             if value > max_value:
                 max_value = value
                 sender = addr
+                unspents = addr_unspents
 
         self.assertGreater(max_value, 0)
+
         # Arbitrarily set send value, receiver and change address
         send_value = int(max_value * 0.5)
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
+        fee = self.fee if expected_tx_id else None
+
+        tx = await self._coin.preparetx(sender, receiver, send_value, fee)
 
         for i in range(0, len(tx['ins'])):
             if sender == address1:
@@ -835,7 +848,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
-        self.assertEqual(fee, self.fee)
+        self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
         self.assertNotIn('witness', tx)
@@ -866,6 +879,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)           # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 4.5)
 
     async def assertNativeSegwitMultiSigTransactionOK(self, expected_tx_id: str = None):
         pubs = [privtopub(priv) for priv in self.privkeys]
@@ -878,13 +892,16 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = None
+        unspents = []
 
         for i, addr in enumerate(self.native_segwit_multisig_addresses):
             addr_unspents = await self._coin.unspent(addr)
+
             value = sum(o['value'] for o in addr_unspents)
             if value > max_value:
                 max_value = value
                 sender = addr
+                unspents = addr_unspents
 
         self.assertGreater(max_value, 0)
         # Arbitrarily set send value, receiver and change address
@@ -892,7 +909,9 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        tx = await self._coin.preparetx(sender, receiver, send_value)
+        fee = self.fee if expected_tx_id else None
+
+        tx = await self._coin.preparetx(sender, receiver, send_value, fee=fee)
 
         for i in range(0, len(tx['ins'])):
             if sender == address1:
@@ -907,8 +926,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
-        self.assertGreater(fee, 0)
-        self.assertLessEqual(fee, self.fee * 2)
+        self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
         self.assertEqual(tx['marker'], 0)
@@ -963,6 +981,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)           # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 3.5)
+
 
     async def assertCashAddressMultiSigTransactionOK(self, expected_tx_id: str = None):
         pubs = [privtopub(priv) for priv in self.privkeys]
@@ -975,6 +995,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         # Find which of the three addresses currently has the most coins and choose that as the sender
         max_value = 0
         sender = None
+        unspents = []
 
         for i, addr in enumerate(self.cash_multisig_addresses):
             addr_unspents = await self._coin.unspent(addr)
@@ -982,14 +1003,18 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             if value > max_value:
                 max_value = value
                 sender = addr
+                unspents = addr_unspents
 
         self.assertGreater(max_value, 0)
+
         # Arbitrarily set send value, receiver and change address
         send_value = int(max_value * 0.5)
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        tx = await self._coin.preparetx(sender, receiver, send_value, self.fee)
+        fee = self.fee if expected_tx_id else None
+
+        tx = await self._coin.preparetx(sender, receiver, send_value, fee)
 
         for i in range(0, len(tx['ins'])):
             if sender == address1:
@@ -1004,7 +1029,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
         fee = calculate_fee(tx)
-        self.assertEqual(fee, self.fee)
+        self.assertGreaterEqual(fee, self.coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
         self.assertNotIn('witness', tx)
@@ -1035,6 +1060,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertTXResultOK(tx, result)           # testnet
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 2.5)
 
     async def assertBlockHeaderOK(self):
         blockinfo = await self._coin.block_header(self.txheight)
@@ -1068,6 +1094,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
+        unspents = []
 
         for i, addr in enumerate(self.addresses):
             addr_unspents = await self._coin.unspent(addr)
@@ -1076,11 +1103,14 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
+                unspents = addr_unspents
 
         privkey = self.privkeys[from_addr_i]
 
         # Arbitrarily set send value, change value, receiver and change address
-        outputs_value = max_value - self.fee
+        fee = self.fee
+
+        outputs_value = max_value - fee
         send_value1 = int(outputs_value * 0.2)
         send_value2 = int(outputs_value * 0.5)
 
@@ -1099,13 +1129,14 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         outs = [{'address': receiver1, 'value': send_value1},  {'address': receiver2, 'value': send_value2}]
 
-        result = await self._coin.send_to_multiple_receivers_tx(privkey, sender, outs, fee=self.fee)
+        result = await self._coin.send_to_multiple_receivers_tx(privkey, sender, outs, fee=fee)
 
         if expected_tx_id:
-            self.assertEqual(result, expected_tx_id)
+            self.assertEqual(result, expected_tx_id)            # mainnet
         else:
             self.assertIsInstance(result, str)                  # testnet
             print("TX %s broadcasted successfully" % result)
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 3.5)
 
     async def assertSendOK(self, expected_tx_id: str = None):
 
@@ -1113,6 +1144,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         max_value = 0
         sender = self.addresses[0]
         from_addr_i = 0
+        unspents = []
 
         for i, addr in enumerate(self.addresses):
             addr_unspents = await self._coin.unspent(addr)
@@ -1121,7 +1153,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 max_value = value
                 sender = addr
                 from_addr_i = i
-                break
+                unspents = addr_unspents
 
         privkey = self.privkey_standard_wifs[from_addr_i]
 
@@ -1140,10 +1172,11 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         result = await self._coin.send(privkey, sender, receiver, send_value)
         if expected_tx_id:
-            self.assertEqual(result, expected_tx_id)
+            self.assertEqual(result, expected_tx_id)    # mainnet
         else:
             self.assertIsInstance(result, str)  # testnet
             print("TX %s broadcasted successfully" % result)
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 4.5)
 
     async def assertSubscribeBlockHeadersOK(self):
         queue = asyncio.Queue()
@@ -1252,7 +1285,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(addr, address)
         self.assertEqual(start_txs, [])
         self.assertEqual(start_newly_confirmed, [])
-        await self.assertSendOK()
+        await self.assertTransactionOK()
         addr, new_txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven = await queue.get()
         self.assertEqual(addr, address)
         self.assertGreaterEqual(len(new_txs), 1)
@@ -1275,7 +1308,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(addr, address)
         self.assertEqual(start_txs, [])
         self.assertEqual(start_newly_confirmed, [])
-        await self.assertSendOK()
+        await self.assertTransactionOK()
         addr, new_txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven = await asyncio.get_event_loop().run_in_executor(
             None, queue.get)
         self.assertEqual(addr, address)

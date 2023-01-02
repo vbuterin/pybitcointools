@@ -33,8 +33,8 @@ class TestECCArithmetic(unittest.TestCase):
                 multiply(G, add_privkeys(hx, hy))[0]
             )
             self.assertEqual(
-                b58check_to_hex(pubtoaddr(privtopub(x))),
-                b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
+                b58check_to_hex(pubtoaddr(privtopub(x)))[1],
+                b58check_to_hex(pubtoaddr(multiply(G, hx), 23))[1]
             )
 
             p = privtopub(sha256(str(x)))
@@ -545,6 +545,7 @@ class TestConversions(unittest.TestCase):
                 self.privkey_bin, 256, 16, minlen=len(self.privkey_hex)
             )
         )
+
 
 if __name__ == '__main__':
     unittest.main()

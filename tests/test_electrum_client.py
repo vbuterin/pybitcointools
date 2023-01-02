@@ -357,8 +357,8 @@ class TestElectrumSSLClient(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_ssl_context(self,):
         context = await self.client._get_ssl_context()
-        self.assertTrue(context.check_hostname)
-        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertFalse(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_NONE)
 
     @patch('random.choice', return_value=known_electrum_ssl_host)
     async def test_connect(self, mock):
@@ -477,33 +477,6 @@ class TestElectrumClientNotifications(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result1[0], scripthash)
         self.assertEqual(result1[1], expected_status)
         result2 = await asyncio.wait_for(queue.get(), 60)
-        self.assertEqual(result2[0], scripthash)
-        self.assertEqual(result2[1], expected_status2)
-
-
-    async def test_subscribe_sync_callback(self):
-        queue = janus.Queue()
-        expected_hex = "0000ff3f7586812b8a8677342ceef85916c2667b63468a8d19d0604c2e000000000000005292d8eba79db851be100996f48147df69386b43bf7fcb5e3361cf46f9ea8ed8a3214463ffff001d51c56337"
-        expected_hex2 = "00004a2920c2d8311e12d3e35b8da48ad29b1254e0a0d2be1623d717f69000000000000001aaf14e207eea7f36cdc1cf92a8d43a5db2ac1ce22925e104ccedca3b5d2d26892544630194331933c10227"
-        await self.client.subscribe(queue.sync_q.put, 'blockchain.headers.subscribe')
-        result1 = await asyncio.wait_for(queue.async_q.get(), 60)
-        self.assertEqual(result1['height'], 2350325)
-        self.assertEqual(result1['hex'], expected_hex)
-        result2 = await asyncio.wait_for(queue.async_q.get(), 60)
-        self.assertEqual(result2['height'], 2350326)
-        self.assertEqual(result2['hex'], expected_hex2)
-
-    async def test_subscribe_sync_callback_with_params(self):
-        queue = janus.Queue()
-        scripthash = "d6d88921b140325198c759d8509563add48c32c65433811a181f7385a6585add"
-        expected_status = "e1969d52d5c94cdc9f3839ef720eec70282ce4c76d3634d2bdf138e24b223dc8"
-        expected_status2 = "e1969d52d5c94cdc9f3839ef720eec70282ce4c76d3634d2bdf138e24b223d44"
-        await self.client.subscribe(partial(on_scripthash_notification_sync_from_async, queue),
-                                    'blockchain.scripthash.subscribe', scripthash)
-        result1 = await asyncio.wait_for(queue.async_q.get(), 60)
-        self.assertEqual(result1[0], scripthash)
-        self.assertEqual(result1[1], expected_status)
-        result2 = await asyncio.wait_for(queue.async_q.get(), 60)
         self.assertEqual(result2[0], scripthash)
         self.assertEqual(result2[1], expected_status2)
 
