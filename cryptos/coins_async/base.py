@@ -1054,15 +1054,10 @@ class BaseCoin:
 
     async def wait_unspents_changed(self, addr: str, start_unspents: ElectrumXUnspentResponse):
         unspents = start_unspents
-        print("Start unspents:")
-        print(start_unspents)
         while unspents == start_unspents:
-            print('Checking:')
             unspents = await self.unspent(addr)
-            print(unspents)
             if start_unspents == unspents:
                 await asyncio.sleep(1)
-
 
     def wallet(self, seed: str, passphrase: str = None, **kwargs) -> HDWallet:
         if not bip39_is_checksum_valid(seed) == (True, True):

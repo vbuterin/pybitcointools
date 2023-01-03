@@ -180,32 +180,35 @@ class TestBitcoin(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("687f014010fbc1d46cf6e9d5588aa7b676b5a9eff12babec576bb75bcb53558d")
+            await self.assertTransactionOK("b69882d143ef353878f0fe6b0579ffddf01309fd7a9ccdf4247fdd1e306c55f4")
 
     async def test_transaction_p2pk(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionToPKOK("9627672d628c0ae307bcae1b0da6adf37eee3c38584d7a5de950e7ce2e9e77df")
+            await self.assertTransactionToPKOK(
+                "e84595d05a8e6b1227b8591494d220f943a5ae6a85f33da6d444a86559cac4f1")
 
     async def test_transaction_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSegwitTransactionOK("90e891de968b966177d736e004d096f8158a2f8a4ed51f1daf29b261399475df")
+            await self.assertSegwitTransactionOK(
+                "efe90a8e6b7154cbac3db9efb5ee92edca8107f3c7f7308eb79c9a81771f2a3a")
 
     async def test_transaction_native_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertNativeSegwitTransactionOK("e5c37f35186f52909f6e825daf02261b8f59794bdfba356f1a992d5bcec060b3")
+            await self.assertNativeSegwitTransactionOK(
+                "ca7212dd4f46a624b681a775710dbff758fd0e31eb8c73ae0aafec2e34c5b405")
 
     async def test_transaction_mixed_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMixedSegwitTransactionOK("5d9e032c74cf47fa1beafc973b2a7765b3c88a77af5ecf328d1f890db70c79ee")
+            await self.assertMixedSegwitTransactionOK("578d8ea64cf1e1608c7064ab913ca911e62e16d341d5ca7fbabd2f92951e889e")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("adb10a2b21a2b764ec4904127d0e47d5f1923eb05e6b0a258ffc2ad17b7dd4be")
+            await self.assertMultiSigTransactionOK("8a112bb83ac5a8a12ea6183acb080785921ab8cd2689163527300dba173958e7")
 
     async def test_transaction_native_segwit_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
@@ -220,7 +223,7 @@ class TestBitcoin(BaseAsyncCoinTestCase):
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendOK("00648605d4e84b9d9f07d6766eb63a45ab47d1cfd84ea282e54f1c009fa320d3")
+            await self.assertSendOK("f02bbffef56329eae1d48dd2471563e82ce10ed644db34a3b2bf19a28ecd80ed")
 
     async def test_subscribe_block_headers(self):
         await self.assertSubscribeBlockHeadersOK()

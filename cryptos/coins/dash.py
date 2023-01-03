@@ -1,6 +1,6 @@
-from cryptos.coins_async.bitcoin import Bitcoin as AsyncDash
+from cryptos.coins_async.dash import Dash as AsyncDash
 from .base import BaseSyncCoin
 
 
-class Bitcoin(BaseSyncCoin):
+class Dash(BaseSyncCoin):
     coin_class = AsyncDash

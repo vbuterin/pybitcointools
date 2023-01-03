@@ -88,12 +88,14 @@ class TestDash(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("a4b9153dadda8390ea2bdeb4142597d1a174d89b4c03be578af0d5ed7339c9a9")
+            await self.assertTransactionOK(
+                "f6e42d4bae97868779ce7377fd34e973c17b38e9029b37e961ae75dd82a9e34f")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("a6e53681937ce733eb6502a1bcc59023593960e2e2fd5a48d87904b3302e11ea")
+            await self.assertMultiSigTransactionOK(
+                "d786997a1d0faa3f17b9d597a631822e0e3f29780fbeb4259545f77c40fd7d25")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
