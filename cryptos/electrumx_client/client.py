@@ -299,8 +299,6 @@ class ElectrumXClient:
             self.session.set_default_timeout(NetworkTimeout.Generic.NORMAL)
 
             self.server_version = await self._send_request("server.version", self.client_name, self.version, timeout=10)
-            print('Connected to', self.host, self.port)
-            print(self.server_version)
             async with self.restart_condition:
                 self.restart_condition.notify_all()
             await self.monitor_connection()
@@ -516,7 +514,6 @@ class ElectrumXClient:
         await self.unsubscribe("blockchain.scripthash.subscribe", scripthash)
 
     async def broadcast_tx(self, raw_tx: str) -> str:
-        print(raw_tx)
         return await self.send_request("blockchain.transaction.broadcast", raw_tx)
 
     async def get_tx(self, tx_hash: str, verbose: bool = False) -> ElectrumXGetTxResponse:

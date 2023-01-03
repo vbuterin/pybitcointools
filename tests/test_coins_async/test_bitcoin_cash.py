@@ -42,7 +42,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     unspents: List[ElectrumXTx] = unspent
     history: List[ElectrumXTx] = [{'height': 508381, 'tx_hash': 'e3ead2c8e6ad22b38f49abd5ae7a29105f0f64d19865fd8ccb0f8d5b2665f476'}]
     histories: List[ElectrumXTx] = [{'address': unspent_addresses[0]} | dict(history[0])]
-    min_latest_height: int = 764434
+    min_latest_height: int = 129055
     txheight: int = 509045
     block_hash: str = "0000000000000000006d011e3ab462725dad9d4e8d1a7398bcc2895defd1fa3f"
     txinputs: List[TxInput] = [{'output': 'b3105972beef05e88cf112fd9718d32c270773462d62e4659dc9b4a2baafc038:0', 'value': 1157763509}]
@@ -52,7 +52,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     def test_cash_addr(self):
         # https://reference.cash/protocol/blockchain/encoding/cashaddr
         public_key_hash = unhexlify("211b74ca4686f81efda5641767fc84ef16dafe0b")
-        addr = cashaddr.encode_full(self._coin.segwit_hrp, 0, public_key_hash)
+        addr = cashaddr.encode_full(self._coin.cash_hrp, 0, public_key_hash)
         self.assertEqual(addr, "bitcoincash:qqs3kax2g6r0s8ha54jpwelusnh3dkh7pvu23rzrru")
 
     def test_address_conversion(self):
@@ -132,12 +132,13 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
+            await self.assertTransactionOK("c8eb5c10f561b1544695268833adb8b30012885b4406252189e1d803b276fa4d")
 
     async def test_transaction_cash_address(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertCashAddressTransactionOK("b305a30989d159731d7b4b3a9db726528bb86662bf0972486f665d2257a7e245")
+            await self.assertCashAddressTransactionOK(
+                "c8eb5c10f561b1544695268833adb8b30012885b4406252189e1d803b276fa4d")
 
     async def test_transaction_multisig(self):
         # 010000000176f465265b8d0fcb8cfd6598d1640f5f10297aaed5ab498fb322ade6c8d2eae301000000fd3d01004830450221009a556d396ad8ceec4cbb1cacda67933818deac5210a96a445ac13e97fe8c476102202682d3d25c62e23865b00e1c3ea36c53a2691c64dd43b04de76a35ecd64e5364414730440220045fd2daec62375ffe538c8758ab1461b4d7cc430ec24c57883a6048006daa1a022025d1dec4c9a36000539c283fb1be428b317b66e71ca29fa964efa4d287032f1b414ca9524104de476e251a827e58199ed4d6d7c2177f0a97a2dda150d7a9e59fc5682519eb94d37bc387edff66e7b0f16e92dd045fe968d63e1f203613b76ad733e5cdf8e818210391ed6bf1e0842997938ea2706480a7085b8bb253268fd12ea83a68509602b6e0410415991434e628402bebcbaa3261864309d2c6fd10c850462b9ef0258832822d35aa26e62e629d2337e3716784ca6c727c73e9600436ded7417d957318dc7a41eb53aeffffffff02914e6c070000000017a9140d37ea041956e3173831caaefc798c49ce3a6a4787514d6c070000000017a91426991e5b586517a6724614823d10aff500ada4be8700000000
@@ -155,7 +156,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendMultiRecipientsTXOK("5db3a2c3047b22f34f5e64c92032e0d4a7f29a1650880d5480448f2565232c9d")
+            await self.assertSendMultiRecipientsTXOK("279b0af1dcb41a978e2e60df1ed2063d10a740cf093f6ae0ed3b23ab9aa244c8")
 
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',

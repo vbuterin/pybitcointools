@@ -284,7 +284,7 @@ class BaseSyncCoin:
 
     def preparesignedtx(self, privkey: PrivateKeySignAllType, frm: str, to: str, value: int, change_addr: str = None,
                         fee: int = None, estimate_fee_blocks: int = 6) -> Tx:
-        return self._run_async("preparesignedtx", privkey, to, value,
+        return self._run_async("preparesignedtx", privkey, frm, to, value,
                                change_addr=change_addr, fee=fee, estimate_fee_blocks=estimate_fee_blocks)
 
     def send_to_multiple_receivers_tx(self, privkey: PrivateKeySignAllType, addr: str, outs: List[TxOut],

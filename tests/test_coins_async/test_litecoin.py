@@ -175,29 +175,31 @@ class TestLitecoin(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("d8a4250810ab2ae8684e95be1867980f0cd8684caf1244758f45c2e56d420349")
+            await self.assertTransactionOK("9e60e1f5257950837bbbe7f2ca84410a59d9b6326823c4e0defdb01fb115df97")
 
     async def test_transaction_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSegwitTransactionOK("dc029e55d53a0269e8635a352b132a3babe67bd525054bc394e5a8a7c4e09096")
+            await self.assertSegwitTransactionOK(
+                "c263194aed2d18f3289105f99636b2187f7228c0a5d3b0c757d68a7a9099a4c4")
 
     async def test_transaction_native_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertNativeSegwitTransactionOK(
-                "6234002edfda9bde5911b67a91970ef0b49af3af4d0b953d246c4052fac8fa03")
+                "41c45ea2381ec4da825712d1cee6d598247edac93e8fedb79ff6d426bfb2af6f")
 
     async def test_transaction_mixed_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertMixedSegwitTransactionOK(
-                "14b55e53b959d5722bc23ede480256a747eaaaf53644f2e9cf8eb6d789726c91")
+                "5e918bfc41e912b581adb513efe4f480d37950c386842ad1bbd052b3fb5c1a48")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("7873cb465392cb3de209d295bbcf86bd259b861aea21f660d7733405ef9cd5df")
+            await self.assertMultiSigTransactionOK(
+                "a0c54d9e45a7bd3ab224d154760f08c7fcfc8aeaecbb46914796ff52e27e6c85")
 
     async def test_transaction_native_segwit_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
