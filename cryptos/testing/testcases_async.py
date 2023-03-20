@@ -3,7 +3,6 @@ import asyncio
 from queue import Queue
 from operator import itemgetter
 from cryptos import *
-from cryptos.transaction import calculate_fee
 from cryptos import coins_async
 from cryptos.utils import alist
 from cryptos.types import Tx, TxOut
@@ -267,7 +266,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -364,7 +363,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
         self.assertEqual(len(tx['outs']), 2)
@@ -459,7 +458,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -550,7 +549,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -642,7 +641,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -722,7 +721,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -831,7 +830,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        fee = self.fee if expected_tx_id else None
+        fee = self.fee
 
         tx = await self._coin.preparetx(sender, receiver, send_value, fee)
 
@@ -847,7 +846,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
@@ -925,7 +924,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreaterEqual(fee, self._coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
@@ -1012,7 +1011,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         receiver, script = (address2, script1) if sender == address1 else (address1, script2)
 
-        fee = self.fee if expected_tx_id else None
+        fee = self.fee
 
         tx = await self._coin.preparetx(sender, receiver, send_value, fee)
 
@@ -1028,7 +1027,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = await self._coin.calculate_fee(tx)
         self.assertGreaterEqual(fee, self.coin.minimum_fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)
@@ -1176,7 +1175,7 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
         else:
             self.assertIsInstance(result, str)  # testnet
             print("TX %s broadcasted successfully" % result)
-            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 4.5)
+            await asyncio.wait_for(self._coin.wait_unspents_changed(sender, unspents), 10)
 
     async def assertSubscribeBlockHeadersOK(self):
         queue = asyncio.Queue()

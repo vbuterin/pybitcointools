@@ -25,7 +25,7 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     cash_multisig_addresses: List[str] = ["bchtest:pqnfj8jmtpj30fnjgc2gy0gs4l6sptdyhcr8c3e5nk",
                                           "bchtest:pqxn06syr9twx9ecx892alre33yuuwn2gu6stxug97"]
-    fee: int = 500
+    fee: int = 1000
     max_fee: int = 3500
     testnet: bool = True
 

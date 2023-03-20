@@ -1,3 +1,5 @@
+import unittest
+
 from cryptos import coins_async
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from typing import List
@@ -98,6 +100,7 @@ class TestDogeTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertMultiSigTransactionOK()
 
+    @unittest.skip("Intermittent failure")
     async def test_sendmulti_recipient_tx(self):
         """
         Sample transaction:

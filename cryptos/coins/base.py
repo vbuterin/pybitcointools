@@ -350,3 +350,6 @@ class BaseSyncCoin:
 
     def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         return self._async_coin.mk_multsig_cash_address(*args, num_required=num_required)
+
+    def calculate_fee(self, tx: Tx) -> int:
+        return self._run_async("self._async_coin.calculate_fee", tx)

@@ -128,7 +128,7 @@ class TestDoge(BaseAsyncCoinTestCase):
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertMultiSigTransactionOK("d6ce1777e365a1fbde27cc4ad5edfd7cda00bda3eb3f7c547461c07333f519e0")
+            await self.assertMultiSigTransactionOK("a9b8184a05f317ba18f3e01482305bc6ba667f4a674e097de515d31381d902c1")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',

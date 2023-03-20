@@ -105,7 +105,7 @@ class TestDash(BaseAsyncCoinTestCase):
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendOK("ec8f5e9895d6ea786cb6d89b186df576f6cdfd2588b7ceb5ee0723dd73f24a11")
+            await self.assertSendOK("66b37a63f0bfdc9b9a09543966a7ba22aab9f5c614267ca75ccdc1a85ffcc5a3")
 
     async def test_subscribe_block_headers(self):
         await self.assertSubscribeBlockHeadersOK()

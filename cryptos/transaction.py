@@ -608,8 +608,3 @@ def select(unspents, value: int):
         raise Exception("Not enough funds")
     return low[:i]
 
-
-def calculate_fee(tx: Tx) -> int:
-    in_value = sum(i['value'] for i in tx['ins'])
-    out_value = sum(o['value'] for o in tx['outs'])
-    return in_value - out_value

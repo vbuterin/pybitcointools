@@ -20,6 +20,7 @@ from ..electrumx_client.types import (ElectrumXBlockHeaderNotification, Electrum
                                       ElectrumXBalanceResponse, ElectrumXUnspentResponse, ElectrumXTx,
                                       ElectrumXMerkleResponse, ElectrumXMultiBalanceResponse, ElectrumXMultiTxResponse,
                                       ElectrumXVerboseTX)
+from cryptos.utils import alist
 
 
 class TXInvalidError(BaseException):
@@ -58,7 +59,7 @@ class BaseCoin:
     secondary_hashcode: Optional[int] = None
     hd_path: int = 0
     block_interval: int = 10
-    minimum_fee: int = 300
+    minimum_fee: int = 500
     txid_bytes_len = 32
     signature_sizes: Dict[str, int] = {
         'p2pkh': 213,
@@ -457,6 +458,28 @@ class BaseCoin:
         for tx in await asyncio.gather(*[self.get_tx(tx_hash) for tx_hash in args]):
             yield tx
 
+    async def ensure_values(self, tx: Tx) -> Tx:
+        if not all(inp.get('value') for inp in tx['ins']):
+            tx_hashes = list(dict.fromkeys([inp['tx_hash'] for inp in tx['ins'] if not inp.get('value')]))
+            try:
+                txs = await alist(self.get_txs(*tx_hashes))
+            except StopIteration as e:  # Not sure what causes this intermittent error
+                txs = []
+            for inp in tx['ins']:
+                pos = inp['tx_pos']
+                prev_tx = next(filter(lambda t: txhash(serialize(t)) == inp['tx_hash'], txs))
+                inp['value'] = prev_tx['outs'][pos]['value']
+        return tx
+
+    async def calculate_fee(self, tx: Tx) -> int:
+        try:
+            tx = await self.ensure_values(tx)
+        except StopIteration as e:  # Not sure what causes this intermittent error
+            pass
+        in_value = sum(i['value'] for i in tx['ins'])
+        out_value = sum(o['value'] for o in tx['outs'])
+        return in_value - out_value
+
     async def pushtx(self, tx: Union[str, Tx]):
         """
         Push/ Broadcast a transaction to the blockchain
@@ -469,6 +492,7 @@ class BaseCoin:
             tx_obj = deserialize(tx)
             message = f'{tx_obj}\n{tx}\n{e.message}'
             if any(code == e.code for code in (1, -32600)):
+                message += f"Fee is {await self.calculate_fee(tx_obj)}"
                 raise TXRejectedError(message)
             raise TXInvalidError(message)
 

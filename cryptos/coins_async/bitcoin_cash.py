@@ -21,6 +21,7 @@ class BitcoinCash(BaseCoin):
     client_kwargs = {
         'server_file': 'bitcoin_cash.json',
     }
+    minimum_fee = 500
     testnet_overrides = {
         'display_name': "Bitcoin Cash Testnet",
         'coin_symbol': "tbcc",

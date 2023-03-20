@@ -12,12 +12,12 @@ class TestBitcoinTestnet(BaseSyncCoinTestCase):
                             "mmbKDFPjBatJmZ6pWTW6yqXSC6826YLBX6"]
     segwit_addresses: List[str] = ["2N74sauceDn2qeHFJuNfJ3c1anxPcDRrVtz", "2NDpBxpK4obuGiFodKtYe3dXx14aPwDBPGU",
                                    "2Mt2f4knFtjLZz9CW2979Hw3tYiAYd6WcA1"]
-    native_segwit_addresses: List[str] = ["tb1quvys2uxzwl4sqex5xh59kar2y8rt4k7ym0vug3",
+    native_segwit_addresses: List[str] = ["tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue",
                                           "tb1qfuvnn87p787z7nqv9seu4e8fqel83yacg7yf2r",
-                                          "tb1qg237zx5qkf0lvweqwnz36969zv4uewapph2pws"]
+                                          "tb1qst3pkm860tjt9y70ugnaluqyqnfa7h54ekyj66"]
     multisig_addresses: List[str] = ["2MvmK6SRDc13BaYbumBbtkCH2fKbViC5XEv", "2MtT7kkzRDn1kiT9GZoS1zSgh7twP145Qif"]
     privkeys: List[str] = ["098ddf01ebb71ead01fc52cb4ad1f5cafffb5f2d052dd233b3cad18e255e1db1",
-                           "cMrziExc6iMV8vvAML8QX9hGDP8zNhcsKbdS9BqrRa1b4mhKvK6f",
+                           "0861e1bb62504f5e9f03b59308005a6f2c12c34df108c6f7c52e5e712a08e91401",
                            "c396c62dfdc529645b822dc4eaa7b9ddc97dd8424de09ca19decce61e6732f71"]
     fee: int = 500
     max_fee: int = 3500
