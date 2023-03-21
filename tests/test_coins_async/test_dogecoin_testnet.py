@@ -5,6 +5,7 @@ from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from typing import List
 
 
+@unittest.skip('Only Doge Electrumx server is often down')
 class TestDogeTestnet(BaseAsyncCoinTestCase):
     name = "Doge Testnet"
     coin = coins_async.Doge

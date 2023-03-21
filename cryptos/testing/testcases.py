@@ -2,7 +2,6 @@ import unittest
 from queue import Queue
 from operator import itemgetter
 from cryptos import *
-from cryptos.transaction import calculate_fee
 from cryptos import coins
 from cryptos.types import Tx, TxOut
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
@@ -180,7 +179,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
         regular_privkey = self.privkeys[regular_from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(segwit_sender, self._coin.privtop2w(segwit_privkey),
+        self.assertEqual(segwit_sender, self._coin.privtop2wpkh_p2sh(segwit_privkey),
                          msg=f"Private key does not belong to address {segwit_sender} on {self._coin.display_name}")
         self.assertEqual(regular_sender, self._coin.privtoaddr(regular_privkey),
                          msg=f"Private key does not belong to address {regular_sender} on {self._coin.display_name}")
@@ -205,7 +204,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -286,7 +285,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
         privkey = self.privkeys[from_addr_i]
 
         # Verify that the private key belongs to the sender address for this network
-        self.assertEqual(sender, self._coin.privtop2w(privkey),
+        self.assertEqual(sender, self._coin.privtop2wpkh_p2sh(privkey),
                          msg=f"Private key does not belong to address {sender} on {self._coin.display_name}")
 
         # Sign each input with the given private key
@@ -294,7 +293,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.fee * 4)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -382,7 +381,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.fee * 2)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -474,7 +473,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = self._coin.calculate_fee(tx)
         self.assertGreater(fee, 0)
         self.assertLessEqual(fee, self.max_fee)
         self.assertEqual(len(tx['ins']), len(unspents))
@@ -578,7 +577,7 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
-        fee = calculate_fee(tx)
+        fee = self._coin.calculate_fee(tx)
         self.assertEqual(fee, self.fee)
         self.assertGreaterEqual(len(tx['ins']), 1)
         self.assertEqual(len(tx['outs']), 2)

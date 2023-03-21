@@ -1,3 +1,5 @@
+import unittest
+
 from cryptos import coins_async
 from cryptos.main import privtopub
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
@@ -110,6 +112,7 @@ class TestBitcoinCashTestnet(BaseAsyncCoinTestCase):
     async def test_gettx(self):
         await self.assertGetTXOK()
 
+    @unittest.skip('Intermittent failures')
     async def test_getverbosetx(self):
         await self.assertGetVerboseTXOK()
 

@@ -15,7 +15,7 @@ from typing import Optional, Tuple, Any, List, Union, Dict, AnyStr, Type
 
 
 class BaseSyncCoin:
-    timeout: int = 100
+    timeout: int = 10
     is_closing: bool = False
     coin_class: Type[BaseCoin]
     _thread: threading.Thread = None
@@ -67,7 +67,7 @@ class BaseSyncCoin:
                                 coro = alist(coro)
                         result = await asyncio.wait_for(coro, timeout=self.timeout)
                         fut.set_result(result)
-                    except Exception as e:
+                    except BaseException as e:
                         fut.set_exception(e)
                     finally:
                         if method == "close":
@@ -352,4 +352,4 @@ class BaseSyncCoin:
         return self._async_coin.mk_multsig_cash_address(*args, num_required=num_required)
 
     def calculate_fee(self, tx: Tx) -> int:
-        return self._run_async("self._async_coin.calculate_fee", tx)
+        return self._run_async("calculate_fee", tx)

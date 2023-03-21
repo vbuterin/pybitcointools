@@ -487,12 +487,17 @@ class BaseCoin:
         if not isinstance(tx, str):
             tx = serialize(tx)
         try:
-            return await self.client.broadcast_tx(tx)
+            result = await self.client.broadcast_tx(tx)
+            return result
         except (aiorpcx.jsonrpc.ProtocolError, aiorpcx.jsonrpc.RPCError) as e:
             tx_obj = deserialize(tx)
             message = f'{tx_obj}\n{tx}\n{e.message}'
             if any(code == e.code for code in (1, -32600)):
-                message += f"Fee is {await self.calculate_fee(tx_obj)}"
+                if "fee" in e.message:
+                    try:
+                        message += f"Fee is {await self.calculate_fee(tx_obj)}"
+                    except StopIteration:
+                        pass
                 raise TXRejectedError(message)
             raise TXInvalidError(message)
 

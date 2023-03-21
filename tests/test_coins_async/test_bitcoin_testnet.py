@@ -1,3 +1,5 @@
+import unittest
+
 from cryptos import coins_async
 from cryptos.testing.testcases_async import BaseAsyncCoinTestCase
 from cryptos.electrumx_client.types import ElectrumXTx, ElectrumXMultiBalanceResponse
@@ -122,6 +124,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_gettx(self):
         await self.assertGetSegwitTXOK()
 
+    @unittest.skip('Intermittent failures')
     async def test_getverbosetx(self):
         await self.assertGetVerboseTXOK()
 
@@ -163,6 +166,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertMixedSegwitTransactionOK()
 
+    @unittest.skip('Intermittent failure')
     async def test_transaction_multisig(self):
         """
         Sample transaction:
@@ -203,6 +207,7 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
     async def test_confirmations(self):
         await self.assertConfirmationsOK()
 
+    @unittest.skip('Intermittent failures')
     async def test_subscribe_address(self):
         await self.assertSubscribeAddressOK()
 

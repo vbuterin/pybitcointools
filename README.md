@@ -63,10 +63,8 @@ Roadmap:
 
 ### Example usage - the long way (best way to learn :) ):
 
-WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet 
-unless you really know what you are doing. Any value in the inputs not included in the outputs will be lost.
-So if the total inputs value is 1 BTC, and the total outputs amount to 0.6 BTC, 0.4 BTC will be given to the 
-miners as a fee. The faster way, listed later in the README, ensures the difference between
+WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet you really know what you are doing. Any value in the inputs not included in the outputs will be lost.
+So if the total inputs value is 1 BTC, and the total outputs amount to 0.6 BTC, 0.4 BTC will be given to the miners as a fee. The faster way, listed later in the README, ensures the difference between
 inputs and outputs is sent as change back to the sender (except for a small minter fee).
 If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
 and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
@@ -96,16 +94,13 @@ library calculates to use.
     > tx = c.mktx(inputs,outs)
     > tx
     {'locktime': 0, 'version': 1, 'ins': [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '', 'sequence': 4294967295}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '', 'sequence': 4294967295}], 'outs': [{'value': 1000000, 'script': '00142d30807e2513178a791564ce458b7f62d758c2d3'}, {'value': 873516, 'script': '76a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac'}]}
-    > tx2 = c.sign(tx,0,priv)
+    > tx2 = c.signall(tx, priv)
     > tx2
-    {'locktime': 0, 'version': 1, 'ins': [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '473044022012ba62de78427811650f868209572404a0846bf60b3a3705799877bb5351827702202bcadc067f5dce01ecf10306e033a905a156aec71d769bcffc0e221a0c91c6030141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '', 'sequence': 4294967295}], 'outs': [{'value': 1000000, 'script': '00142d30807e2513178a791564ce458b7f62d758c2d3'}, {'value': 873516, 'script': '76a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac'}]}
-    > tx3 = c.sign(tx2,1,priv)
-    > tx3
     {'locktime': 0, 'version': 1, 'ins': [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '473044022012ba62de78427811650f868209572404a0846bf60b3a3705799877bb5351827702202bcadc067f5dce01ecf10306e033a905a156aec71d769bcffc0e221a0c91c6030141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '47304402205c9b724d2499f167b9557b8efd13b8b2109ae287b712f2db1d3d46cfc31c71a702201a74bda43116977c4605d499177152afd3965b2fe586f3236053786ef19e96090141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'value': 1000000, 'script': '00142d30807e2513178a791564ce458b7f62d758c2d3'}, {'value': 873516, 'script': '76a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac'}]}
-    > tx4 = serialize(tx)
-    > tx4
+    > tx3 = serialize(tx2)
+    > tx3
     '0100000002f531fc6fdf928a7e346d4a5a5d08e495b5d7841c0a98d877ced25a3f131b7a6d000000008a473044022012ba62de78427811650f868209572404a0846bf60b3a3705799877bb5351827702202bcadc067f5dce01ecf10306e033a905a156aec71d769bcffc0e221a0c91c6030141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764ffffffffff2f2ba63b23b435a26b95a26ca681237f0916a25e94956c799d3b45e2eb6e7e1000000008a47304402205c9b724d2499f167b9557b8efd13b8b2109ae287b712f2db1d3d46cfc31c71a702201a74bda43116977c4605d499177152afd3965b2fe586f3236053786ef19e96090141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff0240420f00000000001600142d30807e2513178a791564ce458b7f62d758c2d32c540d00000000001976a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac00000000'
-    > c.pushtx(tx4)
+    > c.pushtx(tx3)
     'd5b5b148285da8ddf9d719627c21f5cbbb3e17ae315dbb406301b9ac9c5621e5'
 
 ### Faster way
@@ -117,8 +112,6 @@ to address tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue, with change returned to t
     > c = Bitcoin(testnet=True)
     > c.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv", "tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue", 5000)
     72caf37e96081374284356aa20cffef31f4c1f158b87f46f7f995bfdaaf5d1c6'
-
-The from address is needed in order to differentiate between legacy P2PK / P2PKH, P2WPKH-P2SH segwit and P2WPKH native segwit addresses. 
 
 Or if you prefer to verify the tx (for example, at https://live.blockcypher.com/btc/decodetx/) you can break it into two steps:
 
@@ -160,6 +153,16 @@ Another example with Litecoin testnet and a change address:
     > coin.pushtx(tx)
     {'status': 'success', 'data': {'txid': 'b64e19311e3aa197063e03657679e2974e04c02c5b651c4e8d55f428490ab75f', 'network': 'BTCTEST'}}
 
+
+### Asyncio Interface
+
+There is also an asyncio interface for all methods requiring interaction with the explorer:
+
+    python -m asyncio
+    > from cryptos import *
+    > c = Bitcoin(testnet=True)
+    > await c.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv", "tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue", 5000)
+    72caf37e96081374284356aa20cffef31f4c1f158b87f46f7f995bfdaaf5d1c6'
 
 ### Supported coins
 
