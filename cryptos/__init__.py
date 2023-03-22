@@ -3,7 +3,6 @@ from .composite import *
 from .deterministic import *
 from .main import *
 from .mnemonic import *
-from .py2specials import *
 from .py3specials import *
 from .stealth import *
 from .transaction import *

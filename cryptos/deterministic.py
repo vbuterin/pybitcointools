@@ -17,7 +17,7 @@ def electrum_mpk(seed):
     return privkey_to_pubkey(seed)[2:]
 
 # Accepts (seed or stretched seed), index and secondary index
-# (conventionally 0 for ordinary addresses, 1 for change) , returns privkey
+# (conventionally 0 for ordinary address_derivations, 1 for change) , returns privkey
 
 
 def electrum_privkey(seed, n, for_change=0):
@@ -28,10 +28,10 @@ def electrum_privkey(seed, n, for_change=0):
     return add_privkeys(seed, offset)
 
 # Accepts (seed or stretched seed or master pubkey), index and secondary index
-# (conventionally 0 for ordinary addresses, 1 for change) , returns pubkey
+# (conventionally 0 for ordinary address_derivations, 1 for change) , returns pubkey
 
 
-def electrum_pubkey(masterkey, n, for_change=0):
+def electrum_pubkey(masterkey: AnyStr, n: int, for_change: int = 0) -> AnyStr:
     if len(masterkey) == 32:
         mpk = electrum_mpk(electrum_stretch(masterkey))
     elif len(masterkey) == 64:
@@ -122,14 +122,19 @@ def bip32_deserialize(data, prefixes=DEFAULT):
 
 
 def is_xprv(text, prefixes=DEFAULT):
-    vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
-    return vbytes == prefixes[0]
+    try:
+        vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
+        return vbytes == prefixes[0]
+    except:
+        return False
 
 
 def is_xpub(text, prefixes=DEFAULT):
-    vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
-    return vbytes == prefixes[1]
-
+    try:
+        vbytes, depth, fingerprint, i, chaincode, key = bip32_deserialize(text, prefixes)
+        return vbytes == prefixes[1]
+    except:
+        return False
 
 def raw_bip32_privtopub(rawtuple, prefixes=DEFAULT):
     vbytes, depth, fingerprint, i, chaincode, key = rawtuple

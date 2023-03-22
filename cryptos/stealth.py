@@ -31,7 +31,7 @@ def uncover_pay_privkey(scan_privkey, spend_privkey, ephem_pubkey):
 
 # Address encoding
 
-# Functions for basic stealth addresses,
+# Functions for basic stealth address_derivations,
 # i.e. one scan key, one spend key, no prefix
 
 
@@ -45,7 +45,7 @@ def pubkeys_to_basic_stealth_address(scan_pubkey, spend_pubkey, magic_byte=42):
 
 
 def basic_stealth_address_to_pubkeys(stealth_address):
-    hex_data = main.b58check_to_hex(stealth_address)
+    magicbyte, hex_data = main.b58check_to_hex(stealth_address)
     if len(hex_data) != 140:
         raise Exception('Stealth address is not of basic type (one scan key, one spend key, no prefix)')
 

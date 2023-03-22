@@ -24,10 +24,7 @@
 # SOFTWARE.
 
 
-import hashlib
-import hmac
 from .main import *
-from .py2specials import *
 from .py3specials import *
 from . import constants as version
 

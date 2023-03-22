@@ -1,8 +1,42 @@
 {
-        "testnetnode.arihanc.com": {"t":"51001", "s":"51002"},
-        "testnet1.bauerj.eu": {"t":"51001", "s":"51002"},
-        "14.3.140.101": {"t":"51001", "s":"51002"},
-        "testnet.hsmiths.com": {"t":"53011", "s":"53012"},
-        "electrum.akinbo.org": {"t":"51001", "s":"51002"},
-        "ELEX05.blackpole.online": {"t":"52011", "s":"52002"}
+    "blackie.c3-soft.com": {
+        "pruning": "-",
+        "s": "57006",
+        "t": "57005",
+        "version": "1.4.5"
+    },
+    "blockstream.info": {
+        "pruning": "-",
+        "s": "993",
+        "t": "143",
+        "version": "1.4"
+    },
+    "explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion": {
+        "pruning": "-",
+        "t": "143",
+        "version": "1.4"
+    },
+    "testnet.aranguren.org": {
+        "pruning": "-",
+        "s": "51002",
+        "t": "51001",
+        "version": "1.4.2"
+    },
+    "testnet.hsmiths.com": {
+        "pruning": "-",
+        "s": "53012",
+        "version": "1.4.2"
+    },
+    "testnet.qtornado.com": {
+        "pruning": "-",
+        "s": "51002",
+        "t": "51001",
+        "version": "1.5"
+    },
+    "tn.not.fyi": {
+        "pruning": "-",
+        "s": "55002",
+        "t": "55001",
+        "version": "1.4"
+    }
 }

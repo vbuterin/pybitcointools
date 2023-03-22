@@ -33,8 +33,8 @@ class TestECCArithmetic(unittest.TestCase):
                 multiply(G, add_privkeys(hx, hy))[0]
             )
             self.assertEqual(
-                b58check_to_hex(pubtoaddr(privtopub(x))),
-                b58check_to_hex(pubtoaddr(multiply(G, hx), 23))
+                b58check_to_hex(pubtoaddr(privtopub(x)))[1],
+                b58check_to_hex(pubtoaddr(multiply(G, hx), 23))[1]
             )
 
             p = privtopub(sha256(str(x)))
@@ -418,8 +418,8 @@ class TestStartingAddressAndScriptGenerationConsistency(unittest.TestCase):
             self.assertEqual(ca, c.scripttoaddr(c.addrtoscript(ca)))
             self.assertEqual(ta, t.scripttoaddr(t.addrtoscript(ta)))
 
-            cb = c.privtop2w(random_key())
-            db = t.privtop2w(random_key())
+            cb = c.privtop2wpkh_p2sh(random_key())
+            db = t.privtop2wpkh_p2sh(random_key())
             self.assertEqual(cb, c.scripttoaddr(c.addrtoscript(cb)))
             self.assertEqual(db, t.scripttoaddr(t.addrtoscript(db)))
 
@@ -491,6 +491,7 @@ class TestScriptVsAddressOutputs(unittest.TestCase):
         ]
 
         for outs in outputs:
+            print(outputs)
             tx_struct = c.mktx(inputs, outs)
             self.assertEqual(tx_struct['outs'], outputs[3])
 
@@ -544,6 +545,7 @@ class TestConversions(unittest.TestCase):
                 self.privkey_bin, 256, 16, minlen=len(self.privkey_hex)
             )
         )
+
 
 if __name__ == '__main__':
     unittest.main()

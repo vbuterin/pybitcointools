@@ -1,0 +1,17 @@
+{
+    "electrumx-mainnet.dash.org": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+    },
+    "drk.p2pay.com": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+     },
+    "hbhux3mfytxeywes5qesx7nzoesukihwseqkw7qa7oprc5nqqxj3jiid.onion": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+    }
+}

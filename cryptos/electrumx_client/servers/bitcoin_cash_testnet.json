@@ -1,0 +1,44 @@
+{
+    "bch0.kister.net": {
+        "s": "51002"
+    },
+    "kisternet5tgeekwidrj7r7yd3n2l5j7y72b74y6xu3q2b6xdjrte6id.onion": {
+        "s": "51002",
+        "t": "51001",
+        "display": "bch0.kister.net"
+    },
+    "blackie.c3-soft.com": {
+        "s": "60002"
+    },
+    "testnet.imaginary.cash": {
+        "s": "50002"
+    },
+    "testnet.bitcoincash.network": {
+        "s": "60002"
+    },
+    "ebf56u6xk2e2fjlqyuz4zjj2gsrrnavfronrerh7qcvzllknytdgmmyd.onion": {
+        "s": "50004",
+        "t": "50003"
+    },
+    "jktsologn7uprtwn7gsgmwuddj6rxsqmwc2vaug7jwcwzm2bxqnfpwad.onion": {
+        "s": "50004",
+        "t": "50003",
+        "display": "electroncash.de"
+    },
+    "electroncash.de": {
+        "s": "50004",
+        "t": "50003"
+    },
+    "electrs.electroncash.de": {
+        "s": "60002"
+    },
+    "tbch.loping.net": {
+        "s": "60002",
+        "t": "60001"
+    },
+    "scgjgc67226l65u52wyvulioxixv34p5dth73oj35ej7ham2zavdtxid.onion": {
+        "s": "60002",
+        "t": "60001",
+        "display": "tbch.loping.net"
+    }
+}

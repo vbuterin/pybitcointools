@@ -4,6 +4,8 @@ REPOSITORY HAS BEEN ARCHIVED AND IS NO LONGER MAINTAINED FOR NOW
 
 This is a fork of Vitalik Buterin's original [pybitcointools](https://github.com/vbuterin/pybitcointools) library.
 
+After a lot of work, the library is finally active again and being actively updated.
+
 Installation:
 
 ```bash
@@ -14,23 +16,18 @@ Library now supports making and pushing raw transactions for:
 
 * Bitcoin mainnet
 * Bitcoin testnet 
-* Bitcoin Cash mainnet (with replay protection)
-* Bitcoin Cash testnet (with replay protection)
+* Bitcoin Cash mainnet
+* Bitcoin Cash testnet 
 * Litecoin mainnet
 * Litecoin testnet
 * Dash mainnet
 * Dash testnet
 * Dogecoin mainnet
-* Bitcoin Gold mainnet (with replay protection)
+* Dogecoin testnet
 
 Transaction broadcast has been tested for all of these.
 
-For the following, local operations such as making and signing transactions are supported but explorer dependant
-operations (unspent, pushtx, etc.) are not yet supported.:
-
-* Bitcoin Gold testnet
-
-Segregrated Witness transactions also supported for:
+Segregated Witness transactions also supported for:
 * Bitcoin mainnet
 * Bitcoin testnet
 * Litecoin mainnet
@@ -46,19 +43,17 @@ https://live.blockcypher.com/ltc/tx/3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad
 Aim is to provide a simple, class-based API which makes switching between different coins and mainnet and testnet, and adding new coins, all very easy.
 
 Roadmap:
-* Replaceable transactions
-* Change from explorers to electrumx servers
-* Correct fee detection algorithm
+* Change from unittest to pytest
 * Extend wallets to make transactions
 * Read the docs page
 * E-commerce tools (exchange rates, short-time invoices)
-* Desktop GUI for easy creation, signing and broadcasting of raw transactions
-* Multi-crypto wallet GUI
+* Command client for easy creation, signing and broadcasting of raw transactions
+* Multi-crypto wallet CLI
 
 ### Advantages:
 
 * Methods have a simple interface, inputting and outputting in standard formats
-* Classes for different coins with a common interface
+* Classes for different coins with a common sync and async interface
 * Many functions can be taken out and used individually
 * Supports binary, hex and base58
 * Transaction deserialization format almost compatible with BitcoinJS
@@ -69,26 +64,19 @@ Roadmap:
 ### Disadvantages:
 
 * Not a full node, has no idea what blocks are
-* Relies on centralized explorers for blockchain operations
 
 ### Example usage - the long way (best way to learn :) ):
 
-WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet 
-unless you really know what you are doing. Any value in the inputs not included in the ouputs will be lost.
-So if the total inputs value is 1 BTC, and the total outputs amount to 0.6 BTC, 0.4 BTC will be given to the 
-miners as a fee. The faster way, listed later in the README, ensures the difference between
-inputs and outputs is sent as change back to the sender (except for a small fee).
+WARNING: While it's fun to mess around with this on the testnet, do not do the following procedure on the mainnet you really know what you are doing. Any value in the inputs not included in the outputs will be lost.
+So if the total inputs value is 1 BTC, and the total outputs amount to 0.6 BTC, 0.4 BTC will be given to the miners as a fee. The faster way, listed later in the README, ensures the difference between
+inputs and outputs is sent as change back to the sender (except for a small minter fee).
 If in doubt, before broadcasting a transaction, visit https://live.blockcypher.com/btc/decodetx/ and decode the raw tx
 and make sure it looks right. If you aren't familiar with how Bitcoin transactions work, you should run through
  this procedure a few times on the testnet before developing for mainnet.
 
-OTHER WARNING: Default fees for Bitcoin mainnet are probably too low throughout this library. 
-This can cause coins to be lost for a period of time until they are finally confirmed by a miner. Hopefully, some kind
-of "correct fee" detection algorithm will be implemented soon but for now it is recommended to think about and set an 
-appropriate fee when making transactions. There are many different ways of making a transaction. Whichever method you
-choose, make sure you understand how to set the correct fee. Here's a link about for information about the current recommended fees:
+OTHER WARNING: If transactions are taking a long time to be confirmed, try increasing the fee from what the 
+library calculates to use.
 
-https://bitcoinfees.earn.com/
 
     > from cryptos import *
     > c = Bitcoin(testnet=True)
@@ -103,115 +91,52 @@ https://bitcoinfees.earn.com/
     'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
     > inputs = c.unspent(addr)
     > inputs
-    [{'output': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508:0', 'value': 180000000}, {'output': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38:0', 'value': 90000000}]
-    > outs = [{'value': 269845600, 'address': '2N8hwP1WmJrFF5QWABn38y63uYLhnJYJYTF'}, {'value': 100000, 'address': 'mrvHv6ggk5gFMatuJtBKAzktTU1N3MYdu2'}]
+    [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'}]
+    > outs = [{'value': 1000000, 'address': 'tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue'}, {'value': sum(i['value'] for i in inputs) - 1000000 - 750 , 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'}]
+    outs
+    [{'value': 1000000, 'address': 'tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue'}, {'value': 873516, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'}]
     > tx = c.mktx(inputs,outs)
     > tx
-    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
-    > tx2 = c.sign(tx,0,priv)
+    {'locktime': 0, 'version': 1, 'ins': [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '', 'sequence': 4294967295}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '', 'sequence': 4294967295}], 'outs': [{'value': 1000000, 'script': '00142d30807e2513178a791564ce458b7f62d758c2d3'}, {'value': 873516, 'script': '76a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac'}]}
+    > tx2 = c.signall(tx, priv)
     > tx2
-    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
-    > tx3 = c.sign(tx2,1,priv)
+    {'locktime': 0, 'version': 1, 'ins': [{'height': 0, 'tx_hash': '6d7a1b133f5ad2ce77d8980a1c84d7b595e4085d5a4a6d347e8a92df6ffc31f5', 'tx_pos': 0, 'value': 7495, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '473044022012ba62de78427811650f868209572404a0846bf60b3a3705799877bb5351827702202bcadc067f5dce01ecf10306e033a905a156aec71d769bcffc0e221a0c91c6030141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'height': 0, 'tx_hash': 'e1e7b62e5eb4d399c75649e9256a91f0371268ca265ab9265a433bb263baf2f2', 'tx_pos': 0, 'value': 1866771, 'address': 'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1', 'script': '47304402205c9b724d2499f167b9557b8efd13b8b2109ae287b712f2db1d3d46cfc31c71a702201a74bda43116977c4605d499177152afd3965b2fe586f3236053786ef19e96090141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'value': 1000000, 'script': '00142d30807e2513178a791564ce458b7f62d758c2d3'}, {'value': 873516, 'script': '76a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac'}]}
+    > tx3 = serialize(tx2)
     > tx3
-    {'locktime': 0, 'version': 1, 'ins': [{'outpoint': {'hash': '3be10a0aaff108766371fd4f4efeabc5b848c61d4aac60db6001464879f07508', 'index': 0}, 'amount': 180000000, 'script': '483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}, {'outpoint': {'hash': '51ce9804e1a4fd3067416eb5052b9930fed7fdd9857067b47d935d69f41faa38', 'index': 0}, 'amount': 90000000, 'script': '483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764f', 'sequence': 4294967295}], 'outs': [{'script': 'a914a9974100aeee974a20cda9a2f545704a0ab54fdc87', 'value': 269845600}, {'script': '76a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac', 'value': 100000}]}
-    > tx4 = c.serialize(tx)
-    > tx4
-    '01000000020875f07948460160db60ac4a1dc648b8c5abfe4e4ffd71637608f1af0a0ae13b000000008b483045022100fccd16f619c5f8b8198f5a00f557f6542afaae10b2992733963c5b9c4042544c022041521e7ab2f4b58856e8554c651664af92f6abd58328c41bc652aea460a9a6a30141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff38aa1ff4695d937db4677085d9fdd7fe30992b05b56e416730fda4e10498ce51000000008b483045022100a9f056be75da4167c2cae9f037e04f6efd20caf97e05052406c127d72e7f236c02206638c10ad6975b44c26633e7c40547405dd4e6184fa3afd0ec98260369fadb0d0141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02608415100000000017a914a9974100aeee974a20cda9a2f545704a0ab54fdc87a0860100000000001976a9147d13547544ecc1f28eda0c0766ef4eb214de104588ac00000000'
-    > c.pushtx(tx4)
-    {'status': 'success', 'data': {'network': 'BTCTEST', 'txid': '00af7b794355aa4ea5851a792713934b524b820cf7f20e2a0e01ab61910b5299'}}
+    '0100000002f531fc6fdf928a7e346d4a5a5d08e495b5d7841c0a98d877ced25a3f131b7a6d000000008a473044022012ba62de78427811650f868209572404a0846bf60b3a3705799877bb5351827702202bcadc067f5dce01ecf10306e033a905a156aec71d769bcffc0e221a0c91c6030141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764ffffffffff2f2ba63b23b435a26b95a26ca681237f0916a25e94956c799d3b45e2eb6e7e1000000008a47304402205c9b724d2499f167b9557b8efd13b8b2109ae287b712f2db1d3d46cfc31c71a702201a74bda43116977c4605d499177152afd3965b2fe586f3236053786ef19e96090141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff0240420f00000000001600142d30807e2513178a791564ce458b7f62d758c2d32c540d00000000001976a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac00000000'
+    > c.pushtx(tx3)
+    'd5b5b148285da8ddf9d719627c21f5cbbb3e17ae315dbb406301b9ac9c5621e5'
 
 ### Faster way
 
-To send 12 DASH from addr belonging to privkey 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 
-to address yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg, with change returned to the sender address:
+To send 0.00006 BTC from native segwit addr tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv belonging to privkey 89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678 
+to address tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue, with change returned to the sender address:
 
     > from cryptos import *
-    > dash = Dash(testnet=True)
-    > dash.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "yd8Q7MwTDe9yJdeMx1YSSYS4wdxQ2HDqTg", 1200000000)
-    {'status': 'success', 'data': {'txid': '6a510a129bf1e229e99c3eede516d3bde8bdccf859199937a98eaab2ce1cd7ab', 'network': 'DASHTEST'}}
+    > c = Bitcoin(testnet=True)
+    > c.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv", "tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue", 5000)
+    72caf37e96081374284356aa20cffef31f4c1f158b87f46f7f995bfdaaf5d1c6'
 
-Or if you prefer to verify the tx (for example, with Blockcypher) you can break it into two steps:
-
-    > from cryptos import *
-    > dash = Dash()
-    > tx = dash.preparesignedtx(priv, "Xhcmzs5wKECBiWwSEsTZu8wNonguH5poaz", 9800000-20000, fee=20000)
-    > tx
-    '010000000194f2f955627dfd549f213a70d65dcd5550c0b14a484d38b6ae47fe7a8896ca41000000008b483045022100b125b1f4848c145193f70b915b0074539d90fd74c2e75492169f06927acafa39022025a009711a354a7d84e19f234dfb5d20e155b64acad40941670e634c1100101a01410437b81f8f1376a87556380ad9f3a6b7f642754b3497ce42518f8dbd39bfedea24d897ae5d8d1dd41c04f55700ed6f3b7cee99df5aed74f98a54cbc576d75c0b9fffffffff01203b9500000000001976a9144c0404140e6ad8d04bdf625888bf6dfcc20fa12d88ac00000000'
-    > dash.pushtx(tx)
-    {'status': 'success', 'data': {'txid': '0d889f6a268340c8fd30cdc6567eb588765e911fdd1fb0aac870dc3125ffde76', 'network': 'DASH'}}
-
-Another example with Bitcoin Cash testnet:
+Or if you prefer to verify the tx (for example, at https://live.blockcypher.com/btc/decodetx/) you can break it into two steps:
 
     > from cryptos import *
-    > crypto = BitcoinCash(testnet=True)
-    > tx = crypto.preparesignedtx("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "mgRoeWs2CeCEuqQmNfhJjnpX8YvtPACmCX", 967916800)
+    > c = Bitcoin(testnet=True)
+    > tx = c.preparesignedtx("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv", "tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue", 5000)
+    > serialize(tx)
+    '010000000001014ae7e7fdead71cc8303c5b5e68906ecbf978fb9d84f5f9dd505823356b9a1d6e0000000000ffffffff0288130000000000001600142d30807e2513178a791564ce458b7f62d758c2d3a00f000000000000160014804aff26594cc36c0ac89e95895ab9bdd0c540ef02483045022100cff4e64a4dd0f24c1f382e4b949ae852a89a5f311de50cd13d3801da3669675c0220779ebcb542dc80dae3e16202c0b58dd60261662f3b3a558dca6ddf22e30ca4230121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc00000000'
+    > c.pushtx(tx)
+    '6a7c437b0de10c42f2e9e18cc004e87712dbda73a851a0ea6774749a290c7e7d'
+
+Another example with Litecoin testnet and a change address:
+
+    > from cryptos import *
+    > l = Litecoin(testnet=True)
+    > tx = l.preparesignedtx("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tltc1qsp907fjefnpkczkgn62cjk4ehhgv2s80d2dnx9", "tltc1q95cgql39zvtc57g4vn8ytzmlvtt43skn39z3vs", 967916800, change_addr="tltc1qst3pkm860tjt9y70ugnaluqyqnfa7h54q7xv2n")
     > tx
     '010000000144ea7b41df09cee54c43f817dc11fd4d88c9b721b4c13b588f6a764eab78f692000000008b4830450221008efa819db89f714dbe0a19a7eb605d03259f4755a0f12876e9dddf477e1867b8022072bc76d120e92668f4765b5d694aee4a3cafd6cd4aaa8d5ebf88c3f821c81d9c4141041f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc724ab2737afd66e4aacdc0e4f48550cd783c1a73edb3dbd0750e1bd0cb03764fffffffff02003db139000000001976a91409fed3e08e624b23dbbacc77f7b2a39998351a6888acf046df07000000001976a914ad25bdf0fdfd21ca91a82449538dce47f8dc213d88ac00000000'
     > crypto.pushtx(tx)
     {'status': 'success', 'data': {'txid': 'd8b130183824d0001d3bc669b31e798e2654868a7fda743aaf35d757d89db0eb', 'network': 'tbcc'}}
     
-### Segregated Witness - the long way
-The same warnings about testnet practice and fees as discussed earlier applies here.
-
-To create a segwit transaction, generate a pay to witness script hash (P2WPKH) 
-address and mark all the Segwit UTXOs with segwit=True.
-
-    > from cryptos import *
-    > c = Litecoin(testnet=True)
-    > priv = sha256('a big long brainwallet password')
-    > priv
-    '89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678'
-    > addr = c.privtop2w(priv)
-    > addr
-    '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'
-    > inputs = c.unspent(addr)
-    > inputs
-    [{'output': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a:0', 'value': 100000000}]
-    > inputs[0]['segwit']=True
-    > inputs
-    [{'output': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a:0', 'value': 100000000, 'segwit': True}]
-    > outs = [{'value': 79956800, 'address': 'mxYcACPJWAMMkXu7S9SM8npicFWehpYCWx'}, {'value': 19989200, 'address': '2Mtj1R5qSfGowwJkJf7CYufFVNk5BRyAYZh'}]
-    > tx = c.mktx(inputs,outs)
-    > tx
-    {'locktime': 0, 'version': 1, 'ins': [{'script': '', 'sequence': 4294967295, 'outpoint': {'hash': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a', 'index': 0}, 'amount': 100000000, 'segwit': True}], 'outs': [{'script': '76a914baca2979689786ba311edcfc04d9ad95d393679488ac', 'value': 79956800}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 19989200}], 'marker': 0, 'flag': 1, 'witness': []}
-    > tx2 = c.sign(tx,0,priv)
-    > tx2
-    {'locktime': 0, 'version': 1, 'ins': [{'script': '160014804aff26594cc36c0ac89e95895ab9bdd0c540ef', 'sequence': 4294967295, 'outpoint': {'hash': '63189d6354b1e7d3a5a16076b0722f84b80b94d5f4958c3697191503cccbe88a', 'index': 0}, 'amount': 100000000, 'segwit': True}], 'outs': [{'script': '76a914baca2979689786ba311edcfc04d9ad95d393679488ac', 'value': 79956800}, {'script': 'a9141039471d8d44f3693cd34d1b9d69fd957799cf3087', 'value': 19989200}], 'marker': 0, 'flag': 1, 'witness': [{'number': 2, 'scriptCode': '47304402201632cb84a0aed4934df83fbc3cd2682f920eef37f76aa64d477702dd59633c900220198cfe15c28b26247c8e49974b4fda825ae16441112f13e754322964a9f24ec80121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc'}]}
-    > tx3 = serialize(tx)
-    > tx3
-    '010000000001018ae8cbcc03151997368c95f4d5940bb8842f72b07660a1a5d3e7b154639d18630000000017160014804aff26594cc36c0ac89e95895ab9bdd0c540efffffffff02400bc404000000001976a914baca2979689786ba311edcfc04d9ad95d393679488acd00231010000000017a9141039471d8d44f3693cd34d1b9d69fd957799cf30870247304402201632cb84a0aed4934df83fbc3cd2682f920eef37f76aa64d477702dd59633c900220198cfe15c28b26247c8e49974b4fda825ae16441112f13e754322964a9f24ec80121031f763d81010db8ba3026fef4ac3dc1ad7ccc2543148041c61a29e883ee4499dc00000000'
-    > c.pushtx(tx3)
-    {'status': 'success', 'data': {'network': 'LTCTEST', 'txid': '51d5be05d0a35ef5a8ff5f43855ea59e8361874aff1039d6cf5d9a1f93ae1042'}}
-
-
-It's also possible to mix segwit inputs with non-segwit inputs. Only one input needs to be marked as segwit 
-to create a segwit transaction.
-
-### Segregated Witness - Faster Way:
-
-Send 0.23486583 LTC to LPZd11JyAd6fJh5ZBMcmu6qczV14CZnz55 from segwit address 3P1bEPk5v4CUhvX9VqDuxqJGnTutt9czZb, 
-returning change to LchaMS51XFYmks3fJLAyuSeYSbiyByPLUD:
- 
-    >from cryptos import *
-    >l = Litecoin()
-    l.send("<privkey>", "LNM9Hpc6EFd7SsKkPU6ATLJNdXSNPnNdqs", 23486583, fee=20000, change_addr="LchaMS51XFYmks3fJLAyuSeYSbiyByPLUD", segwit=True)
-    {'status': 'success', 'data': {'network': 'LTC', 'txid': '3b936180daf05adcd7e9f04b60e1ba9a4a6db486c0ad91cb795b29ca46313000'}}
-
-It's also possible to provide the send address in addition to the private key in which case segwit will be 
-auto-detected, so no need to know in advance if the address is segwit or not:
-    
-    >from cryptos import *
-    >c = Bitcoin()
-    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, addr="3AGe5CkW5CKFAgKpQE82VSWkEjoxfDxMxQ")
-    {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
-
-It's also possible to provide the send address in addition to the private key in which case segwit will be 
-auto-detected, so no need to know in advance if the address is segwit or not:
-    
-    >from cryptos import *
-    >c = Bitcoin()
-    >c.send('<privkey>', '1CBFPfNotcVcWg26WdhfnoDDvZqzuBxKDb', 88036480, addr="3AGe5CkW5CKFAgKpQE82VSWkEjoxfDxMxQ")
-    {'status': 'success', 'data': {'network': 'LTC', 'txid': 'b16ad0332ca3114f0dc773fda643c49e41308df4204940539bea5806cfee0989'}}
     
 ### 2-of-3 MultiSig Transaction example:
     > from cryptos import *
@@ -232,6 +157,16 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     > coin.pushtx(tx)
     {'status': 'success', 'data': {'txid': 'b64e19311e3aa197063e03657679e2974e04c02c5b651c4e8d55f428490ab75f', 'network': 'BTCTEST'}}
 
+
+### Asyncio Interface
+
+There is also an asyncio interface for all methods requiring interaction with the explorer:
+
+    python -m asyncio
+    > from cryptos import *
+    > c = Bitcoin(testnet=True)
+    > await c.send("89d8d898b95addf569b458fbbd25620e9c9b19c9f730d5d60102abbabcb72678", "tb1qsp907fjefnpkczkgn62cjk4ehhgv2s805z0dkv", "tb1q95cgql39zvtc57g4vn8ytzmlvtt43skngdq0ue", 5000)
+    72caf37e96081374284356aa20cffef31f4c1f158b87f46f7f995bfdaaf5d1c6'
 
 ### Supported coins
 
@@ -264,16 +199,7 @@ auto-detected, so no need to know in advance if the address is segwit or not:
     > d = Doge()
     > d.privtoaddr(priv)
     'DLvceoVN5AQgXkaQ28q9qq7BqPpefFRp4E'
-    > bg = BitcinGold()
-    > bg.privtoaddr(priv)
-    'GZdSXfsfkc7h5Dh6DVVhiqHUsRtCMQ9fxG'
-    > bg = BitcoinGold(legacy=True)
-    > bg.privtoaddr(priv)
-    '1GnX7YYimkWPzkPoHYqbJ4waxG6MN2cdSg'
-    > bg = BitcoinGold(testnet=True)
-    > bg.privtoaddr(priv)
-    'mwJUQbdhamwemrsR17oy7z9upFh4JtNxm1'
-    
+
 
 ### BIP39-BIP44 Standard Wallets:
 

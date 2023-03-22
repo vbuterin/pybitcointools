@@ -52,6 +52,13 @@ class KeyStore(object):
     def can_import(self):
         return False
 
+    def set_xtype(self, xtype, electrum=False):
+        self.xtype = xtype
+        self.electrum = electrum
+        self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
+                               encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
+        encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
+
     def get_tx_derivations(self, tx):
         keypairs = {}
         for txin in tx.inputs():
@@ -137,19 +144,20 @@ class Imported_KeyStore(Software_KeyStore):
         pubkey = list(self.keypairs.keys())[0]
         self.get_private_key(pubkey, password)
 
-    def import_privkey(self, sec, password=None):
-        pubkey = bip32_privtopub(sec, self.bip39_prefixes)
-        self.keypairs[pubkey] = pw_encode(sec, password)
+    def import_privkey(self, privkey, password=None):
+        if is_xprv(privkey, prefixes=self.bip39_prefixes):
+            privkey = bip32_deserialize(privkey, self.bip39_prefixes)
+        pubkey = self.coin.privtopub(privkey)
+        self.keypairs[pubkey] = pw_encode(privkey, password)
         return "p2pkh", pubkey
 
     def delete_imported_key(self, key):
         self.keypairs.pop(key)
 
     def get_private_key(self, pubkey, password=None):
-        sec = pw_decode(self.keypairs[pubkey], password)
-        privkey = bip32_extract_key(sec, self.bip39_prefixes)
+        privkey = pw_decode(self.keypairs[pubkey], password)
         # this checks the password
-        if pubkey != privtopub(privkey):
+        if pubkey != self.coin.privtopub(privkey):
             raise InvalidPassword()
         return privkey, True
 
@@ -313,20 +321,12 @@ class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
         self.xpub = bip32_privtopub(xprv, self.bip39_prefixes)
 
     def add_xpub(self, xpub, xtype, electrum=False):
-        self.xtype = xtype
-        self.electrum = electrum
-        self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
-                               encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
-        encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
+        self.set_xtype(xtype, electrum=electrum)
         self.xpub = xpub
 
     def add_xprv_from_seed(self, bip32_seed, xtype, derivation, electrum=False):
+        self.set_xtype(xtype, electrum=electrum)
         self.root_derivation = derivation
-        self.xtype = xtype
-        self.electrum = electrum
-        self.bip39_prefixes = (encode(self.coin.electrum_xprv_headers[xtype], 256, 4),
-                               encode(self.coin.electrum_xpub_headers[xtype], 256, 4)) if electrum else (
-        encode(self.coin.xprv_headers[xtype], 256, 4), encode(self.coin.xpub_headers[xtype], 256, 4))
         xprv = bip32_master_key(bip32_seed, self.bip39_prefixes)
         xprv = bip32_ckd(xprv, derivation, self.bip39_prefixes)
         self.add_xprv(xprv)
@@ -347,7 +347,7 @@ class Hardware_KeyStore(KeyStore, Xpub):
     max_change_outputs = 1
 
     def __init__(self, d, coin):
-        Xpub.__init__(self, coin)
+        Xpub.__init__(self)
         KeyStore.__init__(self, coin)
         # Errors and other user interaction is done through the wallet's
         # handler.  The handler is per-window and preserved across
@@ -505,12 +505,12 @@ def is_address_list(text, coin):
     return bool(parts) and all(coin.is_address(x) for x in parts)
 
 
-def get_private_keys(text):
-    parts = text.split('\n')
-    parts = map(lambda x: ''.join(x.split()), parts)
-    parts = list(filter(bool, parts))
-    if bool(parts) and all(bitcoin.is_private_key(x) for x in parts):
-        return parts
+def get_private_keys(privkeys):
+    if not isinstance(privkeys, (list, tuple)):
+        privkeys = privkeys.split('\n')
+        privkeys = map(lambda x: ''.join(x.split()), privkeys)
+        privkeys = list(filter(bool, privkeys))
+    return privkeys
 
 def is_private_key_list(text):
     return bool(get_private_keys(text))
@@ -540,10 +540,11 @@ def from_electrum_seed(seed, passphrase, is_p2sh, coin):
         raise BaseException(t)
     return keystore
 
-def from_private_key_list(text, coin):
+def from_private_key_list(privkeys, coin, xtype="p2pkh", password=None):
     keystore = Imported_KeyStore({}, coin)
-    for x in get_private_keys(text):
-        keystore.import_key(x, None)
+    keystore.set_xtype(xtype)
+    for priv in get_private_keys(privkeys):
+        keystore.import_privkey(priv, password=password)
     return keystore
 
 def from_xpub(xpub, coin, xtype, electrum=False):

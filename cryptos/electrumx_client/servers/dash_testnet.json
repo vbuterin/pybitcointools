@@ -1,0 +1,22 @@
+{
+    "electrumx-testnet.dash.org": {
+        "pruning": "-",
+        "s": "50002",
+        "version": "1.4"
+    },
+    "dword.ga": {
+        "pruning": "-",
+        "s": "51002",
+        "version": "1.4"
+    },
+    "hbhux3mfytxeywes5qesx7nzoesukihwseqkw7qa7oprc5nqqxj3jiid.onion": {
+        "pruning": "-",
+        "s": "60002",
+        "version": "1.4"
+    },
+    "dasht.random.re": {
+        "pruning": "-",
+        "s": "54002",
+        "version": "1.4"
+    }
+}
