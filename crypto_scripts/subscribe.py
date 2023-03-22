@@ -67,7 +67,7 @@ async def subscribe_to_addresses(addresses: List[str], coin_symbol: str, testnet
     await fut
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("addresses", help="Address to subscribe to", nargs="*")
     parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
@@ -75,3 +75,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     asyncio.run(subscribe_to_addresses(args.addresses, coin_symbol=args.coin, testnet=args.testnet))
 
+
+if __name__ == "__main__":
+    main()

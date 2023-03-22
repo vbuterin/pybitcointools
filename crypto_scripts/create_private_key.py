@@ -3,7 +3,7 @@ from cryptos.main import generate_private_key, encode_privkey
 from cryptos.script_utils import get_coin, coin_list
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
     parser.add_argument("-t", "--testnet", help="For testnet", action="store_true")
@@ -24,3 +24,7 @@ if __name__ == "__main__":
         private_key_p2wpkh = coin.encode_privkey(private_key, formt="wif_compressed", script_type="p2wpkh")
         print(f'WIF Native Segwit P2WPKH: {private_key_p2wpkh}')
         print(f'Native Segwit P2WPKH Address: {coin.privtosegwitaddress(private_key_p2wpkh)}')
+
+
+if __name__ == "__main__":
+    main()

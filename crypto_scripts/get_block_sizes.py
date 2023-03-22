@@ -16,7 +16,8 @@ async def print_block_bits(start: int, end: int, coin_symbol: str, testnet: bool
     finally:
         await c.close()
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("start", help="First block height", type=int)
     parser.add_argument("end", help="Final block height", type=int)
@@ -24,3 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--testnet", help="For testnet", action="store_true")
     args = parser.parse_args()
     asyncio.run(print_block_bits(args.start, args.end, coin_symbol=args.coin, testnet=args.testnet))
+
+
+if __name__ == "__main__":
+    main()
