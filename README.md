@@ -409,7 +409,25 @@ Full list of wallet methods:
     > electrum_privkey(seed, 0, 1)      #Change address
     '9ca3631f813a6f81b70fbfc4384122bfe6fb159e6f7aea2811fe968c2a39d42a'
 
+
+### Included scripts
+
+The following scripts are included. They also provide good sample code for using the library.
+Run each script with -h option for details on the cli options.
+
+            broadcast: Broadcast a transaction from raw hex
+            convert_private_key: Convert a private key to a new format
+            create_private_key: Generate a new private key
+            cryptosend: Send crypto to another address
+            explorer: View information in the blockchain about a block, transaction or address
+            get_block_sizes: Get the size of a series of blocks
+            subscribe: Subscribe to an address for changes
+            view_private_key_addresses: View details about a private key including available addresses
+
 ### The cryptotool command line interface:
+
+Cryptool is back to work in progress. This is a legacy reference for now. Use the scripts from the previous section for now.
+
 
     cryptotool bip32_master_key 21456t243rhgtucyadh3wgyrcubw3grydfbng
     xprv9s21ZrQH143K2napkeoHT48gWmoJa89KCQj4nqLfdGybyWHP9Z8jvCGzuEDv4ihCyoed7RFPNbc9NxoSF7cAvH9AaNSvepUaeqbSpJZ4rbT
@@ -472,6 +490,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 * privtopub            : (privkey) -> pubkey
 * pubtoaddr            : (pubkey) -> address
 * privtoaddr           : (privkey) -> address
+* encode_privkey       : (privkey, format, script_type) -> privkey
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
 * signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
 * history              : (address) -> tx history and balance of an address
@@ -543,17 +562,8 @@ segwit or a coin you haven't worked with before, try it out in testnet first or 
 on the mainnet. The original pybitcointools had issues opened in Github where people lost money either due to 
 not understanding what they were doing or because of bugs. 
 
-Here are some links to testnet faucets:
 
-https://testnet.manu.backend.hamburg/faucet
+### Working together
 
-https://testnet.manu.backend.hamburg/bitcoin-cash-faucet
-
-http://test.faucet.masternode.io/
-
-https://faucet.thonguyen.net/ltc
-
-http://testnet.litecointools.com/
-
-Anyone know a working Dogecoin testnet faucet, or willing to send testnet coins to address 
-nmfnMVSjfyfiv37HtbphRbLgMPUHQE7QdP so I can test? (Dogecoin mainnet is tested).
+If you wish to work together on crypto or other software related projects you can contact me using social links on my profile.
+I can very easily and quickly build software tools on top of this pybitcointools library.
