@@ -2,6 +2,8 @@
 
 This is a fork of Vitalik Buterin's original [pybitcointools](https://github.com/vbuterin/pybitcointools) library.
 
+After a lot of work, the library is finally active again and being actively updated.
+
 Installation:
 
 ```bash
