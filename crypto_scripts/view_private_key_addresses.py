@@ -3,7 +3,7 @@ from cryptos.main import privtopub, encode_privkey, compress, decompress
 from cryptos.script_utils import coin_list, get_coin
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("priv", help="Private Key")
     parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
@@ -67,3 +67,5 @@ if __name__ == "__main__":
         assert native_segwit_address == coin.privtoaddr(p2wpkh_wif_compressed)
 
 
+if __name__ == "__main__":
+    main()

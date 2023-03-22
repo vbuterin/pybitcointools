@@ -190,10 +190,14 @@ async def print_item(obj_id: str, coin_symbol: str = "btc", testnet: bool = Fals
         await asyncio.sleep(1)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("obj", help="Object to search for, either a transaction ID, block height or address")
     parser.add_argument("-x", "--coin", help="Coin",  choices=coin_list, default="btc")
     parser.add_argument("-t", "--testnet", help="For testnet", action="store_true")
     args = parser.parse_args()
     asyncio.run(print_item(args.obj, coin_symbol=args.coin, testnet=args.testnet))
+
+
+if __name__ == "__main__":
+    main()

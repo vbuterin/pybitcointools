@@ -1,5 +1,3 @@
-REPOSITORY HAS BEEN ARCHIVED AND IS NO LONGER MAINTAINED FOR NOW
-
 # Pycryptotools, Python library for Crypto coins signatures and transactions
 
 This is a fork of Vitalik Buterin's original [pybitcointools](https://github.com/vbuterin/pybitcointools) library.
@@ -565,5 +563,5 @@ not understanding what they were doing or because of bugs.
 
 ### Working together
 
-If you wish to work together on crypto or other software related projects you can contact me using social links on my profile.
+If you wish to work together on crypto or other software related projects you can contact me using social links on my Github profile.
 I can very easily and quickly build software tools on top of this pybitcointools library.

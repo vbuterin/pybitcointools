@@ -4,7 +4,7 @@ from cryptos.main import privtopub, compress, decompress
 from cryptos.script_utils import coin_list, get_coin
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("priv", help="Private Key")
     parser.add_argument("output_format", help="Output format", choices=['decimal', 'bin', 'bin_compressed', 'hex',
@@ -34,3 +34,7 @@ if __name__ == "__main__":
     elif script_type == "p2wpkh-p2sh" and coin.segwit_supported:
         p2pkhw_p2sh = coin.pubtop2wpkh_p2sh(public_key)
         print(f'P2PKHW_P2SH Address: {p2pkhw_p2sh}')
+
+
+if __name__ == "__main__":
+    main()

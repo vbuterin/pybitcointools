@@ -52,7 +52,7 @@ async def send(coin: str, testnet: bool, addr: str, to: str, amount: int,
         print('Transaction was cancelled')
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("addr", help="Send from this address")
     parser.add_argument("to", help="Send to this address")
@@ -66,3 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     asyncio.run(send(args.coin, args.testnet, args.addr, args.to, args.amount,
                      args.fee, args.change, args.privkey))
+
+
+if __name__ == "__main__":
+    main()
