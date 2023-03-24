@@ -463,7 +463,7 @@ class BaseCoin:
             tx_hashes = list(dict.fromkeys([inp['tx_hash'] for inp in tx['ins'] if not inp.get('value')]))
             try:
                 txs = await alist(self.get_txs(*tx_hashes))
-            except StopIteration as e:  # Not sure what causes this intermittent error
+            except RuntimeError as e:  # Not sure what causes this intermittent error
                 txs = []
             for inp in tx['ins']:
                 pos = inp['tx_pos']
@@ -474,7 +474,7 @@ class BaseCoin:
     async def calculate_fee(self, tx: Tx) -> int:
         try:
             tx = await self.ensure_values(tx)
-        except StopIteration as e:  # Not sure what causes this intermittent error
+        except RuntimeError:
             pass
         in_value = sum(i['value'] for i in tx['ins'])
         out_value = sum(o['value'] for o in tx['outs'])
@@ -494,10 +494,7 @@ class BaseCoin:
             message = f'{tx_obj}\n{tx}\n{e.message}'
             if any(code == e.code for code in (1, -32600)):
                 if "fee" in e.message:
-                    try:
-                        message += f"Fee is {await self.calculate_fee(tx_obj)}"
-                    except StopIteration:
-                        pass
+                    message += f"Fee is {await self.calculate_fee(tx_obj)}"
                 raise TXRejectedError(message)
             raise TXInvalidError(message)
 

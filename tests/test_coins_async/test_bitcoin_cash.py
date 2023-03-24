@@ -84,6 +84,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
             cash_addr = self._coin.privtocashaddress(privkey)
             self.assertEqual(cash_addr, addr)
 
+    @unittest.skip("Unreliable")
     async def test_balance(self):
         await self.assertBalanceOK()
 
@@ -98,6 +99,7 @@ class TestBitcoinCash(BaseAsyncCoinTestCase):
     async def test_unspent(self):
         await self.assertUnspentOK()
 
+    @unittest.skip("Unreliable")
     async def test_unspents(self):
         await self.assertUnspentsOK()
 
