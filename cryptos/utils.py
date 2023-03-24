@@ -43,4 +43,7 @@ async def alist(generator: AsyncGenerator[Any, None]) -> List[Any]:
 
 
 def is_hex(text: str) -> Optional[Match[AnyStr]]:
-    return re.match('^[0-9a-fA-F]*$', text)
+    regex = '^[0-9a-fA-F]*$'
+    if isinstance(text, bytes):
+        regex = regex.encode()
+    return re.match(regex, text)
