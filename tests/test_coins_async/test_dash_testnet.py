@@ -94,7 +94,7 @@ class TestDashTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertTransactionOK()
 
-    @unittest.skip("Intermittent failure")
+    @unittest.skip("Unspents unrecognized")
     async def test_transaction_multisig(self):
         """
         Sample transaction:

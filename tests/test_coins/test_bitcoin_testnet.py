@@ -129,7 +129,6 @@ class TestBitcoinTestnet(BaseSyncCoinTestCase):
         """
         self.assertMixedSegwitTransactionOK()
 
-    @unittest.skip("Intermittent Failure")
     def test_transaction_multisig(self):
         """
         Sample transaction:

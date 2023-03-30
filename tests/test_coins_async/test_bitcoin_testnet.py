@@ -166,7 +166,6 @@ class TestBitcoinTestnet(BaseAsyncCoinTestCase):
         """
         await self.assertMixedSegwitTransactionOK()
 
-    @unittest.skip('Intermittent failure')
     async def test_transaction_multisig(self):
         """
         Sample transaction:

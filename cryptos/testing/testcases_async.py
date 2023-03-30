@@ -840,8 +840,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
                 tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig3)
             else:
-                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
-                sig2 = self._coin.multisign(tx, i, script, self.privkeys[1])
+                sig1 = self._coin.multisign(tx, i, script2, self.privkeys[0])
+                sig2 = self._coin.multisign(tx, i, script2, self.privkeys[1])
                 tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig2)
 
         self.assertEqual(tx['locktime'], 0)
@@ -1021,8 +1021,8 @@ class BaseAsyncCoinTestCase(unittest.IsolatedAsyncioTestCase):
                 sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
                 tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig3)
             else:
-                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
-                sig2 = self._coin.multisign(tx, i, script, self.privkeys[1])
+                sig1 = self._coin.multisign(tx, i, script2, self.privkeys[0])
+                sig2 = self._coin.multisign(tx, i, script2, self.privkeys[1])
                 tx = self._coin.apply_multisignatures(tx, i, script, sig1, sig2)
 
         self.assertEqual(tx['locktime'], 0)

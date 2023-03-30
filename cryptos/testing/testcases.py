@@ -571,9 +571,9 @@ class BaseSyncCoinTestCase(unittest.TestCase):
                 sig3 = self._coin.multisign(tx, i, script, self.privkeys[2])
                 tx = apply_multisignatures(tx, i, script, sig1, sig3)
             else:
-                sig1 = self._coin.multisign(tx, i, script, self.privkeys[0])
-                sig2 = self._coin.multisign(tx, i, script, self.privkeys[1])
-                tx = apply_multisignatures(tx, i, script, sig1, sig2)
+                sig1 = self._coin.multisign(tx, i, script2, self.privkeys[0])
+                sig2 = self._coin.multisign(tx, i, script2, self.privkeys[1])
+                tx = apply_multisignatures(tx, i, script2, sig1, sig2)
 
         self.assertEqual(tx['locktime'], 0)
         self.assertEqual(tx['version'], 1)
