@@ -1,14 +1,15 @@
-from typing import TypedDict, Dict, Any
+from typing import TypedDict, Dict, Any, AnyStr
 from typing import List, AnyStr, Union, Callable, Awaitable
 from typing_extensions import NotRequired
 from .electrumx_client.types import ElectrumXTx
 
 
 class TxInput(TypedDict):
-    tx_hash: str
-    tx_pos: int
-    script: bytes
-    sequence: int
+    tx_hash: NotRequired[str]
+    tx_pos: NotRequired[int]
+    output: NotRequired[str]
+    script: NotRequired[AnyStr]
+    sequence: NotRequired[int]
     value: NotRequired[int]
     address: NotRequired[str]
 
