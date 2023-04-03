@@ -884,7 +884,7 @@ class BaseCoin:
                 txobj = self.sign(txobj, i, priv)
         return txobj
 
-    def multisign(self, txobj: Union[str, Tx], i: int, script: str, priv) -> Tx:
+    def multisign(self, txobj: Union[str, Tx], i: int, script: str, priv: PrivkeyType) -> Tx:
         i = int(i)
         if not isinstance(txobj, dict):
             txobj = deserialize(txobj)
@@ -913,9 +913,12 @@ class BaseCoin:
         txobj = {"locktime": locktime, "version": 1}
         for i, inp in enumerate(ins):
             if isinstance(inp, string_or_bytes_types):
-                real_inp: TxInput = {"tx_hash": inp[:64], "tx_pos": int(inp[65:]), 'amount': 0}
+                real_inp: TxInput = {"tx_hash": inp[:64], "tx_pos": int(inp[65:])}
                 ins[i] = real_inp
                 inp = real_inp
+            elif inp_out := inp.pop('output', None):
+                tx_info: TxInput = {"tx_hash": inp_out[:64], "tx_pos": int(inp_out[65:])}
+                inp.update(tx_info)
             if address := inp.get('address', ''):
                 if self.segwit_supported and self.is_native_segwit(address):
                     txobj.update({"marker": 0, "flag": 1, "witness": []})

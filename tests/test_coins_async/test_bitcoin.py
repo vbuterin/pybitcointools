@@ -180,6 +180,36 @@ class TestBitcoin(BaseAsyncCoinTestCase):
     async def test_gettxs(self):
         await self.assertTxsOK()
 
+    def test_mktx_legacy_input_format(self):
+        """
+        Test support for {'output': 'txhash:txpos'} input format
+        """
+        inp = {'output': 'e068b7a30a15229005ff38be47ad419aea8ea519ed9ce26e94778ce2b690d44a:1',
+               'value': 5000000,
+               'address': '1MhTCMUjM1TEQ7RSwoCMVZy7ARa9aAP82Z'}
+        outs = []
+        tx = self._coin.mktx([inp], outs)
+        self.assertDictEqual(tx['ins'][0],
+                             {'tx_hash': 'e068b7a30a15229005ff38be47ad419aea8ea519ed9ce26e94778ce2b690d44a',
+                              'tx_pos': 1,
+                              'value': 5000000,
+                              'address': '1MhTCMUjM1TEQ7RSwoCMVZy7ARa9aAP82Z',
+                              'script': '',
+                              'sequence': 4294967295})
+
+    def test_mktx_legacy_input_format_str(self):
+        """
+        Test support for 'txhash:txpos str input format
+        """
+        inp = 'e068b7a30a15229005ff38be47ad419aea8ea519ed9ce26e94778ce2b690d44a:1'
+        outs = []
+        tx = self._coin.mktx([inp], outs)
+        self.assertDictEqual(tx['ins'][0],
+                             {'tx_hash': 'e068b7a30a15229005ff38be47ad419aea8ea519ed9ce26e94778ce2b690d44a',
+                              'tx_pos': 1,
+                              'script': '',
+                              'sequence': 4294967295})
+
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):

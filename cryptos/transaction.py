@@ -159,6 +159,13 @@ def deserialize(tx: AnyStr) -> Tx:
     return obj
 
 
+def test_unhexlify(x):
+    try:
+        return binascii.unhexlify(x)
+    except binascii.Error:
+        raise Exception('Unhexlify failed for', x)
+
+
 def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
     txobj = deepcopy(txobj)
     for i in txobj['ins']:
@@ -168,7 +175,7 @@ def serialize(txobj: Tx, include_witness: bool = True) -> AnyStr:
         txobj = bytes_to_hex_string(txobj)
     o = []
     if json_is_base(txobj, 16):
-        json_changedbase = json_changebase(txobj, lambda x: binascii.unhexlify(x))
+        json_changedbase = json_changebase(txobj, test_unhexlify)
         hexlified = safe_hexlify(serialize(json_changedbase, include_witness=include_witness))
         return hexlified
     o.append(encode_4_bytes(txobj["version"]))
