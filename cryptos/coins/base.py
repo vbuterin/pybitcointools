@@ -93,11 +93,11 @@ class BaseSyncCoin:
             self._request_queue.sync_q.put((fut, "close", (), {}))
             fut.result(timeout=100)
 
-    def tx_size(self, txobj: Tx) -> float:
-        return self._async_coin.tx_size(txobj)
-
     def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
         return self._run_async("estimate_fee_per_kb", numblocks=numblocks)
+
+    def tx_size(self, txobj: Tx) -> float:
+        return self._async_coin.tx_size(txobj)
 
     def estimate_fee(self, txobj: Tx, numblocks: int = 6) -> int:
         return self._run_async("estimate_fee", txobj, numblocks=numblocks)

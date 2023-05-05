@@ -513,6 +513,23 @@ The arguments are the private key of the sender, the receiver's address and the 
 * block_height         : (txhash) -> Block height containing the txhash
 * inspect              : (tx_hex) -> Deserialize a transaction and decode and ins and outs
 * merkle_prove         : (txhash) -> Proves a transaction is valid and returns txhash, merkle siblings and block header.
+* estimate_fee_per_kb  : (numblocks) -> Get estimated fee kb to get transaction confirmed within numblocks number of blocks
+* tx_size              : (tx) -> Estimate final transaction size of an unsigned transaction
+* estimate_fee         : (tx, numblocks=6) -> Estimate required fee of an unsigned transaction
+* raw_block_header     : (height) -> Get the raw data of a block header
+* block_header         : (height) -> Get the decoded details of a block header
+* block_headers        : (*heights) -> Get a list of decoded block headers
+* subscribe_to_block_headers: (callback(height, raw_header, decoded_header)) -> Run a callback whenever a new block is added to the blockchain
+* unsubscribe_from_block_headers: () -> Remove all subscriptions to block headers
+* confirmations        : (height) -> Number of confirmations a transaction at this height has
+* subscribe_to_address : (callback(addr, status), addr) -> Run a callback every time there is an activity on an address
+* subscribe_to_address_transactions : (callback(address: str, txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven), addr) -> Run a callback every time there is an activity on an address with details transaction and balance information already retrieved
+* unsubscribe_from_address: (addr) -> Remove all subscriptions for this address
+* get_balance           : (addr) -> Get the balance, confirmed and unconfirmed, for an address
+* get_balances          : (*addrs) -> Get the balance, confirmed and unconfirmed, for multiple addresses
+* get_merkle            : (tx) -> Get the merkle root of a transaction
+* merkle_prove          : (tx) -> Prove a transaction is valid
+* merkle_prove_by_txid  : (txid) -> Prove a transaction id is valud
 
 ### Listing of main non-coin specific commands:
 
