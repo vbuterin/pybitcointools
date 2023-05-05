@@ -1,3 +1,4 @@
 include cryptos/english.txt
+include cryptos/electrumx_client/servers/*.json
 include LICENSE
 include README.md

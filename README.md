@@ -488,22 +488,21 @@ The arguments are the private key of the sender, the receiver's address and the 
 * privtopub            : (privkey) -> pubkey
 * pubtoaddr            : (pubkey) -> address
 * privtoaddr           : (privkey) -> address
-* encode_privkey       : (privkey, format, script_type) -> privkey
+* encode_privkey       : (privkey, format, script_type="p2pkh") -> privkey
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
 * signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
-* history              : (address) -> tx history and balance of an address
-* unspent              : (address) -> unspent outputs for an addresses
+* history              : (address, merkle_proof=False) -> tx history and balance of an address
+* unspent              : (address, merkle_proof=False) -> unspent outputs for an addresses
 * pushtx               : (hex or bin tx) -> push a transaction to the blockchain
-* fetchtx              : (txhash) -> fetch a tx from the blockchain
-* txinputs             : (txhash) -> fetch inputs from a previous transaction in a format to be re-used as unspents             
-* send                 : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
-* sendmultitx          : (privkey, to:value pairs, fee=10000, change_addr=None, segwit=False, addr=None) -> create and a push a transaction to send coins to multiple addresses and return change to the change address or sender
-* preparetx            : (frm, to, value, fee, change_addr=None, segwit=False): -> create unsigned txobj with change output
-* preparemultitx       : (frm, to:value pairs, fee, change_addr=None, segwit=False): -> create unsigned txobj with multiple outputs and additional change output
-* preparesignedtx      : (privkey, to, value, fee=10000, change_addr=None, segwit=False, addr=None) -> create signed txobj with change output
-* preparesignedmultitx : (privkey, *args, change_addr=None, segwit=False, addr=None) -> create signed txobj with multiple outputs and additional change output
-* mktx                 : (inputs, outputs) -> create unsigned txobj
-* mksend               : (inputs, outputs, change_addr, fee, segwit) -> create unsigned txobj
+* get_tx               : (txhash) -> fetch a tx from the blockchain
+* send                 : (privkey, frm, to, value, change_addr=None, fee=None, estimate_fee_blocks: int = 6) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
+* send_to_multiple_receivers_tx          : (privkey, addr outs:value pairs, change_addr=None,fee=10000,, estimate_fee_blocks: int = 6) -> create and a push a transaction to send coins to multiple addresses and return change to the change address or sender
+* preparetx            : (frm, to, value, fee, estimate_fee_blocks: int = 6,change_addr=None): -> create unsigned txobj with change output
+* preparemultitx       : (frm, outs:value pairs, change_addr=None, fee=None, estimate_fee_blocks: int = 6): -> create unsigned txobj with multiple outputs and additional change output
+* preparesignedtx      : (privkey, frm, to, value, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with change output
+* preparesignedmultirecipienttx : (privkey, frm, outs: value pairs, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with multiple outputs and additional change output
+* mktx                 : (inputs, outputs, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
+* mktx_with_change     : (inputs, outputs, change_addr=None, fee=None, estimate_fee_blocks=6, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multsig script and address pubkeys
 * pubtop2w             : (pub) -> pay to witness script hash (segwit address)
 * privtop2w            : (priv) -> pay to witness script hash (segwit address)
