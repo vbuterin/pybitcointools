@@ -440,25 +440,25 @@ class BaseCoin:
         """
         return await self.client.get_tx(tx_hash)
 
-    async def get_tx(self, tx_hash: str) -> Tx:
+    async def get_tx(self, txid: str) -> Tx:
         """
         Fetch transaction from the blockchain and deserialise it to a dictionary
         """
-        tx = await self.get_raw_tx(tx_hash)
+        tx = await self.get_raw_tx(txid)
         deserialized_tx = deserialize(tx)
         return deserialized_tx
 
-    async def get_verbose_tx(self, tx_hash: str) -> ElectrumXVerboseTX:
+    async def get_verbose_tx(self, txid: str) -> ElectrumXVerboseTX:
         """
         Fetch transaction from the blockchain in verbose form
         """
-        return await self.client.get_tx(tx_hash, verbose=True)
+        return await self.client.get_tx(txid, verbose=True)
 
     async def get_txs(self, *args: str) -> AsyncGenerator[Tx, None]:
         for tx in await asyncio.gather(*[self.get_tx(tx_hash) for tx_hash in args]):
             yield tx
 
-    async def ensure_values(self, tx: Tx) -> Tx:
+    async def _ensure_values(self, tx: Tx) -> Tx:
         if not all(inp.get('value') for inp in tx['ins']):
             tx_hashes = list(dict.fromkeys([inp['tx_hash'] for inp in tx['ins'] if not inp.get('value')]))
             try:
@@ -473,7 +473,7 @@ class BaseCoin:
 
     async def calculate_fee(self, tx: Tx) -> int:
         try:
-            tx = await self.ensure_values(tx)
+            tx = await self._ensure_values(tx)
         except RuntimeError:
             pass
         in_value = sum(i['value'] for i in tx['ins'])

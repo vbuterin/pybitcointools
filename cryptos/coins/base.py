@@ -169,11 +169,11 @@ class BaseSyncCoin:
     def get_raw_tx(self, tx_hash: str) -> str:
         return self._run_async("get_raw_tx", tx_hash)
 
-    def get_tx(self, tx_hash: str) -> Tx:
-        return self._run_async("get_tx", tx_hash)
+    def get_tx(self, txid: str) -> Tx:
+        return self._run_async("get_tx", txid)
 
-    def get_verbose_tx(self, tx_hash: str) -> Dict[str, Any]:       # Make TypedDict
-        return self._run_async("get_verbose_tx", tx_hash)
+    def get_verbose_tx(self, txid: str) -> Dict[str, Any]:       # Make TypedDict
+        return self._run_async("get_verbose_tx", txid)
 
     def get_txs(self, *args: str) -> List[Tx]:
         return self._run_async("get_txs", *args)

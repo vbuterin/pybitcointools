@@ -487,14 +487,21 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * privtopub            : (privkey) -> pubkey
 * pubtoaddr            : (pubkey) -> address
-* privtoaddr           : (privkey) -> address
+* privtoaddr           : (privkey) -> Convert a wif encoded private key to correct addresso otherwise p2pkh
+* privtop2pkh          : (privkey) -> p2pkh address
 * encode_privkey       : (privkey, format, script_type="p2pkh") -> privkey
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
 * signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
-* history              : (address, merkle_proof=False) -> tx history and balance of an address
+* history              : (address, merkle_proof=False) -> tx history of an address
+* get_histories        : (*addresses, merkle_proof=False) -> tx histories of an address
 * unspent              : (address, merkle_proof=False) -> unspent outputs for an addresses
-* pushtx               : (hex or bin tx) -> push a transaction to the blockchain
-* get_tx               : (txhash) -> fetch a tx from the blockchain
+* get_unspents         : (addresses, merkle_proof=False) -> unspent outputs for multiple addresses
+* pushtx               : (hex or tx object) -> push a transaction to the blockchain
+* get_raw_tx           : (txid) -> Get the raw hex of a transaction id
+* get_tx               : (txid) -> fetch a tx from the blockchain
+* get_verbose_tx       : (txid) -> Transaction details verbose output
+* get_txs              : (*txids) -> Fetch multiple transaction details
+* calculate_fee        : (Tx) -> Calculate the fee of a transaction
 * send                 : (privkey, frm, to, value, change_addr=None, fee=None, estimate_fee_blocks: int = 6) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
 * send_to_multiple_receivers_tx          : (privkey, addr outs:value pairs, change_addr=None,fee=10000,, estimate_fee_blocks: int = 6) -> create and a push a transaction to send coins to multiple addresses and return change to the change address or sender
 * preparetx            : (frm, to, value, fee, estimate_fee_blocks: int = 6,change_addr=None): -> create unsigned txobj with change output
@@ -529,7 +536,12 @@ The arguments are the private key of the sender, the receiver's address and the 
 * get_balances          : (*addrs) -> Get the balance, confirmed and unconfirmed, for multiple addresses
 * get_merkle            : (tx) -> Get the merkle root of a transaction
 * merkle_prove          : (tx) -> Prove a transaction is valid
-* merkle_prove_by_txid  : (txid) -> Prove a transaction id is valud
+* merkle_prove_by_txid  : (txid) -> Prove a transaction id is valid
+* balance_merkle_proven : (addr) -> Get the merkle proven balance for an address
+* balance_merkle_proven : (*addrs) -> Get the merkle proven balance for multiple addresses
+* get_address_variations: (addr) -> Return alternative formats for an address (e.g. Standard + Bitcoin Cash address)
+* pub_is_for_p2pkh_addr : (pub, addr) -> Returns true if the p2pkh address for pub is addr
+* 
 
 ### Listing of main non-coin specific commands:
 
