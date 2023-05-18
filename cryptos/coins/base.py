@@ -190,6 +190,15 @@ class BaseSyncCoin:
     def privtoaddr(self, privkey: PrivkeyType) -> str:
         return self._async_coin.privtoaddr(privkey)
 
+    def privtop2pkh(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtop2pkh(privkey)
+
+    def pub_is_for_p2pkh_addr(self, pubkey: PubKeyType, address: str) -> bool:
+        return self._async_coin.pub_is_for_p2pkh_addr(pubkey, address)
+
+    def wiftoaddr(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.wiftoaddr(privkey)
+
     def electrum_address(self, masterkey: AnyStr, n: int, for_change: int = 0) -> str:
         return self._async_coin.electrum_address(masterkey, n, for_change=for_change)
 
@@ -208,8 +217,17 @@ class BaseSyncCoin:
     def is_address(self, addr: str) -> bool:
         return self._async_coin.is_address(addr)
 
-    def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
+    def is_cash_or_legacy_p2pkh_address(self, addr: str)-> bool:
+        return self._async_coin.is_cash_or_legacy_p2pkh_address(addr)
+
+    def maybe_legacy_segwit(self, addr: str) -> bool:
         return self._async_coin.maybe_legacy_segwit(addr)
+
+    def is_p2wsh(self, addr: str) -> bool:
+        return self._async_coin.is_p2wsh(addr)
+
+    def is_segwit_or_p2sh(self, addr: str) -> bool:
+        return self._async_coin.is_segwit_or_p2sh(addr)
 
     def is_segwit_or_multisig(self, addr: str) -> bool:
         return self._async_coin.is_segwit_or_p2sh(addr)
@@ -222,6 +240,9 @@ class BaseSyncCoin:
 
     def p2sh_scriptaddr(self, script: str) -> str:
         return self._async_coin.p2sh_scriptaddr(script)
+
+    def p2sh_segwit_addr(self, script: str) -> str:
+        return self._async_coin.p2sh_segwit_addr(script)
 
     def addrtoscript(self, addr: str) -> str:
         return self._async_coin.addrtoscript(addr)

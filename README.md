@@ -487,7 +487,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * privtopub            : (privkey) -> pubkey
 * pubtoaddr            : (pubkey) -> address
-* privtoaddr           : (privkey) -> Convert a wif encoded private key to correct addresso otherwise p2pkh
+* privtoaddr           : (privkey) -> Convert a wif encoded private key to correct address, if not wif encoded then p2pkh
 * privtop2pkh          : (privkey) -> p2pkh address
 * encode_privkey       : (privkey, format, script_type="p2pkh") -> privkey
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
@@ -508,14 +508,21 @@ The arguments are the private key of the sender, the receiver's address and the 
 * preparemultitx       : (frm, outs:value pairs, change_addr=None, fee=None, estimate_fee_blocks: int = 6): -> create unsigned txobj with multiple outputs and additional change output
 * preparesignedtx      : (privkey, frm, to, value, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with change output
 * preparesignedmultirecipienttx : (privkey, frm, outs: value pairs, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with multiple outputs and additional change output
-* mktx                 : (inputs, outputs, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
+* mktx                 : (inputs, outputs, locktifme=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mktx_with_change     : (inputs, outputs, change_addr=None, fee=None, estimate_fee_blocks=6, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multsig script and address pubkeys
 * pubtop2w             : (pub) -> pay to witness script hash (segwit address)
 * privtop2w            : (priv) -> pay to witness script hash (segwit address)
 * is_address           : (addr) -> true if addr is a valid address for this network
+* is_p2pkh              : (address) -> Return true if an address is in p2pkh format
 * is_p2sh              : (addr) -> true if addr is a pay to script hash for this network
 * is_segwit            : (priv, addr) -> true if priv-addr pair represent a pay to witness script hash
+* is_cash_or_legacy_p2pkh_address : (address) -> Returns true if an address is a legacy p2pkh address or a Bitcoin Cash formatted p2pkh address
+* is_native_segwit      : (address) -> Returns true if an address is of native segwit type
+* is_cash_address       : (address) -> Returns true if an address is of Bitcoin Cash address format
+* maybe_legacy_segwit   : (address) -> Returns true if address is likely a legacy segwit p2sh address
+* is_p2wsh              : (address) -> Returns true is address is a Pay To Witness Script Address
+* is_segwit_or_p2sh     : (address) -> Returns true if an address is a Pay to Witness or Pay to Script address
 * current_block_height : () -> Latest block height
 * block_height         : (txhash) -> Block height containing the txhash
 * inspect              : (tx_hex) -> Deserialize a transaction and decode and ins and outs
@@ -541,7 +548,14 @@ The arguments are the private key of the sender, the receiver's address and the 
 * balance_merkle_proven : (*addrs) -> Get the merkle proven balance for multiple addresses
 * get_address_variations: (addr) -> Return alternative formats for an address (e.g. Standard + Bitcoin Cash address)
 * pub_is_for_p2pkh_addr : (pub, addr) -> Returns true if the p2pkh address for pub is addr
-* 
+* wiftoaddr             : (priv) -> Convert a private key in WIF format to the correct address type
+* electrum_address      : (masterkey, n, for_change) -> Electrum Address (for old Electrum seeds)
+* encode_privkey        : (privkey, format, script_type) -> Convert a private key to a different format or script types
+* output_script_to_address : (script) -> Convert an output script to an address
+* scripttoaddr          : (script)  -> Convert an input script to an address 
+* p2sh_scriptaddr       : (script) -> Convert an output P2SH script to a P2SH address
+* p2sh_segwit_addr     : (script) -> Convert an output P2SH script to a native segwit P2WSH address
+* scripthash_to_cash_addr: (scripthash) -> Convert a scripthash to a Bitcoin Cash address
 
 ### Listing of main non-coin specific commands:
 

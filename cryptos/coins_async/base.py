@@ -617,7 +617,7 @@ class BaseCoin:
 
     def scripttoaddr(self, script: str) -> str:
         """
-        Convert an input public key hash to an address
+        Convert an input public key has or script to an address
         """
         if is_hex(script):
             script = binascii.unhexlify(script)
