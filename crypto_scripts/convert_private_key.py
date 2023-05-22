@@ -29,7 +29,7 @@ def main():
         address = coin.pubtoaddr(public_key)
         print(f'P2PKH Address: {address}')
     elif script_type == "p2wpkh" and coin.segwit_supported:
-        native_segwit_address = coin.pub_to_segwit_address(public_key)
+        native_segwit_address = coin.pubtosegwitaddress(public_key)
         print(f'P2WPKH Native Segwit address: {native_segwit_address}')
     elif script_type == "p2wpkh-p2sh" and coin.segwit_supported:
         p2pkhw_p2sh = coin.pubtop2wpkh_p2sh(public_key)

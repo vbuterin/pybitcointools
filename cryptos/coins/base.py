@@ -250,20 +250,29 @@ class BaseSyncCoin:
     def addrtoscripthash(self, addr: str) -> str:
         return self._async_coin.addrtoscripthash(addr)
 
-    def pubtop2w(self, pub: str) -> str:
+    def pubtop2wpkh_p2sh(self, pub: str) -> str:
         return self._async_coin.pubtop2wpkh_p2sh(pub)
+
+    def privtop2wpkh_p2sh(self, priv: str) -> str:
+        return self._async_coin.privtop2wpkh_p2sh(priv)
 
     def hash_to_segwit_addr(self, pub_hash: str) -> str:
         return self._async_coin.hash_to_segwit_addr(pub_hash)
 
-    def pub_to_segwit_address(self, pubkey) -> str:
-        return self._async_coin.pub_to_segwit_address(pubkey)
+    def scripthash_to_segwit_addr(self, script_hash: AnyStr) -> str:
+        return self._async_coin.scripthash_to_segwit_addr(script_hash)
+
+    def pubtosegwitaddress(self, pubkey) -> str:
+        return self._async_coin.pubtosegwitaddress(pubkey)
 
     def script_to_p2wsh(self, script) -> str:
         return self._async_coin.script_to_p2wsh(script)
 
-    def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
-        return self._async_coin.mk_multsig_address(*args, num_required=num_required)
+    def mk_multisig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multisig_address(*args, num_required=num_required)
+
+    def mk_multsig_segwit_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multsig_segwit_address(*args, num_required=num_required)
 
     def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
         return self._async_coin.sign(txobj, i, priv)
@@ -354,11 +363,14 @@ class BaseSyncCoin:
     def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
         return self._async_coin.scripthash_to_cash_addr(scripthash)
 
+    def p2sh_cash_addr(self, script: str) -> str:
+        return self._async_coin.p2sh_cash_addr(script)
+
     def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
         return self._async_coin.hash_to_cash_addr(pub_hash)
 
-    def pub_to_cash_address(self, pubkey: str) -> str:
-        return self._async_coin.pub_to_cash_address(pubkey)
+    def pubtocashaddress(self, pubkey: str) -> str:
+        return self._async_coin.pubtocashaddress(pubkey)
 
     def privtocashaddress(self, privkey: PrivkeyType) -> str:
         return self._async_coin.privtocashaddress(privkey)
@@ -372,5 +384,11 @@ class BaseSyncCoin:
     def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         return self._async_coin.mk_multsig_cash_address(*args, num_required=num_required)
 
+    def apply_multisignatures(self, txobj: Tx, i: int, script, *args):
+        return self._async_coin.apply_multisignatures(txobj, i, script, *args)
+
     def calculate_fee(self, tx: Tx) -> int:
         return self._run_async("calculate_fee", tx)
+
+    def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtosegwitaddress(privkey)

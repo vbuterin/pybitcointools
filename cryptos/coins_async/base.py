@@ -521,7 +521,7 @@ class BaseCoin:
 
     def pub_is_for_p2pkh_addr(self, pubkey: PubKeyType, address: str) -> bool:
         return self.pubtoaddr(pubkey) == address or (
-                self.cash_address_supported and self.pub_to_cash_address(pubkey) == address)
+                self.cash_address_supported and self.pubtocashaddress(pubkey) == address)
 
     def wiftoaddr(self, privkey: PrivkeyType) -> str:
         magicbyte, priv = b58check_to_bin(privkey)
@@ -730,9 +730,9 @@ class BaseCoin:
         """
         Convert a private key to the new segwit address format outlined in BIP01743
         """
-        return self.pub_to_segwit_address(self.privtopub(privkey))
+        return self.pubtosegwitaddress(self.privtopub(privkey))
 
-    def pub_to_cash_address(self, pubkey: str) -> str:
+    def pubtocashaddress(self, pubkey: str) -> str:
         """
         Convert a public key to a cash address
         """
@@ -742,7 +742,7 @@ class BaseCoin:
         """
         Convert a private key to a cash address
         """
-        return self.pub_to_cash_address(self.privtopub(privkey))
+        return self.pubtocashaddress(self.privtopub(privkey))
 
     def legacy_addr_to_cash_address(self, addr: str) -> str:
         """
@@ -765,13 +765,13 @@ class BaseCoin:
             return bin_to_b58check(pubkey_hash, self.magicbyte)
         return bin_to_b58check(pubkey_hash, self.script_magicbyte)
 
-    def pub_to_segwit_address(self, pubkey: str) -> str:
+    def pubtosegwitaddress(self, pubkey: str) -> str:
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
         return self.hash_to_segwit_addr(pubkey_to_hash(compress(pubkey)))
 
-    def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+    def mk_multisig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         """
         :param args: List of public keys to used to create multisig
         :param num_required: The number of signatures required to spend (defaults to number of public keys provided)
