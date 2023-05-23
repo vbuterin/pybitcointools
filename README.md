@@ -511,7 +511,8 @@ The arguments are the private key of the sender, the receiver's address and the 
 * mktx                 : (inputs, outputs, locktifme=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mktx_with_change     : (inputs, outputs, change_addr=None, fee=None, estimate_fee_blocks=6, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multisig script and address
-* apply_multisignatures: (tx, i, script, *signatures) -> Apply multisig signatures to a transaction input
+* multisign            : (txobj, i, script, privkey) -> signature
+* apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
 * mk_multsig_segwit_address : (pubkeys, M)- Returns both M-of-N multisig script and native segwit address
 * mk_multsig_cash_address: (pubkeys, M)- Returns both M-of-N multisig script and Bitcoin Cash address
 * pubtop2w             : (pub) -> pay to witness script hash (segwit address)
@@ -598,11 +599,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * deserialize          : (hex or bin transaction) -> JSON tx
 * serialize            : (JSON tx) -> hex or bin tx
-* multisign            : (txobj, i, script, privkey) -> signature
-* apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
-* scriptaddr           : (script) -> P2SH address
-* mk_multisig_script   : (pubkeys, M) -> M-of-N multisig script from pubkeys
-* verify_tx_input      : (tx, i, script, sig, pub) -> True/False
+s* verify_tx_input      : (tx, i, script, sig, pub) -> True/False
 * tx_hash              : (hex or bin tx) -> hash
 
 * access               : (json list/object, prop) -> desired property of that json object
