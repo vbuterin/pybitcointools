@@ -42,7 +42,7 @@ class TestLitecoin(BaseAsyncCoinTestCase):
     testnet: bool = False
 
     unspent_addresses: List[str] = ["LSdTvMHRm8sScqwCi6x9wzYQae8JeZhx6y"]
-    balance: ElectrumXMultiBalanceResponse = {'confirmed': 83515295, 'unconfirmed': 0}
+    balance: ElectrumXMultiBalanceResponse = {'confirmed': 83571855, 'unconfirmed': 0}
     balances: List[ElectrumXMultiBalanceResponse] = [{'address': unspent_addresses[0]} | dict(balance)]
     unspent: List[ElectrumXTx] = [{'address': 'LSdTvMHRm8sScqwCi6x9wzYQae8JeZhx6y',
                                   'height': 1495972,
@@ -93,7 +93,13 @@ class TestLitecoin(BaseAsyncCoinTestCase):
                                   'height': 2352771,
                                   'tx_hash': '7158c6f05ef2b06a40cd00b64647da6735d2eb3908f958fcbc5d0584f34be460',
                                   'tx_pos': 0,
-                                  'value': 1121169}]
+                                  'value': 1121169},
+                                 {'address': 'LSdTvMHRm8sScqwCi6x9wzYQae8JeZhx6y',
+                                  'height': 2454373,
+                                  'tx_hash': '02c0665f6ddaed09a365ddafdff05b188969ee754acf6867b9dd1b970d254a8b',
+                                  'tx_pos': 0,
+                                  'value': 56560
+                                  }]
     history: List[ElectrumXTx] = [{'height': 1495972,
                                    'tx_hash': '6cf532663cd14013aa6ccb394f86d64aa48fce4d6aa8a175f9b75ea486465ca9'},
                                   {'height': 1509957,
@@ -113,7 +119,9 @@ class TestLitecoin(BaseAsyncCoinTestCase):
                                   {'height': 2262951,
                                    'tx_hash': '43eb70acc4c8c6bdbfabdf76cdbf0a6a969b82051514d105f8c00dff23e715c6'},
                                   {'height': 2352771,
-                                   'tx_hash': '7158c6f05ef2b06a40cd00b64647da6735d2eb3908f958fcbc5d0584f34be460'}]
+                                   'tx_hash': '7158c6f05ef2b06a40cd00b64647da6735d2eb3908f958fcbc5d0584f34be460'},
+                                  {'height': 2454373,
+                                   'tx_hash': '02c0665f6ddaed09a365ddafdff05b188969ee754acf6867b9dd1b970d254a8b'}]
     histories: List[ElectrumXTx] = [dict(h) | {'address': "LSdTvMHRm8sScqwCi6x9wzYQae8JeZhx6y"} for h in history]
     unspents: List[ElectrumXTx] = unspent
     min_latest_height: int = 2360220
@@ -178,46 +186,46 @@ class TestLitecoin(BaseAsyncCoinTestCase):
     async def test_transaction(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertTransactionOK("9e60e1f5257950837bbbe7f2ca84410a59d9b6326823c4e0defdb01fb115df97")
+            await self.assertTransactionOK("5f2bee84fdd62038a5f34848cd427cca3ed278d990d7ed4e50d7f62378c23757")
 
     async def test_transaction_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertSegwitTransactionOK(
-                "c263194aed2d18f3289105f99636b2187f7228c0a5d3b0c757d68a7a9099a4c4")
+                "1956512ac84a0624d1c771463ed08c19b9e4add2d7f23975b4c4fcd9c6d0a006")
 
     async def test_transaction_native_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertNativeSegwitTransactionOK(
-                "41c45ea2381ec4da825712d1cee6d598247edac93e8fedb79ff6d426bfb2af6f")
+                "eab7dcbf60408c9a72bfd5f60ffcef3c266e8b9a0f159686f97334740ff2b88c")
 
     async def test_transaction_mixed_segwit(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertMixedSegwitTransactionOK(
-                "5e918bfc41e912b581adb513efe4f480d37950c386842ad1bbd052b3fb5c1a48")
+                "69678157448b00cfdafaf07bf7825072094552c5f5f3626152845118b3b30969")
 
     async def test_transaction_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
             await self.assertMultiSigTransactionOK(
-                "a0c54d9e45a7bd3ab224d154760f08c7fcfc8aeaecbb46914796ff52e27e6c85")
+                "6ecbbfe2af2744b3000e02e21f70c96d5e2128a04db07e3d1c983036f7683d70")
 
     async def test_transaction_native_segwit_multisig(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertNativeSegwitMultiSigTransactionOK("37d3c7f0ff6846a34bbd69a472cadb83ee631b5ea1bc7695cfe52a3442ed7397")
+            await self.assertNativeSegwitMultiSigTransactionOK("27fb482d29a85b3141141622dde4015499cdf17ecc41b57c01dc387e9e87431e")
 
     async def test_sendmulti_recipient_tx(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendMultiRecipientsTXOK("c85e3e899b43c5a1f68647c852ee13f9e3e2b409b4cc73cce131d70dba1a793d")
+            await self.assertSendMultiRecipientsTXOK("b714d2614e05ae9442c44f39faa82cc41ef4d37348d04075e5315f41b9467071")
 
     async def test_send(self):
         with mock.patch('cryptos.electrumx_client.client.NotificationSession.send_request',
                         side_effect=self.mock_electrumx_send_request):
-            await self.assertSendOK("6d2cfbc85d56284f0ee88f977979d20e8e66017b48737568d1b23ae597594e2d")
+            await self.assertSendOK("ba75fb9bafeb6dd02d044b7814f3da917037bedf3d187eae4b94c10a6559e7d1")
 
     async def test_subscribe_block_headers(self):
         await self.assertSubscribeBlockHeadersOK()

@@ -541,10 +541,10 @@ class BaseSyncCoinTestCase(unittest.TestCase):
 
     def assertMultiSigTransactionOK(self):
         pubs = [privtopub(priv) for priv in self.privkeys]
-        script, address1 = self._coin.mk_multsig_address(*pubs, num_required=2)
+        script, address1 = self._coin.mk_multisig_address(*pubs, num_required=2)
         self.assertEqual(address1, self.multisig_addresses[0])
         pubs2 = [privtopub(priv) for priv in self.privkeys[0:2]]
-        script2, address2 = self._coin.mk_multsig_address(*pubs2)
+        script2, address2 = self._coin.mk_multisig_address(*pubs2)
         self.assertEqual(address2, self.multisig_addresses[1])
 
         # Find which of the three addresses currently has the most coins and choose that as the sender

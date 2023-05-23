@@ -93,11 +93,11 @@ class BaseSyncCoin:
             self._request_queue.sync_q.put((fut, "close", (), {}))
             fut.result(timeout=100)
 
-    def tx_size(self, txobj: Tx) -> float:
-        return self._async_coin.tx_size(txobj)
-
     def estimate_fee_per_kb(self, numblocks: int = 6) -> float:
         return self._run_async("estimate_fee_per_kb", numblocks=numblocks)
+
+    def tx_size(self, txobj: Tx) -> float:
+        return self._async_coin.tx_size(txobj)
 
     def estimate_fee(self, txobj: Tx, numblocks: int = 6) -> int:
         return self._run_async("estimate_fee", txobj, numblocks=numblocks)
@@ -169,11 +169,11 @@ class BaseSyncCoin:
     def get_raw_tx(self, tx_hash: str) -> str:
         return self._run_async("get_raw_tx", tx_hash)
 
-    def get_tx(self, tx_hash: str) -> Tx:
-        return self._run_async("get_tx", tx_hash)
+    def get_tx(self, txid: str) -> Tx:
+        return self._run_async("get_tx", txid)
 
-    def get_verbose_tx(self, tx_hash: str) -> Dict[str, Any]:       # Make TypedDict
-        return self._run_async("get_verbose_tx", tx_hash)
+    def get_verbose_tx(self, txid: str) -> Dict[str, Any]:       # Make TypedDict
+        return self._run_async("get_verbose_tx", txid)
 
     def get_txs(self, *args: str) -> List[Tx]:
         return self._run_async("get_txs", *args)
@@ -189,6 +189,15 @@ class BaseSyncCoin:
 
     def privtoaddr(self, privkey: PrivkeyType) -> str:
         return self._async_coin.privtoaddr(privkey)
+
+    def privtop2pkh(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtop2pkh(privkey)
+
+    def pub_is_for_p2pkh_addr(self, pubkey: PubKeyType, address: str) -> bool:
+        return self._async_coin.pub_is_for_p2pkh_addr(pubkey, address)
+
+    def wiftoaddr(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.wiftoaddr(privkey)
 
     def electrum_address(self, masterkey: AnyStr, n: int, for_change: int = 0) -> str:
         return self._async_coin.electrum_address(masterkey, n, for_change=for_change)
@@ -208,8 +217,17 @@ class BaseSyncCoin:
     def is_address(self, addr: str) -> bool:
         return self._async_coin.is_address(addr)
 
-    def is_legacy_segwit_or_multisig(self, addr: str) -> bool:
+    def is_cash_or_legacy_p2pkh_address(self, addr: str)-> bool:
+        return self._async_coin.is_cash_or_legacy_p2pkh_address(addr)
+
+    def maybe_legacy_segwit(self, addr: str) -> bool:
         return self._async_coin.maybe_legacy_segwit(addr)
+
+    def is_p2wsh(self, addr: str) -> bool:
+        return self._async_coin.is_p2wsh(addr)
+
+    def is_segwit_or_p2sh(self, addr: str) -> bool:
+        return self._async_coin.is_segwit_or_p2sh(addr)
 
     def is_segwit_or_multisig(self, addr: str) -> bool:
         return self._async_coin.is_segwit_or_p2sh(addr)
@@ -223,26 +241,38 @@ class BaseSyncCoin:
     def p2sh_scriptaddr(self, script: str) -> str:
         return self._async_coin.p2sh_scriptaddr(script)
 
+    def p2sh_segwit_addr(self, script: str) -> str:
+        return self._async_coin.p2sh_segwit_addr(script)
+
     def addrtoscript(self, addr: str) -> str:
         return self._async_coin.addrtoscript(addr)
 
     def addrtoscripthash(self, addr: str) -> str:
         return self._async_coin.addrtoscripthash(addr)
 
-    def pubtop2w(self, pub: str) -> str:
+    def pubtop2wpkh_p2sh(self, pub: str) -> str:
         return self._async_coin.pubtop2wpkh_p2sh(pub)
+
+    def privtop2wpkh_p2sh(self, priv: str) -> str:
+        return self._async_coin.privtop2wpkh_p2sh(priv)
 
     def hash_to_segwit_addr(self, pub_hash: str) -> str:
         return self._async_coin.hash_to_segwit_addr(pub_hash)
 
-    def pub_to_segwit_address(self, pubkey) -> str:
-        return self._async_coin.pub_to_segwit_address(pubkey)
+    def scripthash_to_segwit_addr(self, script_hash: AnyStr) -> str:
+        return self._async_coin.scripthash_to_segwit_addr(script_hash)
+
+    def pubtosegwitaddress(self, pubkey) -> str:
+        return self._async_coin.pubtosegwitaddress(pubkey)
 
     def script_to_p2wsh(self, script) -> str:
         return self._async_coin.script_to_p2wsh(script)
 
-    def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
-        return self._async_coin.mk_multsig_address(*args, num_required=num_required)
+    def mk_multisig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multisig_address(*args, num_required=num_required)
+
+    def mk_multsig_segwit_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+        return self._async_coin.mk_multsig_segwit_address(*args, num_required=num_required)
 
     def sign(self, txobj: Union[Tx, AnyStr], i: int, priv: PrivkeyType) -> Tx:
         return self._async_coin.sign(txobj, i, priv)
@@ -333,11 +363,14 @@ class BaseSyncCoin:
     def scripthash_to_cash_addr(self, scripthash: bytes) -> str:
         return self._async_coin.scripthash_to_cash_addr(scripthash)
 
+    def p2sh_cash_addr(self, script: str) -> str:
+        return self._async_coin.p2sh_cash_addr(script)
+
     def hash_to_cash_addr(self, pub_hash: AnyStr) -> str:
         return self._async_coin.hash_to_cash_addr(pub_hash)
 
-    def pub_to_cash_address(self, pubkey: str) -> str:
-        return self._async_coin.pub_to_cash_address(pubkey)
+    def pubtocashaddress(self, pubkey: str) -> str:
+        return self._async_coin.pubtocashaddress(pubkey)
 
     def privtocashaddress(self, privkey: PrivkeyType) -> str:
         return self._async_coin.privtocashaddress(privkey)
@@ -351,5 +384,11 @@ class BaseSyncCoin:
     def mk_multsig_cash_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         return self._async_coin.mk_multsig_cash_address(*args, num_required=num_required)
 
+    def apply_multisignatures(self, txobj: Tx, i: int, script, *args):
+        return self._async_coin.apply_multisignatures(txobj, i, script, *args)
+
     def calculate_fee(self, tx: Tx) -> int:
         return self._run_async("calculate_fee", tx)
+
+    def privtosegwitaddress(self, privkey: PrivkeyType) -> str:
+        return self._async_coin.privtosegwitaddress(privkey)

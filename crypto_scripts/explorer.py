@@ -72,7 +72,7 @@ async def input_belongs_to_address(coin: BaseCoin, inp: Dict[str, Any], address:
         elif coin.is_segwit_or_p2sh(address):
             if is_pubkey(pubkey_or_script):
                 return any(addr == address for addr in (                                    # P2W
-                    coin.pub_to_segwit_address(pubkey_or_script),
+                    coin.pubtosegwitaddress(pubkey_or_script),
                     coin.pubtop2wpkh_p2sh(pubkey_or_script),
                 ))
         return False

@@ -487,32 +487,93 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * privtopub            : (privkey) -> pubkey
 * pubtoaddr            : (pubkey) -> address
-* privtoaddr           : (privkey) -> address
+* privtoaddr           : (privkey) -> Convert a wif encoded private key to correct address, if not wif encoded then p2pkh
+* privtop2pkh          : (privkey) -> p2pkh address
 * encode_privkey       : (privkey, format, script_type="p2pkh") -> privkey
 * sign                 : (txobj, i, privkey) -> create digital signature of tx with privkey and add to input i
 * signall              : (txobj, privkey) -> create digital signature of tx with privkey for all inputs
-* history              : (address, merkle_proof=False) -> tx history and balance of an address
+* history              : (address, merkle_proof=False) -> tx history of an address
+* get_histories        : (*addresses, merkle_proof=False) -> tx histories of an address
 * unspent              : (address, merkle_proof=False) -> unspent outputs for an addresses
-* pushtx               : (hex or bin tx) -> push a transaction to the blockchain
-* get_tx               : (txhash) -> fetch a tx from the blockchain
+* get_unspents         : (addresses, merkle_proof=False) -> unspent outputs for multiple addresses
+* pushtx               : (hex or tx object) -> push a transaction to the blockchain
+* get_raw_tx           : (txid) -> Get the raw hex of a transaction id
+* get_tx               : (txid) -> fetch a tx from the blockchain
+* get_verbose_tx       : (txid) -> Transaction details verbose output
+* get_txs              : (*txids) -> Fetch multiple transaction details
+* calculate_fee        : (Tx) -> Calculate the fee of a transaction
 * send                 : (privkey, frm, to, value, change_addr=None, fee=None, estimate_fee_blocks: int = 6) -> create and a push a simple transaction to send coins to an address and return change to the change address or sender
 * send_to_multiple_receivers_tx          : (privkey, addr outs:value pairs, change_addr=None,fee=10000,, estimate_fee_blocks: int = 6) -> create and a push a transaction to send coins to multiple addresses and return change to the change address or sender
 * preparetx            : (frm, to, value, fee, estimate_fee_blocks: int = 6,change_addr=None): -> create unsigned txobj with change output
 * preparemultitx       : (frm, outs:value pairs, change_addr=None, fee=None, estimate_fee_blocks: int = 6): -> create unsigned txobj with multiple outputs and additional change output
 * preparesignedtx      : (privkey, frm, to, value, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with change output
 * preparesignedmultirecipienttx : (privkey, frm, outs: value pairs, change_addr=None, fee=10000, estimate_fee_blocks: int = 6) -> create signed txobj with multiple outputs and additional change output
-* mktx                 : (inputs, outputs, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
+* mktx                 : (inputs, outputs, locktifme=0, sequence=0xFFFFFFFF) -> create unsigned txobj
 * mktx_with_change     : (inputs, outputs, change_addr=None, fee=None, estimate_fee_blocks=6, locktime=0, sequence=0xFFFFFFFF) -> create unsigned txobj
-* mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multsig script and address pubkeys
+* mk_multisig_address  : (pubkeys, M) -> Returns both M-of-N multisig script and address
+* multisign            : (txobj, i, script, privkey) -> signature
+* apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
+* mk_multsig_segwit_address : (pubkeys, M)- Returns both M-of-N multisig script and native segwit address
+* mk_multsig_cash_address: (pubkeys, M)- Returns both M-of-N multisig script and Bitcoin Cash address
 * pubtop2w             : (pub) -> pay to witness script hash (segwit address)
 * privtop2w            : (priv) -> pay to witness script hash (segwit address)
+* pubtop2wpkh_p2sh     : (pub) -> Convert a public key to a segwit address encoded in a p2sh script
+* privtop2wpkh_p2sh    : (priv) -> Convert a private key to a segwit address encoded in a p2sh script
+* hash_to_segwit_addr  : (hash) -. Convert a public key hash to a native segwit address
+* scripthash_to_segwit_addr: (hash) -> Convert the hash of a p2sh script to a native segwit address
 * is_address           : (addr) -> true if addr is a valid address for this network
+* is_p2pkh              : (address) -> Return true if an address is in p2pkh format
 * is_p2sh              : (addr) -> true if addr is a pay to script hash for this network
 * is_segwit            : (priv, addr) -> true if priv-addr pair represent a pay to witness script hash
+* is_cash_or_legacy_p2pkh_address : (address) -> Returns true if an address is a legacy p2pkh address or a Bitcoin Cash formatted p2pkh address
+* is_native_segwit      : (address) -> Returns true if an address is of native segwit type
+* is_cash_address       : (address) -> Returns true if an address is of Bitcoin Cash address format
+* maybe_legacy_segwit   : (address) -> Returns true if address is likely a legacy segwit p2sh address
+* is_p2wsh              : (address) -> Returns true is address is a Pay To Witness Script Address
+* is_segwit_or_p2sh     : (address) -> Returns true if an address is a Pay to Witness or Pay to Script address
 * current_block_height : () -> Latest block height
 * block_height         : (txhash) -> Block height containing the txhash
 * inspect              : (tx_hex) -> Deserialize a transaction and decode and ins and outs
 * merkle_prove         : (txhash) -> Proves a transaction is valid and returns txhash, merkle siblings and block header.
+* estimate_fee_per_kb  : (numblocks) -> Get estimated fee kb to get transaction confirmed within numblocks number of blocks
+* tx_size              : (tx) -> Estimate final transaction size of an unsigned transaction
+* estimate_fee         : (tx, numblocks=6) -> Estimate required fee of an unsigned transaction
+* raw_block_header     : (height) -> Get the raw data of a block header
+* block_header         : (height) -> Get the decoded details of a block header
+* block_headers        : (*heights) -> Get a list of decoded block headers
+* subscribe_to_block_headers: (callback(height, raw_header, decoded_header)) -> Run a callback whenever a new block is added to the blockchain
+* unsubscribe_from_block_headers: () -> Remove all subscriptions to block headers
+* confirmations        : (height) -> Number of confirmations a transaction at this height has
+* subscribe_to_address : (callback(addr, status), addr) -> Run a callback every time there is an activity on an address
+* subscribe_to_address_transactions : (callback(address: str, txs, newly_confirmed, history, unspent, confirmed, unconfirmed, proven), addr) -> Run a callback every time there is an activity on an address with details transaction and balance information already retrieved
+* unsubscribe_from_address: (addr) -> Remove all subscriptions for this address
+* get_balance           : (addr) -> Get the balance, confirmed and unconfirmed, for an address
+* get_balances          : (*addrs) -> Get the balance, confirmed and unconfirmed, for multiple addresses
+* get_merkle            : (tx) -> Get the merkle root of a transaction
+* merkle_prove          : (tx) -> Prove a transaction is valid
+* merkle_prove_by_txid  : (txid) -> Prove a transaction id is valid
+* balance_merkle_proven : (addr) -> Get the merkle proven balance for an address
+* balance_merkle_proven : (*addrs) -> Get the merkle proven balance for multiple addresses
+* get_address_variations: (addr) -> Return alternative formats for an address (e.g. Standard + Bitcoin Cash address)
+* pub_is_for_p2pkh_addr : (pub, addr) -> Returns true if the p2pkh address for pub is addr
+* wiftoaddr             : (priv) -> Convert a private key in WIF format to the correct address type
+* electrum_address      : (masterkey, n, for_change) -> Electrum Address (for old Electrum seeds)
+* encode_privkey        : (privkey, format, script_type) -> Convert a private key to a different format or script types
+* output_script_to_address : (script) -> Convert an output script to an address
+* scripttoaddr          : (script)  -> Convert an input script to an address 
+* addrtoscript          : (address) -> Convert an address to an output script
+* addrtoscripthash      : (address) -> Convert an address to scripthash as required by ElectrumX servers
+* p2sh_scriptaddr       : (script) -> Convert an output P2SH script to a P2SH address
+* p2sh_segwit_addr      : (script) -> Convert an output P2SH script to a native segwit P2WSH address
+* pubtosegwitaddress    : (pub) -> Convert a public key to a native segwit address
+* privtosegwitaddress   : (priv) -> Convert a private key to a native segwit address
+* scripthash_to_cash_addr: (scripthash) -> Convert a scripthash to a Bitcoin Cash address
+* pubtocashaddress      : (pub) -> Convert a public key to a Bitcoin Cash address
+* privtocashaddress     : (priv) -> Convert a private key to a Bitcoin Cash address 
+* p2sh_cash_addr        : (script) -> Convert an script to a Bitcoin Cash address
+* hash_to_cash_addr     : (hash) -> Convert the hash of a p2sh script to a Bitcoin Cash address
+* legacy_addr_to_cash_address: (addr) -> Convert a legacy P2PKH address to a Bitcoin Cash address
+* cash_address_to_legacy_addr: (addr) -> Convert a Bitcoin Cash address to a legalcy P2PKH address
 
 ### Listing of main non-coin specific commands:
 
@@ -538,11 +599,7 @@ The arguments are the private key of the sender, the receiver's address and the 
 
 * deserialize          : (hex or bin transaction) -> JSON tx
 * serialize            : (JSON tx) -> hex or bin tx
-* multisign            : (txobj, i, script, privkey) -> signature
-* apply_multisignatures: (txobj, i, script, sigs) -> tx with index i signed with sigs
-* scriptaddr           : (script) -> P2SH address
-* mk_multisig_script   : (pubkeys, M) -> M-of-N multisig script from pubkeys
-* verify_tx_input      : (tx, i, script, sig, pub) -> True/False
+s* verify_tx_input      : (tx, i, script, sig, pub) -> True/False
 * tx_hash              : (hex or bin tx) -> hash
 
 * access               : (json list/object, prop) -> desired property of that json object

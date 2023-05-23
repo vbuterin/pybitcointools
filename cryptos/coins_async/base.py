@@ -440,25 +440,25 @@ class BaseCoin:
         """
         return await self.client.get_tx(tx_hash)
 
-    async def get_tx(self, tx_hash: str) -> Tx:
+    async def get_tx(self, txid: str) -> Tx:
         """
         Fetch transaction from the blockchain and deserialise it to a dictionary
         """
-        tx = await self.get_raw_tx(tx_hash)
+        tx = await self.get_raw_tx(txid)
         deserialized_tx = deserialize(tx)
         return deserialized_tx
 
-    async def get_verbose_tx(self, tx_hash: str) -> ElectrumXVerboseTX:
+    async def get_verbose_tx(self, txid: str) -> ElectrumXVerboseTX:
         """
         Fetch transaction from the blockchain in verbose form
         """
-        return await self.client.get_tx(tx_hash, verbose=True)
+        return await self.client.get_tx(txid, verbose=True)
 
     async def get_txs(self, *args: str) -> AsyncGenerator[Tx, None]:
         for tx in await asyncio.gather(*[self.get_tx(tx_hash) for tx_hash in args]):
             yield tx
 
-    async def ensure_values(self, tx: Tx) -> Tx:
+    async def _ensure_values(self, tx: Tx) -> Tx:
         if not all(inp.get('value') for inp in tx['ins']):
             tx_hashes = list(dict.fromkeys([inp['tx_hash'] for inp in tx['ins'] if not inp.get('value')]))
             try:
@@ -473,7 +473,7 @@ class BaseCoin:
 
     async def calculate_fee(self, tx: Tx) -> int:
         try:
-            tx = await self.ensure_values(tx)
+            tx = await self._ensure_values(tx)
         except RuntimeError:
             pass
         in_value = sum(i['value'] for i in tx['ins'])
@@ -521,7 +521,7 @@ class BaseCoin:
 
     def pub_is_for_p2pkh_addr(self, pubkey: PubKeyType, address: str) -> bool:
         return self.pubtoaddr(pubkey) == address or (
-                self.cash_address_supported and self.pub_to_cash_address(pubkey) == address)
+                self.cash_address_supported and self.pubtocashaddress(pubkey) == address)
 
     def wiftoaddr(self, privkey: PrivkeyType) -> str:
         magicbyte, priv = b58check_to_bin(privkey)
@@ -617,7 +617,7 @@ class BaseCoin:
 
     def scripttoaddr(self, script: str) -> str:
         """
-        Convert an input public key hash to an address
+        Convert an input public key has or script to an address
         """
         if is_hex(script):
             script = binascii.unhexlify(script)
@@ -730,9 +730,9 @@ class BaseCoin:
         """
         Convert a private key to the new segwit address format outlined in BIP01743
         """
-        return self.pub_to_segwit_address(self.privtopub(privkey))
+        return self.pubtosegwitaddress(self.privtopub(privkey))
 
-    def pub_to_cash_address(self, pubkey: str) -> str:
+    def pubtocashaddress(self, pubkey: str) -> str:
         """
         Convert a public key to a cash address
         """
@@ -742,7 +742,7 @@ class BaseCoin:
         """
         Convert a private key to a cash address
         """
-        return self.pub_to_cash_address(self.privtopub(privkey))
+        return self.pubtocashaddress(self.privtopub(privkey))
 
     def legacy_addr_to_cash_address(self, addr: str) -> str:
         """
@@ -765,13 +765,13 @@ class BaseCoin:
             return bin_to_b58check(pubkey_hash, self.magicbyte)
         return bin_to_b58check(pubkey_hash, self.script_magicbyte)
 
-    def pub_to_segwit_address(self, pubkey: str) -> str:
+    def pubtosegwitaddress(self, pubkey: str) -> str:
         """
         Convert a public key to the new segwit address format outlined in BIP01743
         """
         return self.hash_to_segwit_addr(pubkey_to_hash(compress(pubkey)))
 
-    def mk_multsig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
+    def mk_multisig_address(self, *args: str, num_required: int = None) -> Tuple[str, str]:
         """
         :param args: List of public keys to used to create multisig
         :param num_required: The number of signatures required to spend (defaults to number of public keys provided)

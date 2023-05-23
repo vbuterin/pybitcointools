@@ -56,8 +56,8 @@ def main():
 
         assert native_segwit_address == native_segwit_compressed_address
 
-        native_segwit_address2 = coin.pub_to_segwit_address(public_key)
-        native_segwit_compressed_address2 = coin.pub_to_segwit_address(compressed_public_key)
+        native_segwit_address2 = coin.pubtosegwitaddress(public_key)
+        native_segwit_compressed_address2 = coin.pubtosegwitaddress(compressed_public_key)
 
         assert native_segwit_address2 == native_segwit_compressed_address2
 
