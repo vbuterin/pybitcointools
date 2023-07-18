@@ -1,13 +1,17 @@
 {
-    "vmi1078963.contaboserver.net": {
+    "electrum1.cipig.net": {
         "pruning": "-",
-        "t": "50001",
-        "s": "50002",
+        "t": "10060",
         "version": "1.4"
     },
-    "194.163.143.28": {
+    "electrum2.cipig.net": {
         "pruning": "-",
-        "t": "50001",
+        "t": "10060",
+        "version": "1.4"
+    },
+    "electrum3.cipig.net": {
+        "pruning": "-",
+        "t": "10060",
         "version": "1.4"
     }
 }
