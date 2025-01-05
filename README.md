@@ -9,3 +9,33 @@ This repository is a Python project. It includes patterns to ignore Python bytec
 The purpose of this project is to provide tools for working with Bitcoin in Python.
 
 For more information on rate limits and tokens, visit: http://www.blockcypher.com/dev/bitcoin#rate-limits-and-tokens
+
+## Rate Limits and Tokens
+
+This section provides usage instructions for the `blockcypher.py` module, which handles rate limits and tokens for BlockCypher's Bitcoin API.
+
+### Usage Instructions
+
+1. Import the `blockcypher` module:
+    ```python
+    import blockcypher
+    ```
+
+2. Set your API token:
+    ```python
+    blockcypher.set_api_token('your_api_token_here')
+    ```
+
+3. Retrieve the current API token:
+    ```python
+    token = blockcypher.get_api_token()
+    print(f'Current API Token: {token}')
+    ```
+
+4. Check the current rate limit status:
+    ```python
+    rate_limit_status = blockcypher.get_rate_limit_status()
+    print(f'Rate Limit Status: {rate_limit_status}')
+    ```
+
+For more information on rate limits and tokens, visit: http://www.blockcypher.com/dev/bitcoin#rate-limits-and-tokens
